@@ -16,6 +16,7 @@ yarn-error.log*
 **/build/
 backend/uploads/*
 !backend/uploads/.gitkeep
+backend/run_app.log
 
 # Android
 android/.gradle/
