@@ -11,7 +11,7 @@ class SyncWorker(
     workerParams: WorkerParameters
 ) : CoroutineWorker(appContext, workerParams) {
 
-    override suspend doWork(): Result {
+    override suspend fun doWork(): Result {
         return try {
             val db = Room.databaseBuilder(
                 applicationContext,

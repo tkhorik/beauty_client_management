@@ -21,6 +21,7 @@ backend/uploads/*
 android/.gradle/
 android/app/build/
 android/.idea/
+android/local.properties
 *.apk
 *.aar
 memory.md

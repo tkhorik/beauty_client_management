@@ -40,9 +40,10 @@ dependencies {
     implementation("org.jetbrains.exposed:exposed-java-time:$exposedVersion")
     implementation("org.jetbrains.exposed:exposed-json:$exposedVersion")
     implementation("org.postgresql:postgresql:$postgresVersion")
+    runtimeOnly("com.h2database:h2:2.2.224")
 
     // Security & Utilities
-    implementation("mindrot:jbcrypt:0.4")
+    implementation("org.mindrot:jbcrypt:0.4")
     implementation("ch.qos.logback:logback-classic:$logbackVersion")
 
     // Testing
