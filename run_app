@@ -15,29 +15,42 @@ WEB_PORT="${WEB_PORT:-5174}"
 BACKEND_LOG="${ROOT_DIR}/backend/run_app.log"
 WEB_LOG="${ROOT_DIR}/web/run_app.log"
 
+# Track PIDs globally
+BACKID=""
+WEB_PID=""
+EMULATOR_PID=""
+
 cleanup() {
+  echo ""
+  echo "==> Stopping all services..."
+  
   if [[ -n "${BACKEND_PID:-}" ]] && kill -0 "$BACKEND_PID" 2>/dev/null; then
-    kill "$BACKEND_PID" 2>/dev/null || true
+    echo "==> Stopping backend (PID: $BACKEND_PID)"
+    kill -- -$BACKEND_PID 2>/dev/null || kill "$BACKEND_PID" 2>/dev/null || true
   fi
+  
   if [[ -n "${WEB_PID:-}" ]] && kill -0 "$WEB_PID" 2>/dev/null; then
-    kill "$WEB_PID" 2>/dev/null || true
+    echo "==> Stopping web server (PID: $WEB_PID)"
+    kill -- -$WEB_PID 2>/dev/null || kill "$WEB_PID" 2>/dev/null || true
   fi
+
+  if [[ -n "${EMULATOR_PID:-}" ]] && kill -0 "$EMULATOR_PID" 2>/dev/null; then
+    echo "==> Stopping Android emulator (PID: $EMULATOR_PID)"
+    kill "$EMULATOR_PID" 2>/dev/null || true
+  fi
+  
+  echo "==> Cleanup complete."
 }
 
-trap cleanup EXIT
+# Trap EXIT, SIGINT (Ctrl+C), and SIGTERM
+trap cleanup EXIT INT TERM
 
 echo "==> Backend: starting Ktor API on http://127.0.0.1:${BACKEND_PORT}"
-(
-  cd "${ROOT_DIR}/backend"
-  JAVA_HOME="${JAVA_HOME}" ./gradlew run
-) >"${BACKEND_LOG}" 2>&1 &
+setsid bash -c "cd '${ROOT_DIR}/backend' && JAVA_HOME='${JAVA_HOME}' ./gradlew run >'${BACKEND_LOG}' 2>&1" &
 BACKEND_PID=$!
 
 echo "==> Web: starting Vite dev server on http://${WEB_HOST}:${WEB_PORT}"
-(
-  cd "${ROOT_DIR}/web"
-  npm run dev -- --host "${WEB_HOST}" --port "${WEB_PORT}"
-) >"${WEB_LOG}" 2>&1 &
+setsid bash -c "cd '${ROOT_DIR}/web' && npm run dev -- --host '${WEB_HOST}' --port '${WEB_PORT}' >'${WEB_LOG}' 2>&1" &
 WEB_PID=$!
 
 echo "==> Android: building debug APK"
@@ -69,11 +82,13 @@ echo "==> Android: launching app"
 "${ADB_BIN}" shell am start -n com.beauty.app/.MainActivity
 
 echo
-echo "Run complete."
+echo "=================================================="
+echo "App is running! Press [CTRL+C] to stop everything."
+echo "=================================================="
 echo "Backend log: ${BACKEND_LOG}"
 echo "Web log: ${WEB_LOG}"
 echo "Web URL: http://${WEB_HOST}:${WEB_PORT}/"
 echo "Backend URL: http://127.0.0.1:${BACKEND_PORT}/"
-echo "Android AVD: ${AVD_NAME}"
-echo "Android emulator memory: ${EMULATOR_MEMORY_MB} MiB"
-echo "To stop backend/web later: kill ${BACKEND_PID} ${WEB_PID}"
+
+# This keeps the script running in the terminal until Ctrl+C is pressed
+wait
