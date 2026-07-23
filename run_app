@@ -1,0 +1,79 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+JAVA_HOME_DEFAULT="/Users/marv/Library/Java/JavaVirtualMachines/corretto-17.0.19/Contents/Home"
+JAVA_HOME="${JAVA_HOME:-$JAVA_HOME_DEFAULT}"
+ADB_BIN="${ADB_BIN:-/opt/homebrew/bin/adb}"
+EMULATOR_BIN="${EMULATOR_BIN:-/Users/marv/Library/Android/sdk/emulator/emulator}"
+AVD_NAME="${AVD_NAME:-Pixel_7a}"
+EMULATOR_MEMORY_MB="${EMULATOR_MEMORY_MB:-2048}"
+BACKEND_PORT="${BACKEND_PORT:-8080}"
+WEB_HOST="${WEB_HOST:-127.0.0.1}"
+WEB_PORT="${WEB_PORT:-5174}"
+
+BACKEND_LOG="${ROOT_DIR}/backend/run_app.log"
+WEB_LOG="${ROOT_DIR}/web/run_app.log"
+
+cleanup() {
+  if [[ -n "${BACKEND_PID:-}" ]] && kill -0 "$BACKEND_PID" 2>/dev/null; then
+    kill "$BACKEND_PID" 2>/dev/null || true
+  fi
+  if [[ -n "${WEB_PID:-}" ]] && kill -0 "$WEB_PID" 2>/dev/null; then
+    kill "$WEB_PID" 2>/dev/null || true
+  fi
+}
+
+trap cleanup EXIT
+
+echo "==> Backend: starting Ktor API on http://127.0.0.1:${BACKEND_PORT}"
+(
+  cd "${ROOT_DIR}/backend"
+  JAVA_HOME="${JAVA_HOME}" ./gradlew run
+) >"${BACKEND_LOG}" 2>&1 &
+BACKEND_PID=$!
+
+echo "==> Web: starting Vite dev server on http://${WEB_HOST}:${WEB_PORT}"
+(
+  cd "${ROOT_DIR}/web"
+  npm run dev -- --host "${WEB_HOST}" --port "${WEB_PORT}"
+) >"${WEB_LOG}" 2>&1 &
+WEB_PID=$!
+
+echo "==> Android: building debug APK"
+(
+  cd "${ROOT_DIR}/android"
+  JAVA_HOME="${JAVA_HOME}" ./gradlew assembleDebug
+)
+
+echo "==> Android: checking emulator"
+if ! "${ADB_BIN}" devices | tail -n +2 | grep -q "device$"; then
+  echo "==> Android: launching emulator ${AVD_NAME}"
+  "${EMULATOR_BIN}" -avd "${AVD_NAME}" -memory "${EMULATOR_MEMORY_MB}" -no-boot-anim >/tmp/run_app-emulator.log 2>&1 &
+  EMULATOR_PID=$!
+  echo "==> Android: waiting for adb device"
+  "${ADB_BIN}" wait-for-device
+else
+  echo "==> Android: a device is already connected"
+fi
+
+echo "==> Android: waiting for boot completion"
+until [[ "$("${ADB_BIN}" shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" == "1" ]]; do
+  sleep 2
+done
+
+echo "==> Android: installing APK"
+"${ADB_BIN}" install -r "${ROOT_DIR}/android/app/build/outputs/apk/debug/app-debug.apk"
+
+echo "==> Android: launching app"
+"${ADB_BIN}" shell am start -n com.beauty.app/.MainActivity
+
+echo
+echo "Run complete."
+echo "Backend log: ${BACKEND_LOG}"
+echo "Web log: ${WEB_LOG}"
+echo "Web URL: http://${WEB_HOST}:${WEB_PORT}/"
+echo "Backend URL: http://127.0.0.1:${BACKEND_PORT}/"
+echo "Android AVD: ${AVD_NAME}"
+echo "Android emulator memory: ${EMULATOR_MEMORY_MB} MiB"
+echo "To stop backend/web later: kill ${BACKEND_PID} ${WEB_PID}"
