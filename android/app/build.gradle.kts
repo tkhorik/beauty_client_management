@@ -1,6 +1,7 @@
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
+    id("org.jetbrains.kotlin.plugin.serialization")
     id("kotlin-kapt")
 }
 
@@ -15,6 +16,7 @@ android {
         versionCode = 1
         versionName = "1.0.0"
 
+
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
             useSupportLibrary = true
@@ -22,7 +24,14 @@ android {
     }
 
     buildTypes {
+        debug {
+            buildConfigField("String", "API_BASE_URL", "\"http://10.0.2.2:8080/\"")
+        }
         release {
+            val releaseApiBaseUrl = providers.gradleProperty("releaseApiBaseUrl")
+                .orElse("https://api.example.invalid/")
+                .get()
+            buildConfigField("String", "API_BASE_URL", "\"$releaseApiBaseUrl\"")
             isMinifyEnabled = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
@@ -36,6 +45,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
     composeOptions {
         kotlinCompilerExtensionVersion = "1.5.8"
@@ -66,7 +76,17 @@ dependencies {
 
     // Ktor Client for Android
     implementation("io.ktor:ktor-client-core:2.3.8")
-    implementation("io.ktor:ktor-client-cio:2.3.8")
+    implementation("io.ktor:ktor-client-okhttp:2.3.8")
     implementation("io.ktor:ktor-client-content-negotiation:2.3.8")
     implementation("io.ktor:ktor-serialization-kotlinx-json:2.3.8")
+
+    testImplementation("junit:junit:4.13.2")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.3")
+    testImplementation("io.ktor:ktor-client-mock:2.3.8")
+    testImplementation("org.mockito.kotlin:mockito-kotlin:5.2.1")
+
+    androidTestImplementation("androidx.test.ext:junit:1.1.5")
+    androidTestImplementation("androidx.test:runner:1.5.2")
+    androidTestImplementation("androidx.test:core:1.5.0")
+    androidTestImplementation("androidx.room:room-testing:$roomVersion")
 }

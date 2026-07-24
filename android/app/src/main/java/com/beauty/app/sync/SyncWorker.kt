@@ -2,9 +2,23 @@ package com.beauty.app.sync
 
 import android.content.Context
 import androidx.work.CoroutineWorker
+import androidx.work.Constraints
+import androidx.work.ExistingWorkPolicy
+import androidx.work.ListenableWorker.Result
+import androidx.work.NetworkType
+import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkerParameters
-import com.beauty.app.data.local.BeautyDatabase
-import androidx.room.Room
+import androidx.work.WorkManager
+import com.beauty.app.AppContainer
+import com.beauty.app.data.VisitSyncRepository
+
+class VisitSyncCoordinator(private val repository: VisitSyncRepository) {
+    suspend fun sync(): Result = try {
+        if (repository.syncPendingVisits()) Result.success() else Result.retry()
+    } catch (_: Exception) {
+        Result.retry()
+    }
+}
 
 class SyncWorker(
     appContext: Context,
@@ -12,25 +26,21 @@ class SyncWorker(
 ) : CoroutineWorker(appContext, workerParams) {
 
     override suspend fun doWork(): Result {
-        return try {
-            val db = Room.databaseBuilder(
-                applicationContext,
-                BeautyDatabase::class.java,
-                "beauty_db"
-            ).build()
+        return VisitSyncCoordinator(AppContainer.repository(applicationContext)).sync()
+    }
 
-            val visitDao = db.visitDao()
-            val pendingVisits = visitDao.getUnsyncedVisits()
+    companion object {
+        private const val UNIQUE_WORK_NAME = "visit-api-sync"
 
-            for (visit in pendingVisits) {
-                // Background Sync logic: Upload to Ktor Backend REST API
-                // On HTTP 200 Success -> visitDao.markVisitSynced(visit.id)
-                visitDao.markVisitSynced(visit.id)
-            }
-
-            Result.success()
-        } catch (e: Exception) {
-            Result.retry()
+        fun enqueue(context: Context) {
+            val request = OneTimeWorkRequestBuilder<SyncWorker>()
+                .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
+                .build()
+            WorkManager.getInstance(context).enqueueUniqueWork(
+                UNIQUE_WORK_NAME,
+                ExistingWorkPolicy.KEEP,
+                request
+            )
         }
     }
 }

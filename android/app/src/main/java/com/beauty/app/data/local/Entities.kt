@@ -29,12 +29,15 @@ data class ClientEntity(
 )
 data class VisitEntity(
     @PrimaryKey val id: String,
+    val remoteId: String? = null,
     val clientId: String,
     val visitDateTime: String,
     val durationMinutes: Int,
     val procedureNotes: String,
     val status: String,
     val isPendingSync: Boolean = false,
+    val syncError: String? = null,
+    val syncAttempts: Int = 0,
     val createdAt: Long = System.currentTimeMillis()
 )
 
@@ -79,19 +82,22 @@ interface VisitDao {
     @Query("SELECT * FROM visits WHERE clientId = :clientId ORDER BY createdAt DESC")
     fun getVisitsForClient(clientId: String): Flow<List<VisitEntity>>
 
-    @Query("SELECT * FROM visits WHERE isPendingSync = 1")
+    @Query("SELECT * FROM visits WHERE isPendingSync = 1 AND remoteId IS NULL ORDER BY createdAt ASC")
     suspend fun getUnsyncedVisits(): List<VisitEntity>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertVisit(visit: VisitEntity)
 
-    @Query("UPDATE visits SET isPendingSync = 0 WHERE id = :visitId")
-    suspend fun markVisitSynced(visitId: String)
+    @Query("UPDATE visits SET remoteId = :remoteId, isPendingSync = 0, syncError = NULL WHERE id = :visitId")
+    suspend fun markVisitSynced(visitId: String, remoteId: String)
+
+    @Query("UPDATE visits SET syncError = :error, syncAttempts = syncAttempts + 1 WHERE id = :visitId")
+    suspend fun markVisitSyncFailed(visitId: String, error: String)
 }
 
 @Database(
     entities = [ClientEntity::class, VisitEntity::class, AttachmentEntity::class],
-    version = 1,
+    version = 2,
     exportSchema = false
 )
 abstract class BeautyDatabase : RoomDatabase() {

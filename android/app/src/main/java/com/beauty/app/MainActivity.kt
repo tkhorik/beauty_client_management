@@ -22,8 +22,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.beauty.app.ui.theme.*
+import com.beauty.app.data.local.ClientEntity
+import com.beauty.app.data.local.BeautyDatabaseProvider
+import com.beauty.app.sync.SyncWorker
+import kotlinx.coroutines.launch
+import kotlinx.serialization.json.Json
 
-data class DemoClient(
+data class DirectoryClient(
     val name: String,
     val phone: String,
     val tag: String,
@@ -51,12 +56,14 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun BeautyAppScreen() {
     var searchQuery by remember { mutableStateOf("") }
-
-    val demoClients = listOf(
-        DemoClient("Elena Vance", "+1 (555) 234-5678", "VIP • Sensitive Skin", 3, "July 22, 2026"),
-        DemoClient("Sophia Reynolds", "+1 (555) 876-5432", "Hair Color • VIP", 2, "July 20, 2026"),
-        DemoClient("Chloe Bennett", "+1 (555) 432-1098", "Skin Microderm", 1, "July 01, 2026")
-    )
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val database = remember { BeautyDatabaseProvider.get(context) }
+    val repository = remember { AppContainer.repository(context) }
+    val clients by database.clientDao().getAllClients().collectAsState(initial = emptyList())
+    LaunchedEffect(Unit) {
+        repository.refreshClients()
+        SyncWorker.enqueue(context)
+    }
 
     Scaffold(
         topBar = {
@@ -83,7 +90,7 @@ fun BeautyAppScreen() {
         },
         floatingActionButton = {
             FloatingActionButton(
-                onClick = { /* Log new visit */ },
+                onClick = { /* Visit-entry UI is intentionally out of scope; repository can queue visits. */ },
                 containerColor = RoseGoldPrimary,
                 contentColor = Color.Black
             ) {
@@ -140,8 +147,11 @@ fun BeautyAppScreen() {
             LazyColumn(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                items(demoClients.filter { it.name.contains(searchQuery, ignoreCase = true) || it.tag.contains(searchQuery, ignoreCase = true) }) { client ->
-                    ClientCardItem(client)
+                items(clients.filter { client ->
+                    client.name.contains(searchQuery, ignoreCase = true) ||
+                        client.tagsJson.contains(searchQuery, ignoreCase = true)
+                }) { client ->
+                    ClientCardItem(client.toDirectoryClient())
                 }
             }
         }
@@ -149,7 +159,7 @@ fun BeautyAppScreen() {
 }
 
 @Composable
-fun ClientCardItem(client: DemoClient) {
+fun ClientCardItem(client: DirectoryClient) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(14.dp),
@@ -203,4 +213,16 @@ fun ClientCardItem(client: DemoClient) {
             }
         }
     }
+}
+
+private fun ClientEntity.toDirectoryClient(): DirectoryClient {
+    val tags = runCatching { Json.decodeFromString<List<String>>(tagsJson).joinToString(" • ") }
+        .getOrDefault("")
+    return DirectoryClient(
+        name = name,
+        phone = phone,
+        tag = tags.ifBlank { "No tags" },
+        visitsCount = totalVisits,
+        lastVisit = "Synced from API"
+    )
 }

@@ -1,0 +1,84 @@
+package com.beauty.app.data
+
+import com.beauty.app.data.api.BeautyApi
+import com.beauty.app.data.api.ClientDto
+import com.beauty.app.data.api.CreateVisitRequest
+import com.beauty.app.data.local.ClientDao
+import com.beauty.app.data.local.ClientEntity
+import com.beauty.app.data.local.VisitDao
+import com.beauty.app.data.local.VisitEntity
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
+import java.util.UUID
+
+interface VisitSyncRepository {
+    suspend fun syncPendingVisits(): Boolean
+}
+
+class BeautyRepository(
+    private val api: BeautyApi,
+    private val clientDao: ClientDao,
+    private val visitDao: VisitDao,
+    private val json: Json = Json
+) : VisitSyncRepository {
+    suspend fun refreshClients(): Result<Unit> = runCatching {
+        api.getClients().forEach { clientDao.insertClient(it.toEntity(json)) }
+    }
+
+    suspend fun enqueueVisit(
+        clientId: String,
+        visitDateTime: String,
+        durationMinutes: Int,
+        procedureNotes: String,
+        status: String = "COMPLETED"
+    ): String {
+        val localId = UUID.randomUUID().toString()
+        visitDao.insertVisit(
+            VisitEntity(
+                id = localId,
+                clientId = clientId,
+                visitDateTime = visitDateTime,
+                durationMinutes = durationMinutes,
+                procedureNotes = procedureNotes,
+                status = status,
+                isPendingSync = true
+            )
+        )
+        return localId
+    }
+
+    override suspend fun syncPendingVisits(): Boolean {
+        var allSucceeded = true
+        visitDao.getUnsyncedVisits().forEach { visit ->
+            try {
+                val created = api.createVisit(visit.toRequest())
+                if (created.id.isBlank()) error("Backend returned a visit without an ID")
+                visitDao.markVisitSynced(visit.id, created.id)
+            } catch (error: Exception) {
+                allSucceeded = false
+                visitDao.markVisitSyncFailed(visit.id, error.message ?: "Visit upload failed")
+            }
+        }
+        return allSucceeded
+    }
+}
+
+private fun ClientDto.toEntity(json: Json) = ClientEntity(
+    id = id,
+    name = name,
+    phone = phone,
+    email = email,
+    tagsJson = json.encodeToString(tags),
+    customFieldsJson = customFields.toString(),
+    totalVisits = totalVisits,
+    isSynced = true,
+    updatedAt = System.currentTimeMillis()
+)
+
+private fun VisitEntity.toRequest() = CreateVisitRequest(
+    clientId = clientId,
+    visitDateTime = visitDateTime,
+    durationMinutes = durationMinutes,
+    procedureNotes = procedureNotes,
+    status = status
+)

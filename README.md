@@ -84,7 +84,20 @@ What this does:
 
 ## Android Testing
 
-The Android app is a local debug build that runs on an emulator or physical device.
+The Android app is a local debug build that runs on an emulator or physical device. Its data path is:
+
+`Android app → Ktor REST API → PostgreSQL (or local H2 fallback)`
+
+Android never connects directly to PostgreSQL. Room is an on-device cache and offline visit-sync queue only.
+
+### Android API behavior
+
+- Start the backend before launching Android. The debug emulator build uses `http://10.0.2.2:8080/`, where `10.0.2.2` is the emulator alias for the host machine's loopback interface.
+- On launch, Android refreshes the client directory from `GET /api/clients` and stores the result in Room. If the backend is unavailable, previously cached clients remain visible.
+- Queued visits are uploaded by unique, network-constrained WorkManager work to `POST /api/visits`. A visit is marked synced only when the backend returns `201 Created`; transient failures remain queued and are retried.
+- Debug builds permit local HTTP so they can reach the local backend. Release builds require an HTTPS API URL, supplied with `-PreleaseApiBaseUrl=https://api.example.com/` when building.
+
+The current mobile UI is a client directory only. The repository supports queueing visits for later UI work, but visit-entry UI, authentication, and attachment sync are not yet implemented.
 
 ### Build the debug APK
 
