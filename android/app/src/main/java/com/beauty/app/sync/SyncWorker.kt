@@ -26,7 +26,8 @@ class SyncWorker(
 ) : CoroutineWorker(appContext, workerParams) {
 
     override suspend fun doWork(): Result {
-        return VisitSyncCoordinator(AppContainer.repository(applicationContext)).sync()
+        val tokenStore = AppContainer.tokenStore(applicationContext)
+        return VisitSyncCoordinator(AppContainer.repository(applicationContext, tokenStore)).sync()
     }
 
     companion object {

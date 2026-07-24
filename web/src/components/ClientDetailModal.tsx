@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import type { Client, Visit, Attachment } from '../types';
-import { X, Calendar, Clock, Plus, Trash2, Edit3, Camera, FileText, Sliders } from 'lucide-react';
+import { X, Calendar, Clock, Plus, Trash2, Edit3, Edit2, Camera, FileText, Sliders } from 'lucide-react';
 import { api } from '../services/api';
+import { EditClientModal } from './EditClientModal';
 
 interface ClientDetailModalProps {
   client: Client;
@@ -25,6 +26,7 @@ export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
   const [newValue, setNewValue] = useState('');
   const [isEditingFields, setIsEditingFields] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isEditClientOpen, setIsEditClientOpen] = useState(false);
 
   const handleAddField = () => {
     if (!newKey.trim()) return;
@@ -105,6 +107,9 @@ export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <button className="btn-secondary" onClick={() => setIsEditClientOpen(true)} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <Edit2 size={16} /> Edit Client
+            </button>
             <button className="btn-rose" onClick={() => onOpenNewVisit(client)}>
               <Plus size={16} /> Log New Visit
             </button>
@@ -257,6 +262,15 @@ export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
 
         </div>
       </div>
+
+      {/* Edit Client Modal */}
+      {isEditClientOpen && (
+        <EditClientModal
+          client={client}
+          onClose={() => setIsEditClientOpen(false)}
+          onSuccess={() => { setIsEditClientOpen(false); onRefresh(); }}
+        />
+      )}
     </div>
   );
 };

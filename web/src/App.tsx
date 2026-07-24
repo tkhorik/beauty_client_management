@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import type { Client, Visit, Attachment } from './types';
 import { api } from './services/api';
+import { useAuth } from './auth/AuthContext';
+import { LoginPage } from './components/LoginPage';
 import { Header } from './components/Header';
 import { ClientCard } from './components/ClientCard';
 import { ClientDetailModal } from './components/ClientDetailModal';
@@ -10,6 +12,22 @@ import { PhotoCompareModal } from './components/PhotoCompareModal';
 import { Users, Sparkles } from 'lucide-react';
 
 export function App() {
+  const { token, logout } = useAuth();
+
+  // Listen for 401 responses emitted by authFetch and force logout
+  useEffect(() => {
+    const handler = () => logout();
+    window.addEventListener('beauty:unauthorized', handler);
+    return () => window.removeEventListener('beauty:unauthorized', handler);
+  }, [logout]);
+
+  // Show login page when unauthenticated
+  if (!token) return <LoginPage />;
+
+  return <AuthenticatedApp />;
+}
+
+function AuthenticatedApp() {
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');

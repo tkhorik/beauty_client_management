@@ -3,12 +3,14 @@ package com.beauty.app.data
 import com.beauty.app.data.api.BeautyApi
 import com.beauty.app.data.api.ClientDto
 import com.beauty.app.data.api.CreateVisitRequest
+import com.beauty.app.data.api.UpdateClientRequest
 import com.beauty.app.data.local.ClientDao
 import com.beauty.app.data.local.ClientEntity
 import com.beauty.app.data.local.VisitDao
 import com.beauty.app.data.local.VisitEntity
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
 import java.util.UUID
 
 interface VisitSyncRepository {
@@ -24,6 +26,19 @@ class BeautyRepository(
     suspend fun refreshClients(): Result<Unit> = runCatching {
         api.getClients().forEach { clientDao.insertClient(it.toEntity(json)) }
     }
+
+    /** Update a client on the backend and return the updated ClientDto. */
+    suspend fun updateClient(
+        id: String,
+        name: String,
+        phone: String,
+        email: String?,
+        tags: List<String>,
+        customFields: JsonObject
+    ): ClientDto = api.updateClient(id, UpdateClientRequest(name, phone, email, tags, customFields))
+
+    /** Write (upsert) a ClientEntity into the local Room cache. */
+    suspend fun upsertClientLocally(entity: ClientEntity) = clientDao.insertClient(entity)
 
     suspend fun enqueueVisit(
         clientId: String,
