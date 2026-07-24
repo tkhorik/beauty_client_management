@@ -79,6 +79,13 @@ dependencies {
     implementation("io.ktor:ktor-client-okhttp:2.3.8")
     implementation("io.ktor:ktor-client-content-negotiation:2.3.8")
     implementation("io.ktor:ktor-serialization-kotlinx-json:2.3.8")
+    implementation("io.ktor:ktor-client-auth:2.3.8")
+
+    // Jetpack Security — EncryptedSharedPreferences for JWT token storage
+    implementation("androidx.security:security-crypto:1.1.0-alpha06")
+
+    // Jetpack Navigation — NavHost for screen routing
+    implementation("androidx.navigation:navigation-compose:2.7.6")
 
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.3")

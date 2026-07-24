@@ -11,6 +11,7 @@ import io.ktor.server.plugins.cors.routing.*
 import io.ktor.server.plugins.statuspages.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
+import io.ktor.server.auth.*
 import java.io.File
 
 fun Application.configureRouting() {
@@ -42,8 +43,11 @@ fun Application.configureRouting() {
         staticFiles("/uploads", File("uploads"))
 
         authRoutes()
-        clientRoutes()
-        visitRoutes()
-        attachmentRoutes()
+
+        authenticate("auth-jwt") {
+            clientRoutes()
+            visitRoutes()
+            attachmentRoutes()
+        }
     }
 }

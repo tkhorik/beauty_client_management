@@ -1,4 +1,5 @@
 import type { Client, Visit, Attachment, CreateClientInput, CreateVisitInput } from '../types';
+import { getToken, clearToken } from '../auth/tokenStore';
 
 const API_BASE_URL = 'http://localhost:8080/api';
 
@@ -117,6 +118,19 @@ const INITIAL_MOCK_VISITS: Visit[] = [
 ];
 
 class ApiService {
+  /** Wraps fetch() with Bearer token injection and central 401 handling. */
+  private async authFetch(input: RequestInfo, init: RequestInit = {}): Promise<Response> {
+    const token = getToken();
+    const headers = new Headers(init.headers);
+    if (token) headers.set('Authorization', `Bearer ${token}`);
+    const res = await fetch(input, { ...init, headers });
+    if (res.status === 401) {
+      clearToken();
+      window.dispatchEvent(new Event('beauty:unauthorized'));
+    }
+    return res;
+  }
+
   private getLocalClients(): Client[] {
     const saved = localStorage.getItem('beauty_clients');
     if (!saved) {
@@ -148,7 +162,7 @@ class ApiService {
       const url = new URL(`${API_BASE_URL}/clients`);
       if (query) url.searchParams.set('q', query);
       if (tagFilter) url.searchParams.set('tag', tagFilter);
-      const res = await fetch(url.toString());
+      const res = await this.authFetch(url.toString());
       if (res.ok) return await res.json();
     } catch (err) {
       // Backend not running -> fallback to LocalStorage
@@ -174,7 +188,7 @@ class ApiService {
 
   async getClient(id: string): Promise<Client | null> {
     try {
-      const res = await fetch(`${API_BASE_URL}/clients/${id}`);
+      const res = await this.authFetch(`${API_BASE_URL}/clients/${id}`);
       if (res.ok) return await res.json();
     } catch (err) {}
     const clients = this.getLocalClients();
@@ -183,7 +197,7 @@ class ApiService {
 
   async createClient(input: CreateClientInput): Promise<Client> {
     try {
-      const res = await fetch(`${API_BASE_URL}/clients`, {
+      const res = await this.authFetch(`${API_BASE_URL}/clients`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(input)
@@ -210,7 +224,7 @@ class ApiService {
 
   async updateClient(id: string, input: Partial<CreateClientInput>): Promise<Client> {
     try {
-      const res = await fetch(`${API_BASE_URL}/clients/${id}`, {
+      const res = await this.authFetch(`${API_BASE_URL}/clients/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(input)
@@ -234,7 +248,7 @@ class ApiService {
 
   async deleteClient(id: string): Promise<void> {
     try {
-      await fetch(`${API_BASE_URL}/clients/${id}`, { method: 'DELETE' });
+      await this.authFetch(`${API_BASE_URL}/clients/${id}`, { method: 'DELETE' });
     } catch (err) {}
 
     const clients = this.getLocalClients().filter(c => c.id !== id);
@@ -247,7 +261,7 @@ class ApiService {
     try {
       const url = new URL(`${API_BASE_URL}/visits`);
       if (clientId) url.searchParams.set('clientId', clientId);
-      const res = await fetch(url.toString());
+      const res = await this.authFetch(url.toString());
       if (res.ok) return await res.json();
     } catch (err) {}
 
@@ -260,7 +274,7 @@ class ApiService {
 
   async createVisit(input: CreateVisitInput): Promise<Visit> {
     try {
-      const res = await fetch(`${API_BASE_URL}/visits`, {
+      const res = await this.authFetch(`${API_BASE_URL}/visits`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(input)
@@ -306,7 +320,7 @@ class ApiService {
       const blob = await resBlob.blob();
       formData.append('file', blob, 'photo.jpg');
 
-      const res = await fetch(`${API_BASE_URL}/attachments/upload`, {
+      const res = await this.authFetch(`${API_BASE_URL}/attachments/upload`, {
         method: 'POST',
         body: formData
       });

@@ -4,12 +4,14 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
@@ -18,17 +20,30 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.beauty.app.ui.theme.*
-import com.beauty.app.data.local.ClientEntity
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavType
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import com.beauty.app.data.local.BeautyDatabaseProvider
+import com.beauty.app.data.local.ClientEntity
 import com.beauty.app.sync.SyncWorker
-import kotlinx.coroutines.launch
+import com.beauty.app.ui.auth.AuthViewModel
+import com.beauty.app.ui.auth.LoginScreen
+import com.beauty.app.ui.client.EditClientScreen
+import com.beauty.app.ui.client.EditClientViewModel
+import com.beauty.app.ui.theme.*
 import kotlinx.serialization.json.Json
 
 data class DirectoryClient(
+    val id: String,
     val name: String,
     val phone: String,
     val tag: String,
@@ -45,21 +60,97 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    BeautyAppScreen()
+                    AppNavHost()
                 }
             }
         }
     }
 }
 
+@Composable
+fun AppNavHost() {
+    val context = LocalContext.current
+    val tokenStore = remember { AppContainer.tokenStore(context) }
+    val repository = remember { AppContainer.repository(context, tokenStore) }
+    val database = remember { BeautyDatabaseProvider.get(context) }
+
+    val navController = rememberNavController()
+    val startDestination = if (tokenStore.getToken() != null) "clients" else "login"
+
+    // AuthViewModel factory — uses an auth-capable Ktor client (no token yet, but endpoint is public)
+    val authViewModel: AuthViewModel = viewModel(
+        factory = object : ViewModelProvider.Factory {
+            @Suppress("UNCHECKED_CAST")
+            override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                val api = com.beauty.app.data.api.KtorBeautyApi(AppContainer.buildLoginClient())
+                return AuthViewModel(api, tokenStore) as T
+            }
+        }
+    )
+
+    NavHost(navController = navController, startDestination = startDestination) {
+
+        composable("login") {
+            LoginScreen(
+                viewModel = authViewModel,
+                onLoginSuccess = {
+                    navController.navigate("clients") {
+                        popUpTo("login") { inclusive = true }
+                    }
+                }
+            )
+        }
+
+        composable("clients") {
+            BeautyAppScreen(
+                tokenStore = tokenStore,
+                onClientTap = { clientId ->
+                    navController.navigate("edit_client/$clientId")
+                },
+                onLogout = {
+                    tokenStore.clearToken()
+                    navController.navigate("login") {
+                        popUpTo(0) { inclusive = true }
+                    }
+                }
+            )
+        }
+
+        composable(
+            route = "edit_client/{clientId}",
+            arguments = listOf(navArgument("clientId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val clientId = backStackEntry.arguments!!.getString("clientId")!!
+            val clientDao = database.clientDao()
+            val editViewModel: EditClientViewModel = viewModel(
+                key = "edit_$clientId",
+                factory = object : ViewModelProvider.Factory {
+                    @Suppress("UNCHECKED_CAST")
+                    override fun <T : ViewModel> create(modelClass: Class<T>): T =
+                        EditClientViewModel(clientId, repository, clientDao) as T
+                }
+            )
+            EditClientScreen(
+                viewModel = editViewModel,
+                onBack = { navController.popBackStack() }
+            )
+        }
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun BeautyAppScreen() {
+fun BeautyAppScreen(
+    tokenStore: com.beauty.app.data.local.TokenStore,
+    onClientTap: (clientId: String) -> Unit,
+    onLogout: () -> Unit
+) {
     var searchQuery by remember { mutableStateOf("") }
-    val context = androidx.compose.ui.platform.LocalContext.current
+    val context = LocalContext.current
     val database = remember { BeautyDatabaseProvider.get(context) }
-    val repository = remember { AppContainer.repository(context) }
+    val repository = remember { AppContainer.repository(context, tokenStore) }
     val clients by database.clientDao().getAllClients().collectAsState(initial = emptyList())
+
     LaunchedEffect(Unit) {
         repository.refreshClients()
         SyncWorker.enqueue(context)
@@ -83,6 +174,15 @@ fun BeautyAppScreen() {
                         )
                     }
                 },
+                actions = {
+                    IconButton(onClick = onLogout) {
+                        Icon(
+                            Icons.Default.ExitToApp,
+                            contentDescription = "Logout",
+                            tint = TextMuted
+                        )
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = CardSurface
                 )
@@ -90,7 +190,7 @@ fun BeautyAppScreen() {
         },
         floatingActionButton = {
             FloatingActionButton(
-                onClick = { /* Visit-entry UI is intentionally out of scope; repository can queue visits. */ },
+                onClick = { /* Visit-entry UI — future work */ },
                 containerColor = RoseGoldPrimary,
                 contentColor = Color.Black
             ) {
@@ -104,12 +204,13 @@ fun BeautyAppScreen() {
                 .padding(paddingValues)
                 .padding(16.dp)
         ) {
-            // Search Input
             OutlinedTextField(
                 value = searchQuery,
                 onValueChange = { searchQuery = it },
                 placeholder = { Text("Search clients or procedure specs...", color = TextMuted) },
-                leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Search", tint = TextMuted) },
+                leadingIcon = {
+                    Icon(Icons.Default.Search, contentDescription = "Search", tint = TextMuted)
+                },
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(12.dp)),
@@ -121,7 +222,6 @@ fun BeautyAppScreen() {
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Section Header
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -143,15 +243,15 @@ fun BeautyAppScreen() {
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Client Cards List
-            LazyColumn(
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
+            LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 items(clients.filter { client ->
                     client.name.contains(searchQuery, ignoreCase = true) ||
                         client.tagsJson.contains(searchQuery, ignoreCase = true)
                 }) { client ->
-                    ClientCardItem(client.toDirectoryClient())
+                    ClientCardItem(
+                        client = client.toDirectoryClient(),
+                        onClick = { onClientTap(client.id) }
+                    )
                 }
             }
         }
@@ -159,9 +259,11 @@ fun BeautyAppScreen() {
 }
 
 @Composable
-fun ClientCardItem(client: DirectoryClient) {
+fun ClientCardItem(client: DirectoryClient, onClick: () -> Unit) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() },
         shape = RoundedCornerShape(14.dp),
         colors = CardDefaults.cardColors(containerColor = CardSurface)
     ) {
@@ -183,7 +285,12 @@ fun ClientCardItem(client: DirectoryClient) {
                     }
                     Spacer(modifier = Modifier.width(12.dp))
                     Column {
-                        Text(client.name, color = TextLight, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                        Text(
+                            client.name,
+                            color = TextLight,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp
+                        )
                         Text(client.phone, color = TextMuted, fontSize = 12.sp)
                     }
                 }
@@ -216,9 +323,11 @@ fun ClientCardItem(client: DirectoryClient) {
 }
 
 private fun ClientEntity.toDirectoryClient(): DirectoryClient {
-    val tags = runCatching { Json.decodeFromString<List<String>>(tagsJson).joinToString(" • ") }
-        .getOrDefault("")
+    val tags = runCatching {
+        Json.decodeFromString<List<String>>(tagsJson).joinToString(" • ")
+    }.getOrDefault("")
     return DirectoryClient(
+        id = id,
         name = name,
         phone = phone,
         tag = tags.ifBlank { "No tags" },
