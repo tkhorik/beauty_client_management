@@ -1,8 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { useAuth } from '../auth/AuthContext';
 import { Sparkles } from 'lucide-react';
-
-const API_BASE_URL = 'http://localhost:8080/api';
+import { API_BASE_URL } from '../config';
 
 type Mode = 'login' | 'register';
 

@@ -27,3 +27,13 @@ android/local.properties
 *.apk
 *.aar
 memory.md
+
+# Secrets — the real .env lives only on the VPS. The example is committed.
+.env
+.env.*
+!.env.example
+
+# Signing material for Android release builds
+*.jks
+*.keystore
+android/keystore.properties

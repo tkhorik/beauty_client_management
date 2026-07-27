@@ -40,6 +40,9 @@ dependencies {
     implementation("org.jetbrains.exposed:exposed-java-time:$exposedVersion")
     implementation("org.jetbrains.exposed:exposed-json:$exposedVersion")
     implementation("org.postgresql:postgresql:$postgresVersion")
+    // Connection pool. Without it Exposed opens a new JDBC connection per
+    // transaction, which exhausts Postgres' connection limit under load.
+    implementation("com.zaxxer:HikariCP:5.1.0")
     runtimeOnly("com.h2database:h2:2.2.224")
 
     // Security & Utilities
@@ -48,5 +51,6 @@ dependencies {
 
     // Testing
     testImplementation("io.ktor:ktor-server-tests-jvm:$ktorVersion")
-    testImplementation("org.jetbrains.kotlin:kotlin-test-junit:$ktorVersion")
+    // was pinned to $ktorVersion, which is not a valid Kotlin version
+    testImplementation("org.jetbrains.kotlin:kotlin-test-junit:1.9.22")
 }
