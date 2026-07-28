@@ -9,7 +9,7 @@ import java.io.File
  * Everything the app needs to know about its environment is read here, once,
  * so there is exactly one place to look for "where does this value come from".
  */
-class AppSettings(config: ApplicationConfig) {
+class AppSettings(private val config: ApplicationConfig) {
 
 
     private fun str(path: String, default: String): String =
