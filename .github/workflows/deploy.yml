@@ -1,0 +1,206 @@
+# Production deployment.
+#
+# TRIGGER — why `push` and not `pull_request: closed`:
+# with branch protection enabled on `main`, the only way code can arrive there
+# is through an approved, merged pull request. A merge produces exactly one
+# push event to main. So `on: push: branches: [main]` fires once per accepted
+# PR, cannot be triggered by a direct commit (protection forbids those), and
+# does not need the `if: github.event.pull_request.merged == true` guard that
+# a `pull_request: closed` trigger would require — a trigger which also fires
+# on *rejected* PRs and is easy to get wrong.
+#
+# workflow_dispatch is kept for manual redeploys and rollbacks.
+
+name: Deploy to production
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: 'Image tag to deploy (a commit SHA). Leave blank for the current commit. Use this to roll back.'
+        required: false
+        type: string
+
+# Never let two deploys touch the VPS at the same time. Unlike CI, in-progress
+# deploys are NOT cancelled — a half-finished deploy is worse than a queued one.
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
+env:
+  REGISTRY: ghcr.io
+  # Lowercased below: GHCR rejects uppercase characters in image names.
+  IMAGE_NAMESPACE: ${{ github.repository_owner }}
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  # -------------------------------------------------------------------------
+  # 1. Build both images once, in CI, and push them to GitHub Container
+  #    Registry. The VPS never compiles anything: a Gradle + Vite build needs
+  #    2-4 GB of RAM, takes minutes of downtime, and a failed build on the
+  #    server leaves production broken with no way back. Here, a failed build
+  #    simply means nothing is deployed.
+  # -------------------------------------------------------------------------
+  build:
+    name: Build and push images
+    runs-on: ubuntu-latest
+    outputs:
+      image_tag: ${{ steps.meta.outputs.tag }}
+      namespace: ${{ steps.meta.outputs.namespace }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compute image tag and namespace
+        id: meta
+        run: |
+          TAG="${{ inputs.image_tag }}"
+          if [ -z "$TAG" ]; then TAG="${GITHUB_SHA}"; fi
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "namespace=$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          # Automatically provided by GitHub; no PAT needed for pushing.
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push backend
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ steps.meta.outputs.namespace }}/aura-backend:${{ steps.meta.outputs.tag }}
+            ${{ env.REGISTRY }}/${{ steps.meta.outputs.namespace }}/aura-backend:latest
+          # Reuse layers between runs so Gradle dependencies are not
+          # re-downloaded on every commit.
+          cache-from: type=gha,scope=backend
+          cache-to: type=gha,scope=backend,mode=max
+
+      - name: Build and push web
+        uses: docker/build-push-action@v6
+        with:
+          context: ./web
+          push: true
+          build-args: |
+            VITE_API_BASE_URL=/api
+          tags: |
+            ${{ env.REGISTRY }}/${{ steps.meta.outputs.namespace }}/aura-web:${{ steps.meta.outputs.tag }}
+            ${{ env.REGISTRY }}/${{ steps.meta.outputs.namespace }}/aura-web:latest
+          cache-from: type=gha,scope=web
+          cache-to: type=gha,scope=web,mode=max
+
+  # -------------------------------------------------------------------------
+  # 2. Placeholder for the future Selenium smoke tests.
+  #    It succeeds today so the pipeline flows through to deploy. When the real
+  #    tests land, replace the echo step — the job name stays the same, so the
+  #    `needs:` wiring and any required-check configuration keep working.
+  # -------------------------------------------------------------------------
+  smoke-tests:
+    name: Selenium smoke tests
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Placeholder
+        run: |
+          echo "=================================================="
+          echo " Selenium smoke tests: coming soon"
+          echo "=================================================="
+          echo "Planned coverage:"
+          echo "  - register a user, log in, land on the client directory"
+          echo "  - create a client and see it in the list"
+          echo "  - edit a client and confirm the change persists"
+          echo "  - log out and confirm protected routes return 401"
+          echo ""
+          echo "When implemented, this job should run against a throwaway"
+          echo "compose stack started here in CI (services: db, backend, web),"
+          echo "NOT against production, and must fail the workflow on error so"
+          echo "that a broken build never reaches the deploy job below."
+          exit 0
+
+  # -------------------------------------------------------------------------
+  # 3. Deploy: SSH to the VPS and swap in the new images.
+  #    `docker compose pull && up -d` finishes in seconds because the images
+  #    are already built. Rolling back is the same workflow re-run with an
+  #    older SHA in `image_tag`.
+  # -------------------------------------------------------------------------
+  deploy:
+    name: Deploy to VPS
+    runs-on: ubuntu-latest
+    needs: [build, smoke-tests]
+    # Point this at a GitHub Environment called "production" so you can add
+    # required reviewers and keep the deploy secrets scoped to it.
+    environment:
+      name: production
+      url: https://${{ vars.DOMAIN }}
+    steps:
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_SSH_PORT || 22 }}
+          script_stops: true
+          envs: IMAGE_TAG,NAMESPACE,REGISTRY,GHCR_USER,GHCR_TOKEN
+          script: |
+            set -euo pipefail
+            cd "${{ secrets.VPS_APP_DIR }}"
+
+            # Authenticate to GHCR so private images can be pulled. Uses a
+            # read:packages-only token, so a compromised VPS cannot push.
+            echo "$GHCR_TOKEN" | docker login "$REGISTRY" -u "$GHCR_USER" --password-stdin
+
+            # The compose file itself, the Nginx config and the deploy scripts
+            # live in git; only .env stays on the server. Fast-forward only, so
+            # local edits on the server never get silently overwritten.
+            git fetch --all
+            git reset --hard origin/main
+
+            # Shell environment overrides values in .env, so the exact images
+            # built by this run are what starts.
+            export BACKEND_IMAGE="${REGISTRY}/${NAMESPACE}/aura-backend:${IMAGE_TAG}"
+            export WEB_IMAGE="${REGISTRY}/${NAMESPACE}/aura-web:${IMAGE_TAG}"
+
+            # Record the deployed tag so a manual `docker compose up -d` later
+            # does not silently revert to whatever :latest points at.
+            sed -i "s|^BACKEND_IMAGE=.*|BACKEND_IMAGE=${BACKEND_IMAGE}|" .env
+            sed -i "s|^WEB_IMAGE=.*|WEB_IMAGE=${WEB_IMAGE}|" .env
+
+            docker compose pull backend web
+            docker compose up -d --remove-orphans
+
+            # Reclaim disk. A VPS filling up with old image layers is one of
+            # the most common ways these deployments eventually break.
+            docker image prune -f --filter "until=168h"
+        env:
+          IMAGE_TAG: ${{ needs.build.outputs.image_tag }}
+          NAMESPACE: ${{ needs.build.outputs.namespace }}
+          REGISTRY: ghcr.io
+          GHCR_USER: ${{ github.actor }}
+          GHCR_TOKEN: ${{ secrets.GHCR_PULL_TOKEN }}
+
+      - name: Verify the site is up
+        run: |
+          set -e
+          echo "Waiting for the backend to report healthy..."
+          for i in $(seq 1 30); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' "https://${{ vars.DOMAIN }}/healthz" || true)
+            if [ "$code" = "200" ]; then
+              echo "Backend healthy after ${i} attempt(s)."
+              curl -sf -o /dev/null "https://${{ vars.DOMAIN }}/" && echo "Web app is serving."
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "Deploy did not become healthy within 150s. Check: docker compose logs -f backend" >&2
+          exit 1
