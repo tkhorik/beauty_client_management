@@ -16,7 +16,6 @@ BACKEND_LOG="${ROOT_DIR}/backend/run_app.log"
 WEB_LOG="${ROOT_DIR}/web/run_app.log"
 
 # Track PIDs globally
-BACKID=""
 WEB_PID=""
 EMULATOR_PID=""
 

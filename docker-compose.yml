@@ -89,7 +89,11 @@ services:
   proxy:
     image: nginx:1.27-alpine
     restart: unless-stopped
-    depends_on: [web, backend]
+    depends_on:
+      web:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
     ports:
       - "80:80"
       - "443:443"
