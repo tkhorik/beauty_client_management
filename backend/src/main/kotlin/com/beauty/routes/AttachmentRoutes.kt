@@ -1,5 +1,6 @@
 package com.beauty.routes
 
+import com.beauty.config.AppSettings
 import com.beauty.db.AttachmentsTable
 import com.beauty.db.DatabaseFactory.dbQuery
 import com.beauty.models.AttachmentDto
@@ -17,6 +18,8 @@ import java.time.LocalDateTime
 import java.util.UUID
 
 fun Route.attachmentRoutes() {
+    val uploadDir = AppSettings(application.environment.config).uploadDir
+
     route("/api/attachments") {
         post("/upload") {
             val multipart = call.receiveMultipart()
@@ -52,8 +55,16 @@ fun Route.attachmentRoutes() {
             }
 
             val attachmentId = UUID.randomUUID().toString()
-            val savedFileName = "${attachmentId}_${fileName.replace(" ", "_")}"
-            val destFile = File("uploads", savedFileName)
+            // The client controls the original filename, so strip any directory
+            // component and unsafe characters before it touches the filesystem.
+            // Without this, a name like "../../app.jar" writes outside the
+            // upload directory.
+            val safeName = File(fileName).name
+                .replace(Regex("[^A-Za-z0-9._-]"), "_")
+                .takeLast(100)
+                .ifBlank { "upload" }
+            val savedFileName = "${attachmentId}_$safeName"
+            val destFile = File(uploadDir, savedFileName)
             destFile.writeBytes(fileBytes!!)
 
             val fileUrl = "/uploads/$savedFileName"

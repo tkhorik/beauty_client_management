@@ -77,12 +77,12 @@ The web app shows a login page on first load. After login the JWT token is store
 
 ```bash
 cd /Users/marv/Projects/beauty_client_management/web
-npm run dev -- --host 127.0.0.1
+npm run dev -- --host 127.0.0.1 --port 5174
 ```
 
 Expected result:
 
-- the app opens on `http://127.0.0.1:5173/` or `http://127.0.0.1:5174/` if 5173 is already taken
+- the app opens on `http://127.0.0.1:5174/`
 - a login page is shown; enter the credentials created during registration
 - after login the client directory loads
 

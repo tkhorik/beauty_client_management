@@ -1,0 +1,11 @@
+# Keep the build context small and prevent host artefacts and secrets from
+# leaking into the image.
+build/
+.gradle/
+uploads/
+*.log
+run_app.log
+.idea/
+.vscode/
+*.env
+.env

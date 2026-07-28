@@ -2,19 +2,20 @@ package com.beauty.plugins
 
 import com.auth0.jwt.JWT
 import com.auth0.jwt.algorithms.Algorithm
+import com.beauty.config.AppSettings
 import io.ktor.server.application.*
 import io.ktor.server.auth.*
 import io.ktor.server.auth.jwt.*
 
 fun Application.configureSecurity() {
-    val secret = environment.config.propertyOrNull("jwt.secret")?.getString() ?: "beauty_secret_jwt_key"
-    val issuer = environment.config.propertyOrNull("jwt.issuer")?.getString() ?: "http://0.0.0.0:8080/"
-    val audience = environment.config.propertyOrNull("jwt.audience")?.getString() ?: "http://0.0.0.0:8080/users"
-    val realm = environment.config.propertyOrNull("jwt.realm")?.getString() ?: "Beauty Client Management"
+    val settings = AppSettings(environment.config)
+    val secret = settings.jwtSecret
+    val issuer = settings.jwtIssuer
+    val audience = settings.jwtAudience
 
     authentication {
         jwt("auth-jwt") {
-            this.realm = realm
+            this.realm = settings.jwtRealm
             verifier(
                 JWT.require(Algorithm.HMAC256(secret))
                     .withAudience(audience)
