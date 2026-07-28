@@ -27,3 +27,7 @@ android/local.properties
 *.apk
 *.aar
 memory.md
+common/*
+
+# Local AI project memory — not for the remote
+CLAUDE.md
