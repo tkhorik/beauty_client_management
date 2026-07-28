@@ -1,5 +1,6 @@
 package com.beauty.routes
 
+import com.beauty.config.AppSettings
 import com.beauty.db.DatabaseFactory.dbQuery
 import com.beauty.db.UsersTable
 import com.beauty.models.*
@@ -16,9 +17,10 @@ import java.time.LocalDateTime
 import java.util.UUID
 
 fun Route.authRoutes() {
-    val secret = application.environment.config.propertyOrNull("jwt.secret")?.getString() ?: "beauty_secret_jwt_key"
-    val issuer = application.environment.config.propertyOrNull("jwt.issuer")?.getString() ?: "http://0.0.0.0:8080/"
-    val audience = application.environment.config.propertyOrNull("jwt.audience")?.getString() ?: "http://0.0.0.0:8080/users"
+    val settings = AppSettings(application.environment.config)
+    val secret = settings.jwtSecret
+    val issuer = settings.jwtIssuer
+    val audience = settings.jwtAudience
 
     route("/api/auth") {
         post("/register") {

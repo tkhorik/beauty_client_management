@@ -33,7 +33,6 @@ start_bg() {
 }
 
 # Track PIDs globally
-BACKID=""
 WEB_PID=""
 EMULATOR_PID=""
 

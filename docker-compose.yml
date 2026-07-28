@@ -1,0 +1,150 @@
+# Aura Beauty Log — production stack for the Ubuntu VPS.
+#
+# Normal operation (CI has already pushed images to GHCR):
+#   docker compose pull && docker compose up -d
+#
+# Local/emergency build from source on the server:
+#   docker compose build && docker compose up -d
+#
+# All configuration comes from the .env file sitting next to this file.
+# That file contains real secrets and must never be committed.
+
+name: aura
+
+services:
+  # ---------------------------------------------------------------------
+  # PostgreSQL 15. Deliberately has NO `ports:` mapping — it is reachable
+  # only from the other containers on the internal Docker network, never
+  # from the internet.
+  # ---------------------------------------------------------------------
+  db:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      # Keeps index scans and collation stable across Postgres upgrades.
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    networks: [internal]
+
+  # ---------------------------------------------------------------------
+  # Ktor API. Also has no published ports: the edge proxy reaches it over
+  # the Docker network as http://backend:8080.
+  # ---------------------------------------------------------------------
+  backend:
+    image: ${BACKEND_IMAGE:-aura-backend:local}
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      APP_ENV: production
+      PORT: "8080"
+      DB_DRIVER: org.postgresql.Driver
+      DB_URL: jdbc:postgresql://db:5432/${POSTGRES_DB}
+      DB_USER: ${POSTGRES_USER}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      DB_MAX_POOL_SIZE: ${DB_MAX_POOL_SIZE:-10}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_ISSUER: https://${DOMAIN}/
+      JWT_AUDIENCE: https://${DOMAIN}/users
+      UPLOAD_DIR: /app/uploads
+      # Empty because the web app is served from the same origin as the API.
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-}
+    volumes:
+      # Uploaded photos live in a named volume, so rebuilding or replacing the
+      # container never deletes them.
+      - uploads:/app/uploads
+    networks: [internal]
+
+  # ---------------------------------------------------------------------
+  # Built React bundle served by a minimal Nginx. Static files only.
+  # ---------------------------------------------------------------------
+  web:
+    image: ${WEB_IMAGE:-aura-web:local}
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: /api
+    restart: unless-stopped
+    networks: [internal]
+
+  # ---------------------------------------------------------------------
+  # Edge reverse proxy — the ONLY container exposed to the internet.
+  # Terminates TLS, redirects HTTP, routes / to web and /api to backend.
+  # ---------------------------------------------------------------------
+  proxy:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    depends_on:
+      web:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      # The official Nginx image runs envsubst over /etc/nginx/templates and
+      # substitutes ONLY the variables listed here, so Nginx's own $uri/$host
+      # runtime variables are left untouched.
+      DOMAIN: ${DOMAIN}
+      NGINX_ENVSUBST_TEMPLATE_SUFFIX: .template
+    volumes:
+      - ./deploy/nginx/templates:/etc/nginx/templates:ro
+      - ./deploy/nginx/proxy_params_aura.conf:/etc/nginx/proxy_params_aura.conf:ro
+      - certbot_conf:/etc/letsencrypt:ro
+      - certbot_www:/var/www/certbot:ro
+    networks: [internal, edge]
+    # Reload every 6h to pick up renewed certificates without a restart.
+    # `exec nginx` keeps Nginx as PID 1, so if it dies the container dies and
+    # Docker restarts it, instead of the container lingering with only the
+    # reload loop alive. The image's own entrypoint still runs first, so the
+    # envsubst templating above happens as normal.
+    command: /bin/sh -c "while :; do sleep 6h; nginx -s reload; done & exec nginx -g 'daemon off;'"
+
+  # ---------------------------------------------------------------------
+  # Certbot. Runs in its own container with its own OpenSSL, completely
+  # independent of the OpenSSL installed on the Ubuntu host — upgrading the
+  # host's OpenSSL can never break certificate renewal.
+  # ---------------------------------------------------------------------
+  certbot:
+    image: certbot/certbot:latest
+    restart: unless-stopped
+    volumes:
+      - certbot_conf:/etc/letsencrypt
+      - certbot_www:/var/www/certbot
+    # Attempt renewal twice a day, as Let's Encrypt recommends. Renewal is a
+    # no-op until the certificate is within 30 days of expiry.
+    entrypoint: >
+      /bin/sh -c "trap exit TERM;
+      while :; do
+        certbot renew --webroot -w /var/www/certbot --quiet;
+        sleep 12h & wait $${!};
+      done"
+    networks: [internal]
+
+volumes:
+  db_data:
+  uploads:
+  certbot_conf:
+  certbot_www:
+
+networks:
+  # Container-to-container traffic. Not reachable from outside the host.
+  internal:
+  # Only the proxy joins this one; it is what publishes 80/443.
+  edge:
