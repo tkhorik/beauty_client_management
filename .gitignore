@@ -37,3 +37,8 @@ memory.md
 *.jks
 *.keystore
 android/keystore.properties
+=======
+common/*
+
+# Local AI project memory — not for the remote
+CLAUDE.md

@@ -11,6 +11,7 @@ import java.io.File
  */
 class AppSettings(config: ApplicationConfig) {
 
+
     private fun str(path: String, default: String): String =
         config.propertyOrNull(path)?.getString()?.trim() ?: default
 
