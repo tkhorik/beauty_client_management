@@ -1,16 +1,23 @@
 package com.beauty.routes
 
+import com.beauty.auth.OneTimeTokenService
 import com.beauty.auth.RefreshTokenService
+import com.beauty.auth.TokenPurpose
 import com.beauty.config.AppSettings
 import com.beauty.db.DatabaseFactory.dbQuery
 import com.beauty.db.UsersTable
+import com.beauty.mail.AccountMailer
+import com.beauty.mail.MailSender
 import com.beauty.models.*
+import com.beauty.plugins.RATE_LIMIT_AUTH
+import com.beauty.plugins.RATE_LIMIT_EMAIL
 import com.beauty.plugins.generateJwtToken
 import com.beauty.plugins.userId
 import com.beauty.validation.Validation
 import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.plugins.origin
+import io.ktor.server.plugins.ratelimit.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
@@ -18,6 +25,7 @@ import org.jetbrains.exposed.exceptions.ExposedSQLException
 import org.mindrot.jbcrypt.BCrypt
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.select
+import org.jetbrains.exposed.sql.update
 import java.time.LocalDateTime
 import java.util.UUID
 
@@ -128,6 +136,22 @@ internal fun ApplicationCall.clearRefreshCookie() {
 }
 
 /**
+ * The single mapping from a `users` row to the DTO clients see.
+ *
+ * Every route that returns a user goes through this. When `UserDto` gained
+ * `emailVerified` there were four separate hand-written constructions, and a
+ * default of `false` on the field means a missed one is a *silent* wrong
+ * answer, not a compile error. One definition removes that failure mode.
+ */
+internal fun userDto(row: org.jetbrains.exposed.sql.ResultRow) = UserDto(
+    id = row[UsersTable.id],
+    email = row[UsersTable.email],
+    fullName = row[UsersTable.fullName],
+    createdAt = row[UsersTable.createdAt].toString(),
+    emailVerified = row[UsersTable.emailVerifiedAt] != null
+)
+
+/**
  * Mints a fresh access + refresh token pair and responds with it.
  *
  * Shared by login, register, and password-change (in `UserRoutes.kt`) — every
@@ -172,6 +196,8 @@ fun Route.authRoutes() {
     val audience = settings.jwtAudience
     val accessTokenMinutes = settings.accessTokenMinutes
     val refreshTokens = RefreshTokenService(settings.refreshTokenDays)
+    val oneTimeTokens = OneTimeTokenService()
+    val accountMailer = AccountMailer(settings, oneTimeTokens, MailSender.from(settings))
 
     /** Reads the refresh token from the cookie, falling back to the request body. */
     suspend fun ApplicationCall.readRefreshToken(): String? {
@@ -187,6 +213,13 @@ fun Route.authRoutes() {
     ) = respondWithNewSession(status, user, settings, secret, issuer, audience, accessTokenMinutes, refreshTokens)
 
     route("/api/auth") {
+        // Credential endpoints share the looser bucket. `/refresh` and
+        // `/logout` are deliberately left unlimited: both are called
+        // automatically by every signed-in client, several times an hour, and
+        // throttling them would log real users out rather than stop an
+        // attacker — who gains nothing by replaying a refresh token, since
+        // rotation revokes the whole family on reuse.
+        rateLimit(RateLimitName(RATE_LIMIT_AUTH)) {
         post("/register") {
             val req = call.receive<RegisterRequest>()
 
@@ -238,12 +271,22 @@ fun Route.authRoutes() {
                 throw e
             }
 
+            // Mail is sent after the row is committed, and its outcome is not
+            // checked. Enforcement is soft — the account works whether or not
+            // the address is confirmed — so a bounced or slow SMTP server must
+            // not fail the registration. `MailSender.send` swallows its own
+            // errors for the same reason.
+            accountMailer.sendVerification(id, email, fullName)
+
             // One timestamp, used for both the stored row and the response.
             // Computing it twice means the client is told a creation time that
             // is not the one in the database.
             call.respondWithSession(
                 HttpStatusCode.Created,
-                UserDto(id, email, fullName, createdAt.toString())
+                // emailVerified is explicitly false rather than left to the
+                // default: the account was created one line ago and the
+                // confirmation mail is still in flight.
+                UserDto(id, email, fullName, createdAt.toString(), emailVerified = false)
             )
         }
 
@@ -271,14 +314,10 @@ fun Route.authRoutes() {
 
             call.respondWithSession(
                 HttpStatusCode.OK,
-                UserDto(
-                    id = row[UsersTable.id],
-                    email = row[UsersTable.email],
-                    fullName = row[UsersTable.fullName],
-                    createdAt = row[UsersTable.createdAt].toString()
-                )
+                userDto(row)
             )
         }
+        } // end rateLimit(RATE_LIMIT_AUTH)
 
         /**
          * Exchanges a refresh token for a fresh access token, rotating the
@@ -329,12 +368,7 @@ fun Route.authRoutes() {
                             token = accessToken,
                             refreshToken = call.deliverRefreshToken(result.token, settings),
                             expiresInSeconds = accessTokenMinutes * 60,
-                            user = UserDto(
-                                id = result.userId,
-                                email = row[UsersTable.email],
-                                fullName = row[UsersTable.fullName],
-                                createdAt = row[UsersTable.createdAt].toString()
-                            )
+                            user = userDto(row)
                         )
                     )
                 }
@@ -354,6 +388,162 @@ fun Route.authRoutes() {
             call.clearRefreshCookie()
             call.respond(HttpStatusCode.NoContent)
         }
+
+        // -------------------------------------------------------------------
+        // Email verification
+        // -------------------------------------------------------------------
+
+        /**
+         * Redeems a verification link.
+         *
+         * A GET, because this is the target of a link clicked in a mail client,
+         * and it answers with a redirect back into the web app rather than
+         * JSON — the person who clicked is looking at a browser, not a
+         * response body. The outcome is carried in a query parameter so the
+         * SPA can render the right message.
+         *
+         * A GET that changes state is normally a CSRF hazard. It is acceptable
+         * here precisely because the token in the URL *is* the credential: an
+         * attacker who can supply a valid one already has the mail, and
+         * "forcing" a victim to verify their own address grants nothing.
+         */
+        get("/verify-email") {
+            val token = call.request.queryParameters["token"].orEmpty()
+
+            val result = oneTimeTokens.redeem(token, TokenPurpose.EMAIL_VERIFICATION)
+            if (result !is OneTimeTokenService.Redemption.Redeemed) {
+                call.respondRedirect("${settings.publicUrl}/verify-email?status=invalid")
+                return@get
+            }
+
+            dbQuery {
+                UsersTable.update({ UsersTable.id eq result.userId }) {
+                    it[emailVerifiedAt] = LocalDateTime.now()
+                }
+            }
+            call.respondRedirect("${settings.publicUrl}/verify-email?status=success")
+        }
+
+        // -------------------------------------------------------------------
+        // Password reset
+        // -------------------------------------------------------------------
+
+        /**
+         * Starts a reset.
+         *
+         * **Always answers 200 with the same body**, whether the address has an
+         * account, has none, or is malformed. This endpoint needs no
+         * credentials, so any variation in the response — status, body, or a
+         * conspicuous difference in timing — is a free oracle for testing which
+         * addresses are registered. `/login` already goes out of its way to
+         * avoid being one (see [DUMMY_PASSWORD_HASH]); it would be pointless to
+         * close that hole and open this one.
+         *
+         * That is also why validation failures are swallowed rather than
+         * returned as a 400: "this is not a valid email" and "no account here"
+         * must be indistinguishable from the outside.
+         */
+        rateLimit(RateLimitName(RATE_LIMIT_EMAIL)) {
+        post("/forgot-password") {
+            val req = call.receive<ForgotPasswordRequest>()
+            val email = Validation.normaliseEmail(req.email)
+
+            val row = if (Validation.validateEmail(email) == null) {
+                dbQuery { UsersTable.select { UsersTable.email eq email }.singleOrNull() }
+            } else {
+                null
+            }
+
+            if (row != null) {
+                accountMailer.sendPasswordReset(
+                    userId = row[UsersTable.id],
+                    email = row[UsersTable.email],
+                    fullName = row[UsersTable.fullName]
+                )
+            } else {
+                // Logged server-side only. The requester is told nothing.
+                call.application.log.info("Password reset requested for an address with no account.")
+            }
+
+            call.respond(
+                HttpStatusCode.OK,
+                MessageResponse("If an account exists for that address, a reset link is on its way.")
+            )
+        }
+        } // end rateLimit(RATE_LIMIT_EMAIL)
+
+        /**
+         * Completes a reset.
+         *
+         * The order of operations matters and is deliberate:
+         *  1. Validate the new password *before* spending the token, so a
+         *     too-short password does not burn the user's only link.
+         *  2. Redeem the token, which is the atomic single-use gate.
+         *  3. Write the new hash.
+         *  4. Invalidate any other outstanding reset tokens.
+         *  5. Revoke every refresh-token family for the user.
+         *  6. Notify the account address.
+         *
+         * Step 5 is the one most often left out. A reset that leaves existing
+         * sessions alive has not locked anyone out: an attacker holding a
+         * stolen refresh token keeps their access indefinitely, and the owner
+         * believes the problem is solved.
+         */
+        // Limited too: without it, a valid-looking token could be brute-forced.
+        // 256 bits makes that hopeless anyway, but the bound costs nothing.
+        rateLimit(RateLimitName(RATE_LIMIT_AUTH)) {
+        post("/reset-password") {
+            val req = call.receive<ResetPasswordRequest>()
+
+            Validation.validatePassword(req.newPassword)?.let { message ->
+                call.respond(
+                    HttpStatusCode.BadRequest,
+                    ValidationErrorResponse(errors = mapOf("newPassword" to message))
+                )
+                return@post
+            }
+
+            val result = oneTimeTokens.redeem(req.token, TokenPurpose.PASSWORD_RESET)
+            if (result !is OneTimeTokenService.Redemption.Redeemed) {
+                // One message for unknown, expired and already-used. The client
+                // can do nothing different in each case, and saying which would
+                // help someone probing with guessed tokens.
+                call.respond(
+                    HttpStatusCode.BadRequest,
+                    mapOf("error" to "This reset link is invalid or has expired. Please request a new one.")
+                )
+                return@post
+            }
+
+            val newHash = BCrypt.hashpw(req.newPassword, BCrypt.gensalt())
+            val row = dbQuery {
+                UsersTable.update({ UsersTable.id eq result.userId }) {
+                    it[passwordHash] = newHash
+                }
+                UsersTable.select { UsersTable.id eq result.userId }.singleOrNull()
+            }
+
+            oneTimeTokens.invalidateOutstanding(result.userId, TokenPurpose.PASSWORD_RESET)
+            refreshTokens.revokeAllForUser(result.userId)
+            call.clearRefreshCookie()
+
+            if (row != null) {
+                accountMailer.sendPasswordChangedNotice(
+                    email = row[UsersTable.email],
+                    fullName = row[UsersTable.fullName]
+                )
+            }
+
+            // No new session is issued. Making the user sign in with the
+            // password they just chose confirms it works and reaches them
+            // through the normal login path, rather than handing tokens to
+            // whoever happened to hold the link.
+            call.respond(
+                HttpStatusCode.OK,
+                MessageResponse("Your password has been changed. You have been signed out on all devices.")
+            )
+        }
+        } // end rateLimit(RATE_LIMIT_AUTH)
     }
 }
 
@@ -364,8 +554,42 @@ fun Route.authRoutes() {
 fun Route.authenticatedAuthRoutes() {
     val settings = AppSettings(application.environment.config)
     val refreshTokens = RefreshTokenService(settings.refreshTokenDays)
+    val oneTimeTokens = OneTimeTokenService()
+    val accountMailer = AccountMailer(settings, oneTimeTokens, MailSender.from(settings))
 
     route("/api/auth") {
+        /**
+         * Sends a fresh verification link to the signed-in user's own address.
+         *
+         * Authenticated, and takes no parameters: the address is read from the
+         * token, never from the request. An unauthenticated "resend to this
+         * address" endpoint would be both an enumeration oracle and a way to
+         * make this server send mail to arbitrary strangers.
+         *
+         * Answers 204 unconditionally, including when the address is already
+         * verified — there is nothing useful to distinguish, and issuing a
+         * token retires the previous one, so repeated calls are harmless.
+         */
+        rateLimit(RateLimitName(RATE_LIMIT_EMAIL)) {
+        post("/resend-verification") {
+            val userId = call.userId()
+            if (userId == null) {
+                call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Invalid token"))
+                return@post
+            }
+
+            val row = dbQuery { UsersTable.select { UsersTable.id eq userId }.singleOrNull() }
+            if (row != null && row[UsersTable.emailVerifiedAt] == null) {
+                accountMailer.sendVerification(
+                    userId = userId,
+                    email = row[UsersTable.email],
+                    fullName = row[UsersTable.fullName]
+                )
+            }
+            call.respond(HttpStatusCode.NoContent)
+        }
+        } // end rateLimit(RATE_LIMIT_EMAIL)
+
         /**
          * Signs the user out of every device.
          *

@@ -13,6 +13,61 @@ object UsersTable : Table("users") {
     val fullName = varchar("full_name", 255)
     val createdAt = datetime("created_at")
 
+    /**
+     * When the user proved they control this address, or null if they have not.
+     *
+     * A nullable timestamp rather than a boolean: "verified" and "verified at
+     * 09:12 on Tuesday" cost the same to store, and the second answers support
+     * questions the first cannot.
+     *
+     * NOTE: `SchemaUtils.create` does not add columns to an existing table, so
+     * this needs `backend/migrations/001_email_verification.sql` run against
+     * any database that already has a `users` table.
+     */
+    val emailVerifiedAt = datetime("email_verified_at").nullable()
+
+    override val primaryKey = PrimaryKey(id)
+}
+
+/**
+ * Single-use tokens for email verification and password reset.
+ *
+ * One table with a [purpose] discriminator rather than two near-identical
+ * tables. The lifecycle is genuinely the same — issue, mail, redeem once,
+ * expire — and splitting it would mean two copies of the redemption logic,
+ * which is precisely the code where a subtle difference becomes a
+ * vulnerability.
+ *
+ * As with `RefreshTokensTable`, only the SHA-256 hash is stored. These tokens
+ * are bearer credentials: anyone holding a valid reset token can take over the
+ * account without knowing the password, so a database dump must not hand an
+ * attacker a working set of them. (A fast hash is right here, not BCrypt — the
+ * token is 256 bits of `SecureRandom` output, so there is nothing to guess and
+ * nothing for a slow hash to frustrate.)
+ */
+object OneTimeTokensTable : Table("one_time_tokens") {
+    val id = varchar("id", 64)
+    val userId = varchar("user_id", 64).references(UsersTable.id).index()
+
+    /** SHA-256 hex digest of the token. Never the token itself. */
+    val tokenHash = varchar("token_hash", 64).uniqueIndex()
+
+    /** `EMAIL_VERIFICATION` or `PASSWORD_RESET`. See `auth/TokenPurpose`. */
+    val purpose = varchar("purpose", 32).index()
+
+    val createdAt = datetime("created_at")
+    val expiresAt = datetime("expires_at")
+
+    /**
+     * Set the moment the token is redeemed.
+     *
+     * This is what makes the token single-use, and it is not optional: a reset
+     * link that still works after the password has been changed lets an
+     * attacker who saw the mail once reset the account again at any time before
+     * expiry.
+     */
+    val usedAt = datetime("used_at").nullable()
+
     override val primaryKey = PrimaryKey(id)
 }
 
