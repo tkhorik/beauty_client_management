@@ -96,12 +96,21 @@ services:
         condition: service_healthy
     ports:
       - "80:80"
-      - "443:443"
+      # Host 443 is already taken by an unrelated service on this VPS
+      # (a non-Docker process using it deliberately), so the app's HTTPS is
+      # published on HTTPS_PORT instead. Port 80 stays on 80 unconditionally:
+      # Certbot's HTTP-01 challenge and the plain-HTTP redirect both need it,
+      # and nothing else on this host claims it.
+      - "${HTTPS_PORT:-8443}:443"
     environment:
       # The official Nginx image runs envsubst over /etc/nginx/templates and
       # substitutes ONLY the variables listed here, so Nginx's own $uri/$host
       # runtime variables are left untouched.
       DOMAIN: ${DOMAIN}
+      # Baked into the HTTP->HTTPS redirect so the Location header points at
+      # the actual externally-reachable port, not a bare :443 that nothing
+      # is listening on from outside.
+      EXTERNAL_HTTPS_PORT: ${HTTPS_PORT:-8443}
       NGINX_ENVSUBST_TEMPLATE_SUFFIX: .template
     volumes:
       - ./deploy/nginx/templates:/etc/nginx/templates:ro

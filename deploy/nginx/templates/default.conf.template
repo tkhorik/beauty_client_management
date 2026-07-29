@@ -28,7 +28,7 @@ server {
     }
 
     location / {
-        return 301 https://${DOMAIN}$request_uri;
+        return 301 https://${DOMAIN}:${EXTERNAL_HTTPS_PORT}$request_uri;
     }
 }
 
