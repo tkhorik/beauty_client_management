@@ -8,7 +8,20 @@ data class UserDto(
     val id: String,
     val email: String,
     val fullName: String,
-    val createdAt: String
+    val createdAt: String,
+    /**
+     * Whether the user has confirmed control of [email].
+     *
+     * Currently advisory: enforcement is "soft", so an unverified user can still
+     * use the app and the clients merely show a banner. It is exposed here
+     * rather than behind a separate endpoint so the clients learn about it from
+     * the same response that establishes the session, with no extra round trip.
+     *
+     * Defaults to false so that any code path that forgets to populate it fails
+     * closed — showing a nag to a verified user is a cosmetic bug, whereas
+     * silently reporting an unverified account as verified defeats the feature.
+     */
+    val emailVerified: Boolean = false
 )
 
 @Serializable
@@ -40,6 +53,33 @@ data class AuthResponse(
     /** Access-token lifetime in seconds, so clients can refresh before it lapses. */
     val expiresInSeconds: Long,
     val user: UserDto
+)
+
+/** Body for `POST /api/auth/forgot-password`. */
+@Serializable
+data class ForgotPasswordRequest(
+    val email: String
+)
+
+/** Body for `POST /api/auth/reset-password`. */
+@Serializable
+data class ResetPasswordRequest(
+    val token: String,
+    val newPassword: String
+)
+
+/**
+ * A deliberately uninformative acknowledgement.
+ *
+ * `/forgot-password` answers with this identical body whether or not the
+ * address has an account. Confirming existence would turn the endpoint into a
+ * free account-enumeration oracle — and one that requires no credentials at
+ * all, unlike the login endpoint, which already goes to some trouble (see
+ * `DUMMY_PASSWORD_HASH`) to avoid being one.
+ */
+@Serializable
+data class MessageResponse(
+    val message: String
 )
 
 /** Body for `/api/auth/refresh` and `/api/auth/logout` from non-browser clients. */
