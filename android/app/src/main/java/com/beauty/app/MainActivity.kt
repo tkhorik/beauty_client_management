@@ -14,6 +14,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -40,6 +41,8 @@ import com.beauty.app.ui.auth.LoginScreen
 import com.beauty.app.ui.auth.RegisterScreen
 import com.beauty.app.ui.client.EditClientScreen
 import com.beauty.app.ui.client.EditClientViewModel
+import com.beauty.app.ui.settings.SettingsScreen
+import com.beauty.app.ui.settings.SettingsViewModel
 import com.beauty.app.ui.theme.*
 import kotlinx.serialization.json.Json
 
@@ -124,6 +127,7 @@ fun AppNavHost() {
                 onClientTap = { clientId ->
                     navController.navigate("edit_client/$clientId")
                 },
+                onOpenSettings = { navController.navigate("settings") },
                 onLogout = {
                     // Revokes the refresh token server-side before clearing it
                     // locally; navigation waits for that so the user is never
@@ -135,6 +139,20 @@ fun AppNavHost() {
                         }
                     }
                 }
+            )
+        }
+
+        composable("settings") {
+            val settingsViewModel: SettingsViewModel = viewModel(
+                factory = object : ViewModelProvider.Factory {
+                    @Suppress("UNCHECKED_CAST")
+                    override fun <T : ViewModel> create(modelClass: Class<T>): T =
+                        SettingsViewModel(repository, tokenStore) as T
+                }
+            )
+            SettingsScreen(
+                viewModel = settingsViewModel,
+                onBack = { navController.popBackStack() }
             )
         }
 
@@ -165,6 +183,7 @@ fun AppNavHost() {
 fun BeautyAppScreen(
     tokenStore: com.beauty.app.data.local.TokenStore,
     onClientTap: (clientId: String) -> Unit,
+    onOpenSettings: () -> Unit,
     onLogout: () -> Unit
 ) {
     var searchQuery by remember { mutableStateOf("") }
@@ -197,6 +216,13 @@ fun BeautyAppScreen(
                     }
                 },
                 actions = {
+                    IconButton(onClick = onOpenSettings) {
+                        Icon(
+                            Icons.Default.Settings,
+                            contentDescription = "Account settings",
+                            tint = TextMuted
+                        )
+                    }
                     IconButton(onClick = onLogout) {
                         Icon(
                             Icons.Default.ExitToApp,

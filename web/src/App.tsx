@@ -9,6 +9,7 @@ import { ClientDetailModal } from './components/ClientDetailModal';
 import { NewClientModal } from './components/NewClientModal';
 import { NewVisitModal } from './components/NewVisitModal';
 import { PhotoCompareModal } from './components/PhotoCompareModal';
+import { SettingsModal } from './components/SettingsModal';
 import { Users, Sparkles } from 'lucide-react';
 
 export function App() {
@@ -47,6 +48,7 @@ function AuthenticatedApp() {
   const [isNewVisitOpen, setIsNewVisitOpen] = useState(false);
   const [newVisitTargetClient, setNewVisitTargetClient] = useState<Client | undefined>(undefined);
   const [compareAttachments, setCompareAttachments] = useState<Attachment[] | null>(null);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   const loadData = async () => {
     setLoading(true);
@@ -92,6 +94,7 @@ function AuthenticatedApp() {
         onTagSelect={setSelectedTag}
         onOpenNewClient={() => setIsNewClientOpen(true)}
         onOpenNewVisit={() => handleOpenNewVisit(undefined)}
+        onOpenSettings={() => setIsSettingsOpen(true)}
         totalClients={clients.length}
       />
 
@@ -166,6 +169,11 @@ function AuthenticatedApp() {
           attachments={compareAttachments}
           onClose={() => setCompareAttachments(null)}
         />
+      )}
+
+      {/* Account Settings Modal */}
+      {isSettingsOpen && (
+        <SettingsModal onClose={() => setIsSettingsOpen(false)} />
       )}
     </div>
   );

@@ -5,6 +5,7 @@ import com.beauty.routes.attachmentRoutes
 import com.beauty.routes.authRoutes
 import com.beauty.routes.authenticatedAuthRoutes
 import com.beauty.routes.clientRoutes
+import com.beauty.routes.userRoutes
 import com.beauty.routes.visitRoutes
 import io.ktor.http.*
 import io.ktor.server.application.*
@@ -105,6 +106,7 @@ fun Application.configureRouting() {
 
         authenticate("auth-jwt") {
             authenticatedAuthRoutes()
+            userRoutes()
             clientRoutes()
             visitRoutes()
             attachmentRoutes()
