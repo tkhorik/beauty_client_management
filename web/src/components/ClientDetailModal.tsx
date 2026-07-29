@@ -207,8 +207,11 @@ export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                 {visits.map(visit => {
+                  // Some records created before attachments were introduced do
+                  // not contain the field.  Treat them as having no files.
+                  const attachments = Array.isArray(visit.attachments) ? visit.attachments : [];
                   const statusClass = visit.status === 'COMPLETED' ? 'status-completed' : visit.status === 'SCHEDULED' ? 'status-scheduled' : 'status-cancelled';
-                  const hasBeforeAfter = visit.attachments.some(a => a.tag === 'BEFORE') && visit.attachments.some(a => a.tag === 'AFTER');
+                  const hasBeforeAfter = attachments.some(a => a.tag === 'BEFORE') && attachments.some(a => a.tag === 'AFTER');
 
                   return (
                     <div key={visit.id} className="glass-panel" style={{ padding: '20px', borderLeft: '4px solid var(--rose-gold-primary)' }}>
@@ -226,7 +229,7 @@ export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
                         </div>
 
                         {hasBeforeAfter && (
-                          <button className="btn-rose" style={{ padding: '6px 12px', fontSize: '12px' }} onClick={() => onOpenPhotoCompare(visit.attachments)}>
+                          <button className="btn-rose" style={{ padding: '6px 12px', fontSize: '12px' }} onClick={() => onOpenPhotoCompare(attachments)}>
                             <Camera size={14} /> Compare Before/After
                           </button>
                         )}
@@ -238,11 +241,11 @@ export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
                       </p>
 
                       {/* Photo Attachments Grid */}
-                      {visit.attachments.length > 0 && (
+                      {attachments.length > 0 && (
                         <div>
-                          <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '8px', fontWeight: 600 }}>Attachments ({visit.attachments.length} Photos/Files):</p>
+                          <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '8px', fontWeight: 600 }}>Attachments ({attachments.length} Photos/Files):</p>
                           <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-                            {visit.attachments.map(att => (
+                            {attachments.map(att => (
                               <div key={att.id} style={{ position: 'relative', width: '100px', height: '100px', borderRadius: '10px', overflow: 'hidden', border: '1px solid var(--border-color)' }}>
                                 <img src={att.fileUrl} alt={att.caption || 'Attachment'} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                                 <span style={{ position: 'absolute', bottom: '4px', left: '4px', background: 'rgba(0,0,0,0.8)', color: att.tag === 'BEFORE' ? 'var(--rose-gold-primary)' : att.tag === 'AFTER' ? '#2dd4bf' : '#fff', padding: '2px 6px', borderRadius: '6px', fontSize: '9px', fontWeight: 700 }}>

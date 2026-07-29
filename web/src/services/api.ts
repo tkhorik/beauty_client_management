@@ -135,6 +135,18 @@ const INITIAL_MOCK_VISITS: Visit[] = [
 
 class ApiService {
   /**
+   * Older visit records may predate the attachments field.  Keep the API
+   * boundary backwards-compatible so consumers can always treat it as an
+   * array.
+   */
+  private normalizeVisit(visit: Visit): Visit {
+    return {
+      ...visit,
+      attachments: Array.isArray(visit.attachments) ? visit.attachments : []
+    };
+  }
+
+  /**
    * Wraps fetch() with Bearer token injection, a transparent one-shot refresh
    * on expiry, and central 401 handling.
    *
@@ -186,7 +198,7 @@ class ApiService {
       localStorage.setItem('beauty_visits', JSON.stringify(INITIAL_MOCK_VISITS));
       return INITIAL_MOCK_VISITS;
     }
-    return JSON.parse(saved);
+    return JSON.parse(saved).map((visit: Visit) => this.normalizeVisit(visit));
   }
 
   private saveLocalVisits(visits: Visit[]) {
@@ -298,7 +310,10 @@ class ApiService {
       const url = new URL(`${API_BASE_URL}/visits`);
       if (clientId) url.searchParams.set('clientId', clientId);
       const res = await this.authFetch(url.toString());
-      if (res.ok) return await res.json();
+      if (res.ok) {
+        const visits: Visit[] = await res.json();
+        return visits.map(visit => this.normalizeVisit(visit));
+      }
     } catch (err) {}
 
     let visits = this.getLocalVisits();
