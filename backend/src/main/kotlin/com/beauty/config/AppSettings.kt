@@ -31,6 +31,16 @@ class AppSettings(private val config: ApplicationConfig) {
     val jwtAudience: String = str("jwt.audience", "aura-beauty-log-users")
     val jwtRealm: String = str("jwt.realm", "Beauty Client Management")
 
+    /**
+     * Access-token lifetime. Short on purpose: an access token cannot be
+     * revoked, so its expiry is the only thing limiting the damage of a leaked
+     * one. The refresh token carries the long-lived session and *is* revocable.
+     */
+    val accessTokenMinutes: Long = str("jwt.accessTokenMinutes", "15").toLongOrNull() ?: 15L
+
+    /** Refresh-token lifetime, i.e. how long a user stays signed in without re-entering a password. */
+    val refreshTokenDays: Long = str("jwt.refreshTokenDays", "30").toLongOrNull() ?: 30L
+
     val dbDriver: String = str("db.driver", "org.postgresql.Driver")
     val dbUrl: String = str("db.url", "jdbc:postgresql://localhost:5432/beautydb")
     val dbUser: String = str("db.user", "postgres")

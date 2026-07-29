@@ -1,5 +1,6 @@
 import type { Client, Visit, Attachment, CreateClientInput, CreateVisitInput } from '../types';
 import { getToken, clearToken } from '../auth/tokenStore';
+import { refreshAccessToken } from '../auth/session';
 import { API_BASE_URL } from '../config';
 
 // Initial Mock Data for instant demonstration & fallback
@@ -117,16 +118,36 @@ const INITIAL_MOCK_VISITS: Visit[] = [
 ];
 
 class ApiService {
-  /** Wraps fetch() with Bearer token injection and central 401 handling. */
+  /**
+   * Wraps fetch() with Bearer token injection, a transparent one-shot refresh
+   * on expiry, and central 401 handling.
+   *
+   * Access tokens now last minutes rather than forever, so a 401 mid-session is
+   * the expected case, not an error: it usually means "expired", not "invalid".
+   * Refreshing and retrying once turns that into something the user never sees.
+   * Only a 401 that survives the retry means the session is genuinely over.
+   */
   private async authFetch(input: RequestInfo, init: RequestInit = {}): Promise<Response> {
-    const token = getToken();
-    const headers = new Headers(init.headers);
-    if (token) headers.set('Authorization', `Bearer ${token}`);
-    const res = await fetch(input, { ...init, headers });
-    if (res.status === 401) {
-      clearToken();
-      window.dispatchEvent(new Event('beauty:unauthorized'));
+    const send = (token: string | null) => {
+      const headers = new Headers(init.headers);
+      if (token) headers.set('Authorization', `Bearer ${token}`);
+      return fetch(input, { ...init, headers });
+    };
+
+    let res = await send(getToken());
+    if (res.status !== 401) return res;
+
+    // Concurrent 401s all await the same refresh — see the note on
+    // single-flight in auth/session.ts. Starting one refresh per request would
+    // look like refresh-token reuse and log the user out.
+    const refreshed = await refreshAccessToken();
+    if (refreshed) {
+      res = await send(refreshed);
+      if (res.status !== 401) return res;
     }
+
+    clearToken();
+    window.dispatchEvent(new Event('beauty:unauthorized'));
     return res;
   }
 
