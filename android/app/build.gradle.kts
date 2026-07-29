@@ -140,6 +140,9 @@ dependencies {
     implementation("androidx.compose.ui:ui-graphics")
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.material3:material3")
+    // M2 supplies the nested-scroll pull-to-refresh primitive.  The screen
+    // remains styled with Material 3; this is only the gesture/indicator API.
+    implementation("androidx.compose.material:material")
     implementation("androidx.compose.material:material-icons-extended")
 
     // Room DB Offline Caching
