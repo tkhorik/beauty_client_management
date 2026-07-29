@@ -130,9 +130,19 @@ services:
     # is silently skipped and Nginx serves the image's stock default.conf
     # instead of ours. Run envsubst explicitly first instead of relying on
     # that entrypoint behavior.
+    #
+    # The '$${DOMAIN} $${EXTERNAL_HTTPS_PORT}' argument restricts envsubst to
+    # ONLY those two names. (`$$` escapes compose's own ${...} interpolation,
+    # so the literal string reaches the container.) Without that restriction,
+    # envsubst substitutes EVERY `$name` it finds — replacing any that isn't
+    # a real environment variable with an EMPTY STRING. The template is full
+    # of Nginx's own runtime variables ($binary_remote_addr, $host, $uri,
+    # $request_uri, $remote_addr), none of which are environment variables,
+    # so an unrestricted call silently blanks them all out and Nginx dies
+    # with "invalid number of arguments in limit_req_zone".
     command: >
       /bin/sh -c "
-      envsubst < /etc/nginx/templates/default.conf.template > /etc/nginx/conf.d/default.conf &&
+      envsubst '$${DOMAIN} $${EXTERNAL_HTTPS_PORT}' < /etc/nginx/templates/default.conf.template > /etc/nginx/conf.d/default.conf &&
       while :; do sleep 6h; nginx -s reload; done &
       exec nginx -g 'daemon off;'"
 
