@@ -141,7 +141,12 @@ jobs:
     # required reviewers and keep the deploy secrets scoped to it.
     environment:
       name: production
-      url: https://${{ vars.DOMAIN }}:${{ vars.HTTPS_PORT || '443' }}
+      # SITE_URL is the canonical public origin, set as a repo variable, with
+      # NO trailing slash — e.g. https://beautyclient.duckdns.org. If HTTPS is
+      # published on a non-standard host port, bake the port into SITE_URL
+      # itself (https://example.com:8443); HTTPS_PORT stays a server-side .env
+      # concern so there is one origin string, not a port assembled twice.
+      url: ${{ vars.SITE_URL || format('https://{0}', vars.DOMAIN) }}
     steps:
       - name: Deploy over SSH
         uses: appleboy/ssh-action@v1.2.0
@@ -191,7 +196,7 @@ jobs:
 
       - name: Verify the site is up
         env:
-          SITE_URL: https://${{ vars.DOMAIN }}:${{ vars.HTTPS_PORT || '443' }}
+          SITE_URL: ${{ vars.SITE_URL || format('https://{0}', vars.DOMAIN) }}
         run: |
           set -e
           echo "Waiting for the backend to report healthy..."

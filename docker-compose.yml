@@ -96,21 +96,20 @@ services:
         condition: service_healthy
     ports:
       - "80:80"
-      # Host 443 is already taken by an unrelated service on this VPS
-      # (a non-Docker process using it deliberately), so the app's HTTPS is
-      # published on HTTPS_PORT instead. Port 80 stays on 80 unconditionally:
-      # Certbot's HTTP-01 challenge and the plain-HTTP redirect both need it,
-      # and nothing else on this host claims it.
-      - "${HTTPS_PORT:-8443}:443"
+      # HTTPS_PORT is the host port the app's HTTPS is published on. It
+      # defaults to the standard 443; set it in .env only if something else
+      # on the host already owns 443. Port 80 stays on 80 unconditionally:
+      # Certbot's HTTP-01 challenge and the plain-HTTP redirect both need it.
+      - "${HTTPS_PORT:-443}:443"
     environment:
       # The official Nginx image runs envsubst over /etc/nginx/templates and
       # substitutes ONLY the variables listed here, so Nginx's own $uri/$host
       # runtime variables are left untouched.
       DOMAIN: ${DOMAIN}
       # Baked into the HTTP->HTTPS redirect so the Location header points at
-      # the actual externally-reachable port, not a bare :443 that nothing
-      # is listening on from outside.
-      EXTERNAL_HTTPS_PORT: ${HTTPS_PORT:-8443}
+      # the actual externally-reachable port. The command below turns this
+      # into EXTERNAL_HTTPS_SUFFIX, which is empty for the standard 443.
+      EXTERNAL_HTTPS_PORT: ${HTTPS_PORT:-443}
       NGINX_ENVSUBST_TEMPLATE_SUFFIX: .template
     volumes:
       - ./deploy/nginx/templates:/etc/nginx/templates:ro
@@ -131,7 +130,7 @@ services:
     # instead of ours. Run envsubst explicitly first instead of relying on
     # that entrypoint behavior.
     #
-    # The '$${DOMAIN} $${EXTERNAL_HTTPS_PORT}' argument restricts envsubst to
+    # The '$${DOMAIN} $${EXTERNAL_HTTPS_SUFFIX}' argument restricts envsubst to
     # ONLY those two names. (`$$` escapes compose's own ${...} interpolation,
     # so the literal string reaches the container.) Without that restriction,
     # envsubst substitutes EVERY `$name` it finds — replacing any that isn't
@@ -140,9 +139,17 @@ services:
     # $request_uri, $remote_addr), none of which are environment variables,
     # so an unrestricted call silently blanks them all out and Nginx dies
     # with "invalid number of arguments in limit_req_zone".
+    #
+    # EXTERNAL_HTTPS_SUFFIX is derived here rather than in .env so there stays
+    # exactly ONE knob (HTTPS_PORT). It is ":<port>" for a non-standard port
+    # and empty for 443, so the redirect target is canonical in the normal
+    # case: https://domain/... rather than https://domain:443/...
     command: >
       /bin/sh -c "
-      envsubst '$${DOMAIN} $${EXTERNAL_HTTPS_PORT}' < /etc/nginx/templates/default.conf.template > /etc/nginx/conf.d/default.conf &&
+      EXTERNAL_HTTPS_SUFFIX=:$${EXTERNAL_HTTPS_PORT};
+      [ $${EXTERNAL_HTTPS_PORT} = 443 ] && EXTERNAL_HTTPS_SUFFIX=;
+      export EXTERNAL_HTTPS_SUFFIX;
+      envsubst '$${DOMAIN} $${EXTERNAL_HTTPS_SUFFIX}' < /etc/nginx/templates/default.conf.template > /etc/nginx/conf.d/default.conf &&
       while :; do sleep 6h; nginx -s reload; done &
       exec nginx -g 'daemon off;'"
 
