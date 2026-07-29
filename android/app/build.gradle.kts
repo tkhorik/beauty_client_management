@@ -1,9 +1,24 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.serialization")
     id("kotlin-kapt")
 }
+
+// Release signing material never lives in git. Locally, a developer copies
+// their own keystore path/passwords into android/keystore.properties (already
+// gitignored). In CI, android-release.yml writes this same file from GitHub
+// Secrets immediately before the build, so this code path is identical in
+// both places — no separate CI-only signing logic to keep in sync.
+val keystoreProperties = Properties().apply {
+    val propsFile = rootProject.file("keystore.properties")
+    if (propsFile.exists()) {
+        propsFile.inputStream().use { load(it) }
+    }
+}
+val hasReleaseSigning = keystoreProperties.getProperty("storeFile") != null
 
 android {
     namespace = "com.beauty.app"
@@ -13,6 +28,10 @@ android {
         applicationId = "com.beauty.app"
         minSdk = 24
         targetSdk = 34
+        // versionCode must strictly increase on every published release —
+        // Android refuses to install an APK whose versionCode is <= the one
+        // already on the device. The release workflow does NOT bump this for
+        // you; bump it here in the same commit as the release tag.
         versionCode = 1
         versionName = "1.0.0"
 
@@ -20,6 +39,21 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
             useSupportLibrary = true
+        }
+    }
+
+    signingConfigs {
+        // Only registered when keystore.properties actually exists, so a
+        // clean checkout without signing material still configures and runs
+        // `assembleDebug` / unit tests fine — only `assembleRelease` /
+        // `bundleRelease` need it, and they fail loudly below if it's missing.
+        if (hasReleaseSigning) {
+            create("release") {
+                storeFile = rootProject.file(keystoreProperties.getProperty("storeFile"))
+                storePassword = keystoreProperties.getProperty("storePassword")
+                keyAlias = keystoreProperties.getProperty("keyAlias")
+                keyPassword = keystoreProperties.getProperty("keyPassword")
+            }
         }
     }
 
@@ -34,6 +68,23 @@ android {
             buildConfigField("String", "API_BASE_URL", "\"$releaseApiBaseUrl\"")
             isMinifyEnabled = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+
+            if (hasReleaseSigning) {
+                signingConfig = signingConfigs.getByName("release")
+            } else {
+                // Fails the build with a clear message instead of silently
+                // producing an unsigned APK/AAB that can't be installed on a
+                // real device or uploaded to Play.
+                tasks.matching { it.name.startsWith("assembleRelease") || it.name.startsWith("bundleRelease") }
+                    .configureEach {
+                        doFirst {
+                            throw GradleException(
+                                "Missing android/keystore.properties — release builds must be signed. " +
+                                    "See deploy_strategy.md for how to generate a keystore and wire CI secrets."
+                            )
+                        }
+                    }
+            }
         }
     }
     compileOptions {

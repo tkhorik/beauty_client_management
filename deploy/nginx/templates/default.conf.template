@@ -28,7 +28,10 @@ server {
     }
 
     location / {
-        return 301 https://${DOMAIN}:${EXTERNAL_HTTPS_PORT}$request_uri;
+        # EXTERNAL_HTTPS_SUFFIX is ":<port>" when HTTPS is published on a
+        # non-standard host port, and EMPTY when it is on 443 — so the
+        # canonical case redirects to https://domain/... with no port at all.
+        return 301 https://${DOMAIN}${EXTERNAL_HTTPS_SUFFIX}$request_uri;
     }
 }
 

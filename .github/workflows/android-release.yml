@@ -44,10 +44,15 @@ jobs:
       # The keystore never touches git. It is stored base64-encoded in a
       # GitHub Secret and decoded to a file that only exists on the CI
       # runner's disk, which is destroyed when the job finishes.
+      # Written to android/release.jks, NOT android/app/release.jks: the
+      # storeFile in keystore.properties is resolved by build.gradle.kts with
+      # rootProject.file(), and the Android build's rootProject is `android/`.
+      # These two paths must agree or assembleRelease fails with
+      # "Keystore file not found".
       - name: Decode release keystore
         working-directory: android
         run: |
-          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > app/release.jks
+          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > release.jks
 
       # keystore.properties is read by app/build.gradle.kts's signingConfigs
       # block — the exact same file a developer would create locally, so
@@ -74,14 +79,14 @@ jobs:
         run: |
           chmod +x gradlew
           ./gradlew --no-daemon assembleRelease \
-            -PreleaseApiBaseUrl=https://${{ vars.DOMAIN }}:${{ vars.HTTPS_PORT || '443' }}/
+            -PreleaseApiBaseUrl=${{ vars.SITE_URL || format('https://{0}', vars.DOMAIN) }}/
 
       # Shred the decoded key material and property file so nothing signing
       # related lingers in the runner's workspace artifacts/logs.
       - name: Clean up signing material
         if: always()
         working-directory: android
-        run: rm -f app/release.jks keystore.properties
+        run: rm -f release.jks keystore.properties
 
       - name: Rename APK to include version
         working-directory: android
@@ -99,7 +104,7 @@ jobs:
           prerelease: false
           files: android/release-out/*.apk
           body: |
-            Signed release build of the Android app, pointed at `https://${{ vars.DOMAIN }}:${{ vars.HTTPS_PORT || '443' }}/`.
+            Signed release build of the Android app, pointed at `${{ vars.SITE_URL || format('https://{0}', vars.DOMAIN) }}/`.
 
             Install: download the APK below, enable "install unknown apps" for
             your browser/file manager, and open it. Users with an existing
