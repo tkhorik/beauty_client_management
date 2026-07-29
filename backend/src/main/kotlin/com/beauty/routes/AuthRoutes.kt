@@ -52,8 +52,118 @@ private const val REFRESH_COOKIE = "beauty_refresh"
 private const val TRANSPORT_HEADER = "X-Auth-Transport"
 private const val TRANSPORT_COOKIE = "cookie"
 
-private fun ApplicationCall.usesCookieTransport(): Boolean =
+internal fun ApplicationCall.usesCookieTransport(): Boolean =
     request.headers[TRANSPORT_HEADER]?.equals(TRANSPORT_COOKIE, ignoreCase = true) == true
+
+/**
+ * Sends the refresh token by whichever route the client asked for, and
+ * returns the value to embed in the JSON body (null when it went into a
+ * cookie — putting it in both places would defeat the point of httpOnly).
+ *
+ * Top-level (not nested in [authRoutes]) so every endpoint that mints or
+ * rotates a session — login, register, refresh, and password change in
+ * `UserRoutes.kt` — shares one definition of the Secure/SameSite/path rules.
+ * Duplicating this per-route is exactly how one of them ends up wrong.
+ */
+internal fun ApplicationCall.deliverRefreshToken(rawToken: String, settings: AppSettings): String? {
+    if (!usesCookieTransport()) return rawToken
+
+    // Derived from the actual connection rather than from `isProduction`.
+    //
+    // Ktor throws if a `Secure` cookie is set on a connection it considers
+    // plaintext, so tying the flag to the environment turns any
+    // proxy misconfiguration into a 500 on every login. Reading the real
+    // scheme means the flag is correct by construction and this can never
+    // crash — behind Nginx that scheme comes from X-Forwarded-Proto, via
+    // the XForwardedHeaders plugin installed in Routing.kt.
+    val overHttps = request.origin.scheme == "https"
+    if (settings.isProduction && !overHttps) {
+        // Loud, because the refresh cookie is now going out without the
+        // Secure flag: the proxy is not forwarding X-Forwarded-Proto.
+        application.log.warn(
+            "Refresh cookie issued WITHOUT the Secure flag: request scheme is " +
+                "'${request.origin.scheme}', not https. Check that the proxy sets " +
+                "X-Forwarded-Proto and that XForwardedHeaders is installed."
+        )
+    }
+
+    response.cookies.append(
+        Cookie(
+            name = REFRESH_COOKIE,
+            value = rawToken,
+            // Unreadable from JavaScript, so an XSS payload cannot exfiltrate
+            // the long-lived half of the session.
+            httpOnly = true,
+            // Never sent over plain HTTP. False in local development, which
+            // is not served over TLS.
+            secure = overHttps,
+            // The refresh endpoint changes server state, so it needs CSRF
+            // protection. `Strict` means the browser will not attach this
+            // cookie to any cross-site request, which removes the attack
+            // outright — affordable here only because the web app and the
+            // API share one origin.
+            extensions = mapOf("SameSite" to "Strict"),
+            path = "/api/auth",
+            maxAge = (settings.refreshTokenDays * 24 * 60 * 60).toInt()
+        )
+    )
+    return null
+}
+
+internal fun ApplicationCall.clearRefreshCookie() {
+    response.cookies.append(
+        Cookie(
+            name = REFRESH_COOKIE,
+            value = "",
+            httpOnly = true,
+            // Same reasoning as above: read the real scheme so expiring the
+            // cookie can never throw. This runs on the rejection path, where
+            // a 500 would mask the actual reason the session ended.
+            secure = request.origin.scheme == "https",
+            extensions = mapOf("SameSite" to "Strict"),
+            path = "/api/auth",
+            maxAge = 0
+        )
+    )
+}
+
+/**
+ * Mints a fresh access + refresh token pair and responds with it.
+ *
+ * Shared by login, register, and password-change (in `UserRoutes.kt`) — every
+ * place a brand-new session family should start. `/refresh` does not use this
+ * because it rotates an existing family instead of starting a new one.
+ */
+internal suspend fun ApplicationCall.respondWithNewSession(
+    status: HttpStatusCode,
+    user: UserDto,
+    settings: AppSettings,
+    secret: String,
+    issuer: String,
+    audience: String,
+    accessTokenMinutes: Long,
+    refreshTokens: RefreshTokenService
+) {
+    val accessToken = generateJwtToken(
+        userId = user.id,
+        email = user.email,
+        secret = secret,
+        issuer = issuer,
+        audience = audience,
+        expiresInMinutes = accessTokenMinutes
+    )
+    val refreshToken = refreshTokens.issueNewFamily(user.id)
+
+    respond(
+        status,
+        AuthResponse(
+            token = accessToken,
+            refreshToken = deliverRefreshToken(refreshToken, settings),
+            expiresInSeconds = accessTokenMinutes * 60,
+            user = user
+        )
+    )
+}
 
 fun Route.authRoutes() {
     val settings = AppSettings(application.environment.config)
@@ -62,73 +172,6 @@ fun Route.authRoutes() {
     val audience = settings.jwtAudience
     val accessTokenMinutes = settings.accessTokenMinutes
     val refreshTokens = RefreshTokenService(settings.refreshTokenDays)
-
-    /**
-     * Sends the refresh token by whichever route the client asked for, and
-     * returns the value to embed in the JSON body (null when it went into a
-     * cookie — putting it in both places would defeat the point of httpOnly).
-     */
-    fun ApplicationCall.deliverRefreshToken(rawToken: String): String? {
-        if (!usesCookieTransport()) return rawToken
-
-        // Derived from the actual connection rather than from `isProduction`.
-        //
-        // Ktor throws if a `Secure` cookie is set on a connection it considers
-        // plaintext, so tying the flag to the environment turns any
-        // proxy misconfiguration into a 500 on every login. Reading the real
-        // scheme means the flag is correct by construction and this can never
-        // crash — behind Nginx that scheme comes from X-Forwarded-Proto, via
-        // the XForwardedHeaders plugin installed in Routing.kt.
-        val overHttps = request.origin.scheme == "https"
-        if (settings.isProduction && !overHttps) {
-            // Loud, because the refresh cookie is now going out without the
-            // Secure flag: the proxy is not forwarding X-Forwarded-Proto.
-            application.log.warn(
-                "Refresh cookie issued WITHOUT the Secure flag: request scheme is " +
-                    "'${request.origin.scheme}', not https. Check that the proxy sets " +
-                    "X-Forwarded-Proto and that XForwardedHeaders is installed."
-            )
-        }
-
-        response.cookies.append(
-            Cookie(
-                name = REFRESH_COOKIE,
-                value = rawToken,
-                // Unreadable from JavaScript, so an XSS payload cannot exfiltrate
-                // the long-lived half of the session.
-                httpOnly = true,
-                // Never sent over plain HTTP. False in local development, which
-                // is not served over TLS.
-                secure = overHttps,
-                // The refresh endpoint changes server state, so it needs CSRF
-                // protection. `Strict` means the browser will not attach this
-                // cookie to any cross-site request, which removes the attack
-                // outright — affordable here only because the web app and the
-                // API share one origin.
-                extensions = mapOf("SameSite" to "Strict"),
-                path = "/api/auth",
-                maxAge = (settings.refreshTokenDays * 24 * 60 * 60).toInt()
-            )
-        )
-        return null
-    }
-
-    fun ApplicationCall.clearRefreshCookie() {
-        response.cookies.append(
-            Cookie(
-                name = REFRESH_COOKIE,
-                value = "",
-                httpOnly = true,
-                // Same reasoning as above: read the real scheme so expiring the
-                // cookie can never throw. This runs on the rejection path, where
-                // a 500 would mask the actual reason the session ended.
-                secure = request.origin.scheme == "https",
-                extensions = mapOf("SameSite" to "Strict"),
-                path = "/api/auth",
-                maxAge = 0
-            )
-        )
-    }
 
     /** Reads the refresh token from the cookie, falling back to the request body. */
     suspend fun ApplicationCall.readRefreshToken(): String? {
@@ -141,27 +184,7 @@ fun Route.authRoutes() {
     suspend fun ApplicationCall.respondWithSession(
         status: HttpStatusCode,
         user: UserDto
-    ) {
-        val accessToken = generateJwtToken(
-            userId = user.id,
-            email = user.email,
-            secret = secret,
-            issuer = issuer,
-            audience = audience,
-            expiresInMinutes = accessTokenMinutes
-        )
-        val refreshToken = refreshTokens.issueNewFamily(user.id)
-
-        respond(
-            status,
-            AuthResponse(
-                token = accessToken,
-                refreshToken = deliverRefreshToken(refreshToken),
-                expiresInSeconds = accessTokenMinutes * 60,
-                user = user
-            )
-        )
-    }
+    ) = respondWithNewSession(status, user, settings, secret, issuer, audience, accessTokenMinutes, refreshTokens)
 
     route("/api/auth") {
         post("/register") {
@@ -304,7 +327,7 @@ fun Route.authRoutes() {
                         HttpStatusCode.OK,
                         AuthResponse(
                             token = accessToken,
-                            refreshToken = call.deliverRefreshToken(result.token),
+                            refreshToken = call.deliverRefreshToken(result.token, settings),
                             expiresInSeconds = accessTokenMinutes * 60,
                             user = UserDto(
                                 id = result.userId,

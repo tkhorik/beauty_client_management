@@ -3,21 +3,9 @@ import { useAuth } from '../auth/AuthContext';
 import { Sparkles, Eye, EyeOff } from 'lucide-react';
 import { API_BASE_URL } from '../config';
 import { AUTH_TRANSPORT_HEADERS } from '../auth/session';
+import { PASSWORD_MIN_LENGTH, validatePasswordLocally } from '../utils/passwordRules';
 
 type Mode = 'login' | 'register';
-
-/**
- * Kept deliberately in step with `Validation.kt` on the backend. The server is
- * the authority — this exists only so the user finds out about a too-short
- * password before a round trip, not instead of the server check.
- */
-const PASSWORD_MIN_LENGTH = 12;
-const PASSWORD_MAX_BYTES = 72;
-
-/** BCrypt measures its 72-byte limit in bytes, not characters. */
-function byteLength(value: string): number {
-  return new TextEncoder().encode(value).length;
-}
 
 type FieldErrors = Record<string, string>;
 
@@ -50,10 +38,9 @@ export function LoginPage() {
     if (!fullName.trim()) {
       errors.fullName = 'Name is required.';
     }
-    if (password.length < PASSWORD_MIN_LENGTH) {
-      errors.password = `Password must be at least ${PASSWORD_MIN_LENGTH} characters.`;
-    } else if (byteLength(password) > PASSWORD_MAX_BYTES) {
-      errors.password = `Password must be at most ${PASSWORD_MAX_BYTES} bytes long.`;
+    const passwordError = validatePasswordLocally(password);
+    if (passwordError) {
+      errors.password = passwordError;
     }
     // Checked in the browser only: the server never sees the confirmation
     // field, and a typo here would otherwise lock the user out of an account
@@ -129,7 +116,7 @@ export function LoginPage() {
       }
 
       const data = await res.json();
-      login(data.token);
+      login(data.token, data.user);
     } catch {
       setError('Server could not be reached. Make sure the backend is running.');
     } finally {

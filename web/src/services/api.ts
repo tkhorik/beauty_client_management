@@ -1,7 +1,23 @@
-import type { Client, Visit, Attachment, CreateClientInput, CreateVisitInput } from '../types';
+import type { Client, Visit, Attachment, CreateClientInput, CreateVisitInput, UserProfile } from '../types';
 import { getToken, clearToken } from '../auth/tokenStore';
-import { refreshAccessToken } from '../auth/session';
+import { refreshAccessToken, type SessionResult } from '../auth/session';
 import { API_BASE_URL } from '../config';
+
+/**
+ * Carries the parsed error body (field-level messages, or a flat `error`
+ * string) alongside the HTTP status, so callers can render the same kind of
+ * inline, per-field feedback `LoginPage` gives on registration.
+ */
+export class ApiError extends Error {
+  status: number;
+  body: { error?: string; errors?: Record<string, string> };
+
+  constructor(status: number, body: { error?: string; errors?: Record<string, string> }) {
+    super(body.error ?? 'Request failed');
+    this.status = status;
+    this.body = body;
+  }
+}
 
 // Initial Mock Data for instant demonstration & fallback
 const INITIAL_MOCK_CLIENTS: Client[] = [
@@ -142,7 +158,7 @@ class ApiService {
     // look like refresh-token reuse and log the user out.
     const refreshed = await refreshAccessToken();
     if (refreshed) {
-      res = await send(refreshed);
+      res = await send(refreshed.token);
       if (res.status !== 401) return res;
     }
 
@@ -365,6 +381,56 @@ class ApiService {
       this.saveLocalVisits(visits);
     }
     return newAttachment;
+  }
+
+  // -- Account settings ------------------------------------------------
+  //
+  // Deliberately no localStorage fallback below, unlike every other method
+  // in this class. The offline/demo mode elsewhere exists so the app stays
+  // usable with no backend; silently "succeeding" a profile edit or password
+  // change into localStorage would tell the user their password changed when
+  // it didn't touch the account that actually matters. These throw instead,
+  // so the Settings UI can show a real error rather than a false confirmation.
+
+  async getCurrentUser(): Promise<UserProfile> {
+    const res = await this.authFetch(`${API_BASE_URL}/users/me`);
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new ApiError(res.status, body);
+    }
+    return res.json();
+  }
+
+  async updateProfile(fullName: string): Promise<UserProfile> {
+    const res = await this.authFetch(`${API_BASE_URL}/users/me`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fullName }),
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new ApiError(res.status, body);
+    }
+    return res.json();
+  }
+
+  /**
+   * Changes the password. On success the backend revokes every other session
+   * and mints a brand-new one for this device — the returned token must
+   * replace whatever `AuthContext` is holding, or this tab keeps working off
+   * an access token whose refresh cookie was just invalidated.
+   */
+  async changePassword(currentPassword: string, newPassword: string): Promise<SessionResult> {
+    const res = await this.authFetch(`${API_BASE_URL}/users/me/password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ currentPassword, newPassword }),
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new ApiError(res.status, body);
+    }
+    return res.json();
   }
 }
 
