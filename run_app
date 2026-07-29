@@ -128,7 +128,10 @@ echo "==> Android: installing APK"
 "${ADB_BIN}" install -r "${ROOT_DIR}/android/app/build/outputs/apk/debug/app-debug.apk"
 
 echo "==> Android: launching app"
-"${ADB_BIN}" shell am start -n com.beauty.app/.MainActivity
+# Debug builds carry a .debug applicationId suffix (see android/app/build.gradle.kts)
+# so they install side by side with a release build instead of fighting it
+# for the same package name — the activity's own package stays com.beauty.app.
+"${ADB_BIN}" shell am start -n com.beauty.app.debug/com.beauty.app.MainActivity
 
 echo
 echo "=================================================="

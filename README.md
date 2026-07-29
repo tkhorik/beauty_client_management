@@ -185,14 +185,18 @@ What this does:
 
 ### Launch the app
 
+Debug builds carry a `.debug` application-id suffix, so they install and run
+as a separate app from a release build on the same device — no need to
+uninstall a release build (or vice versa) before testing.
+
 ```bash
-/opt/homebrew/bin/adb shell am start -n com.beauty.app/.MainActivity
+/opt/homebrew/bin/adb shell am start -n com.beauty.app.debug/com.beauty.app.MainActivity
 ```
 
 ### Confirm the app is running
 
 ```bash
-/opt/homebrew/bin/adb shell pidof com.beauty.app
+/opt/homebrew/bin/adb shell pidof com.beauty.app.debug
 ```
 
 ---
