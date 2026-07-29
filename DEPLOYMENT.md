@@ -285,6 +285,20 @@ Optionally restrict what that key may do by prefixing the line in `authorized_ke
 | Variable | Value |
 |---|---|
 | `DOMAIN` | `yourdomain.com` |
+| `SITE_URL` | `https://yourdomain.com` — canonical public origin, **no trailing slash** |
+
+`SITE_URL` is what CI uses for the post-deploy health check, the `production`
+environment link, and the API base URL baked into the Android release APK. If
+HTTPS is published on a non-standard host port (see `HTTPS_PORT` in `.env`),
+put the port in `SITE_URL` too: `https://yourdomain.com:8443`. It is kept
+separate from `HTTPS_PORT` deliberately — `HTTPS_PORT` is a server-side port
+binding, `SITE_URL` is the address clients use, and conflating them means the
+origin string gets reassembled in four places instead of stated once. If
+`SITE_URL` is unset, CI falls back to `https://${DOMAIN}`.
+
+Android releases additionally need these **secrets** (see §7.1):
+`ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`,
+`ANDROID_KEY_PASSWORD`.
 
 `GHCR_PULL_TOKEN` is read-only on purpose: if the VPS is ever compromised, the attacker gets the ability to pull your images, not to push a malicious one that then gets deployed. (If you make the GHCR packages public you can drop this secret and the `docker login` line entirely.)
 
