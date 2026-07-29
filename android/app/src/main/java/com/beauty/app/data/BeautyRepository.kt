@@ -28,7 +28,10 @@ class BeautyRepository(
     private val json: Json = Json
 ) : VisitSyncRepository {
     suspend fun refreshClients(): Result<Unit> = runCatching {
-        api.getClients().forEach { clientDao.insertClient(it.toEntity(json)) }
+        // The API list is the source of truth for downloaded data.  Reconciling
+        // it in one Room transaction means a manual refresh also reflects
+        // records deleted from the web app, rather than only adding/updating.
+        clientDao.reconcileClients(api.getClients().map { it.toEntity(json) })
     }
 
     /** Update a client on the backend and return the updated ClientDto. */
