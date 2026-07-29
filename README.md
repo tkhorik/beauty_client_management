@@ -19,16 +19,31 @@ Beauty client and visit management monorepo with three runnable targets:
 The app now requires login before accessing client data.
 
 - The backend protects all `/api/clients`, `/api/visits`, and `/api/attachments` routes with JWT authentication. Requests without a valid Bearer token receive `401 Unauthorized`.
-- `/api/auth/register` and `/api/auth/login` are public.
+- `/api/auth/register`, `/login`, `/refresh` and `/logout` are public. `/logout-all` requires a token.
+- **Registration rules**: passwords must be at least 12 characters and at most 72 bytes (BCrypt ignores anything beyond that). Emails are stored lowercase, so `Owner@x.com` and `owner@x.com` are the same account. Invalid input returns `400` with a `{"errors": {"<field>": "<message>"}}` body.
 - **First run**: create an account using the "Create an account" toggle on the web login page, or with curl:
 
 ```bash
 curl -s -X POST http://127.0.0.1:8080/api/auth/register \
   -H "Content-Type: application/json" \
-  -d '{"email":"owner@example.com","password":"yourpassword","fullName":"Salon Owner"}'
+  -d '{"email":"owner@example.com","password":"salon test passphrase","fullName":"Salon Owner"}'
 ```
 
-The response contains a JWT token. After registration, use the login page or `POST /api/auth/login` for subsequent sessions.
+### Sessions
+
+There are two tokens, and they behave differently:
+
+- The **access token** in the response is short-lived (15 minutes by default, `ACCESS_TOKEN_MINUTES`). Send it as `Authorization: Bearer <token>`.
+- The **refresh token** lasts 30 days (`REFRESH_TOKEN_DAYS`) and is exchanged at `POST /api/auth/refresh` for a new access token. It is **single-use**: each refresh returns a replacement and invalidates the old one. Presenting a token that has already been used is treated as theft and revokes every session in that chain.
+
+How the refresh token reaches the client depends on who is asking:
+
+- **Browsers** send `X-Auth-Transport: cookie` and receive it in an httpOnly cookie, so page scripts cannot read it. `refreshToken` is then `null` in the JSON body.
+- **Native clients and curl** send no such header and get it in the response body.
+
+Testing the refresh path is easier with a short-lived token — see "Backend Testing" below.
+
+> **Note for existing testers:** sessions created before this change are no longer valid. Log in again.
 
 ---
 
@@ -49,6 +64,27 @@ What this does:
 - listens on `http://127.0.0.1:8080`
 - creates tables on startup
 - uses PostgreSQL if available, otherwise falls back to H2 in memory
+
+### Testing token refresh
+
+A 15-minute access token is too long to wait out by hand. Start the backend
+with a 1-minute one instead:
+
+```bash
+cd /Users/marv/Projects/beauty_client_management/backend
+ACCESS_TOKEN_MINUTES=1 \
+JAVA_HOME=/Users/marv/Library/Java/JavaVirtualMachines/corretto-17.0.19/Contents/Home \
+./gradlew run
+```
+
+Log in on the web app, wait ~70 seconds, then click around. Nothing should
+happen visibly — that silence is the point. Confirm it actually refreshed by
+looking for `POST /api/auth/refresh` in the browser's Network tab; otherwise
+you cannot tell a working refresh from a token that simply had not expired yet.
+
+Worth testing deliberately: open two tabs, let the token expire, then trigger
+loads in both at once. Both should stay signed in. Refreshes are deduplicated
+into one request precisely so that this does not look like token reuse.
 
 ### Quick backend checks
 
