@@ -90,7 +90,7 @@ echo ">>> [5/5] Reloading Nginx with the real certificate..."
 docker compose exec proxy nginx -s reload
 
 echo
-echo "Done. https://${DOMAIN} should now serve a trusted certificate."
+echo "Done. https://${DOMAIN}:${HTTPS_PORT:-443} should now serve a trusted certificate."
 echo "Renewal is automatic: the certbot container retries twice a day and the"
 echo "proxy reloads every 6 hours. Verify with:"
 echo "    docker compose run --rm certbot renew --dry-run"
