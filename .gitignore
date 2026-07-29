@@ -37,8 +37,10 @@ memory.md
 *.jks
 *.keystore
 android/keystore.properties
-=======
+
+# Local scratch/shared directory, not part of the build
 common/*
 
 # Local AI project memory — not for the remote
 CLAUDE.md
+deploy_strategy.md
