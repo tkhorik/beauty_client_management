@@ -49,6 +49,10 @@ android {
         vectorDrawables {
             useSupportLibrary = true
         }
+
+        // Overridden per build type below. Declared here so both variants
+        // resolve @string/app_name — the manifest no longer hardcodes a label.
+        resValue("string", "app_name", "Aura Beauty")
     }
 
     signingConfigs {
@@ -69,6 +73,19 @@ android {
     buildTypes {
         debug {
             buildConfigField("String", "API_BASE_URL", "\"http://10.0.2.2:8080/\"")
+
+            // Debug and release used to share one applicationId, which made
+            // them the same "app" as far as the OS is concerned — but signed
+            // with different keys (auto-generated debug key vs. the real
+            // release keystore), so installing one over the other always
+            // failed with a signature mismatch and forced a manual uninstall.
+            // A distinct id makes debug a genuinely separate app that
+            // installs and runs side by side with a release build, so local
+            // testing never blocks (or gets blocked by) installing from
+            // GitHub Releases.
+            applicationIdSuffix = ".debug"
+            versionNameSuffix = "-debug"
+            resValue("string", "app_name", "Aura Beauty (Debug)")
         }
         release {
             val releaseApiBaseUrl = providers.gradleProperty("releaseApiBaseUrl")
