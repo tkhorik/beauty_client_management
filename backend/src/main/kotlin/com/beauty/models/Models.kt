@@ -48,6 +48,27 @@ data class RefreshRequest(
     val refreshToken: String? = null
 )
 
+/** Body for `PATCH /api/users/me`. Only the display name is editable here — email is the login identifier and changing it is a separate, verification-gated flow this app does not yet have. */
+@Serializable
+data class UpdateProfileRequest(
+    val fullName: String
+)
+
+/**
+ * Body for `POST /api/users/me/password`.
+ *
+ * Requires the current password even though the caller already holds a valid
+ * access token: a valid token only proves the session was authenticated
+ * recently, not that whoever is driving it right now knows the password. A
+ * hijacked-but-unexpired token (XSS, a shared machine left unlocked) must not
+ * be enough on its own to lock the real owner out of their own account.
+ */
+@Serializable
+data class ChangePasswordRequest(
+    val currentPassword: String,
+    val newPassword: String
+)
+
 /**
  * A 400 response body for rejected input, keyed by field name so the client
  * can render each message next to the input that caused it. A single flat

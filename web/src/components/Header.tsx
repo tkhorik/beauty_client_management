@@ -1,5 +1,6 @@
 import React from 'react';
-import { Search, Plus, Sparkles, Filter } from 'lucide-react';
+import { Search, Plus, Sparkles, Filter, Settings } from 'lucide-react';
+import { useAuth } from '../auth/AuthContext';
 
 interface HeaderProps {
   searchQuery: string;
@@ -8,6 +9,7 @@ interface HeaderProps {
   onTagSelect: (tag: string) => void;
   onOpenNewClient: () => void;
   onOpenNewVisit: () => void;
+  onOpenSettings: () => void;
   totalClients: number;
 }
 
@@ -18,8 +20,10 @@ export const Header: React.FC<HeaderProps> = ({
   onTagSelect,
   onOpenNewClient,
   onOpenNewVisit,
+  onOpenSettings,
   totalClients
 }) => {
+  const { user } = useAuth();
   const tagsList = ['All', 'VIP', 'Sensitive Skin', 'Lash Extensions', 'Hair Coloring', 'Skin Treatment'];
 
   return (
@@ -50,12 +54,21 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
 
         {/* Action Buttons */}
-        <div style={{ display: 'flex', gap: '12px' }}>
+        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
           <button className="btn-secondary" onClick={onOpenNewVisit}>
             <Plus size={16} /> Log New Visit
           </button>
           <button className="btn-rose" onClick={onOpenNewClient}>
             <Plus size={18} /> New Client Profile
+          </button>
+          <button
+            className="btn-secondary"
+            onClick={onOpenSettings}
+            title={user ? `Signed in as ${user.fullName}` : 'Account settings'}
+            aria-label="Account settings"
+            style={{ padding: '10px', display: 'flex' }}
+          >
+            <Settings size={18} />
           </button>
         </div>
       </div>

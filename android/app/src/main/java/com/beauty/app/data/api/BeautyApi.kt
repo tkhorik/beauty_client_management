@@ -3,6 +3,7 @@ package com.beauty.app.data.api
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.request.get
+import io.ktor.client.request.patch
 import io.ktor.client.request.post
 import io.ktor.client.request.put
 import io.ktor.client.request.setBody
@@ -80,6 +81,19 @@ data class AuthResponse(
 @Serializable
 data class RefreshRequest(val refreshToken: String)
 
+/** Body for `PATCH /api/users/me`. Only the display name is editable — email is the login identifier. */
+@Serializable
+data class UpdateProfileRequest(val fullName: String)
+
+/**
+ * Body for `POST /api/users/me/password`. The current password is required
+ * even with a valid access token: a token proves the session was recently
+ * authenticated, not that whoever holds the device right now knows the
+ * password.
+ */
+@Serializable
+data class ChangePasswordRequest(val currentPassword: String, val newPassword: String)
+
 @Serializable
 data class UpdateClientRequest(
     val name: String,
@@ -111,6 +125,13 @@ interface BeautyApi {
     suspend fun getClients(): List<ClientDto>
     suspend fun updateClient(id: String, request: UpdateClientRequest): ClientDto
     suspend fun createVisit(request: CreateVisitRequest): VisitDto
+
+    /** The signed-in user's own profile. The JWT carries id and email only, not the display name. */
+    suspend fun getCurrentUser(): UserDto
+    suspend fun updateProfile(request: UpdateProfileRequest): UserDto
+
+    /** Returns a brand-new session: the backend revokes every other session on a successful change. */
+    suspend fun changePassword(request: ChangePasswordRequest): AuthResponse
 }
 
 // ──────────────────────────────────────────────
@@ -149,6 +170,21 @@ class KtorBeautyApi(private val client: HttpClient) : BeautyApi {
 
     override suspend fun createVisit(request: CreateVisitRequest): VisitDto =
         client.post("api/visits") {
+            contentType(ContentType.Application.Json)
+            setBody(request)
+        }.body()
+
+    override suspend fun getCurrentUser(): UserDto =
+        client.get("api/users/me").body()
+
+    override suspend fun updateProfile(request: UpdateProfileRequest): UserDto =
+        client.patch("api/users/me") {
+            contentType(ContentType.Application.Json)
+            setBody(request)
+        }.body()
+
+    override suspend fun changePassword(request: ChangePasswordRequest): AuthResponse =
+        client.post("api/users/me/password") {
             contentType(ContentType.Application.Json)
             setBody(request)
         }.body()

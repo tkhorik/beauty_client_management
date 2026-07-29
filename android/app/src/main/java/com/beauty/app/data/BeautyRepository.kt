@@ -1,9 +1,13 @@
 package com.beauty.app.data
 
+import com.beauty.app.data.api.AuthResponse
 import com.beauty.app.data.api.BeautyApi
+import com.beauty.app.data.api.ChangePasswordRequest
 import com.beauty.app.data.api.ClientDto
 import com.beauty.app.data.api.CreateVisitRequest
 import com.beauty.app.data.api.UpdateClientRequest
+import com.beauty.app.data.api.UpdateProfileRequest
+import com.beauty.app.data.api.UserDto
 import com.beauty.app.data.local.ClientDao
 import com.beauty.app.data.local.ClientEntity
 import com.beauty.app.data.local.VisitDao
@@ -61,6 +65,16 @@ class BeautyRepository(
         )
         return localId
     }
+
+    /** The signed-in user's own profile, for populating the Settings screen. */
+    suspend fun getCurrentUser(): UserDto = api.getCurrentUser()
+
+    suspend fun updateProfile(fullName: String): UserDto =
+        api.updateProfile(UpdateProfileRequest(fullName))
+
+    /** Returns a brand-new session — the caller must persist it, replacing whatever it's holding. */
+    suspend fun changePassword(currentPassword: String, newPassword: String): AuthResponse =
+        api.changePassword(ChangePasswordRequest(currentPassword, newPassword))
 
     override suspend fun syncPendingVisits(): Boolean {
         var allSucceeded = true

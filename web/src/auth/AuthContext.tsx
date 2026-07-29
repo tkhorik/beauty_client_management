@@ -1,9 +1,12 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { setToken, clearToken, clearLegacyToken } from './tokenStore';
 import { endSession, restoreSession } from './session';
+import type { UserProfile } from '../types';
 
 interface AuthContextValue {
   token: string | null;
+  /** The signed-in user's own profile. Null exactly when `token` is null. */
+  user: UserProfile | null;
   /**
    * True until the initial refresh attempt settles. The app must wait for this
    * rather than assume a null token means "signed out" — on a reload there is
@@ -12,14 +15,22 @@ interface AuthContextValue {
    * form at an already-authenticated user.
    */
   initialising: boolean;
-  login: (token: string) => void;
+  /** Called after login, register, or a password change — every endpoint that mints a brand-new session. */
+  login: (token: string, user: UserProfile) => void;
   logout: () => void;
+  /**
+   * Updates the cached profile in place after a profile edit that does *not*
+   * mint a new token (`PATCH /api/users/me`). Separate from `login` so a plain
+   * name change never has to pretend it rotated the session.
+   */
+  updateUser: (user: UserProfile) => void;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setTokenState] = useState<string | null>(null);
+  const [user, setUserState] = useState<UserProfile | null>(null);
   const [initialising, setInitialising] = useState(true);
 
   useEffect(() => {
@@ -31,7 +42,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     clearLegacyToken();
     restoreSession()
       .then(restored => {
-        if (!cancelled) setTokenState(restored);
+        if (!cancelled) {
+          setTokenState(restored?.token ?? null);
+          setUserState(restored?.user ?? null);
+        }
       })
       .finally(() => {
         if (!cancelled) setInitialising(false);
@@ -42,9 +56,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  function login(t: string) {
+  function login(t: string, u: UserProfile) {
     setToken(t);
     setTokenState(t);
+    setUserState(u);
   }
 
   function logout() {
@@ -54,11 +69,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // work locally.
     clearToken();
     setTokenState(null);
+    setUserState(null);
     void endSession();
   }
 
+  function updateUser(u: UserProfile) {
+    setUserState(u);
+  }
+
   return (
-    <AuthContext.Provider value={{ token, initialising, login, logout }}>
+    <AuthContext.Provider value={{ token, user, initialising, login, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   );
