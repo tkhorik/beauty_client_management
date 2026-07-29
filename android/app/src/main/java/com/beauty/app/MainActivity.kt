@@ -37,6 +37,7 @@ import com.beauty.app.data.local.ClientEntity
 import com.beauty.app.sync.SyncWorker
 import com.beauty.app.ui.auth.AuthViewModel
 import com.beauty.app.ui.auth.LoginScreen
+import com.beauty.app.ui.auth.RegisterScreen
 import com.beauty.app.ui.client.EditClientScreen
 import com.beauty.app.ui.client.EditClientViewModel
 import com.beauty.app.ui.theme.*
@@ -97,7 +98,23 @@ fun AppNavHost() {
                     navController.navigate("clients") {
                         popUpTo("login") { inclusive = true }
                     }
-                }
+                },
+                onNavigateToRegister = { navController.navigate("register") }
+            )
+        }
+
+        composable("register") {
+            RegisterScreen(
+                viewModel = authViewModel,
+                onRegisterSuccess = {
+                    // Registration returns a token, so the new user lands in
+                    // the app already signed in. The whole auth stack is popped
+                    // so Back cannot return to the form.
+                    navController.navigate("clients") {
+                        popUpTo("login") { inclusive = true }
+                    }
+                },
+                onNavigateToLogin = { navController.popBackStack() }
             )
         }
 
@@ -108,9 +125,14 @@ fun AppNavHost() {
                     navController.navigate("edit_client/$clientId")
                 },
                 onLogout = {
-                    tokenStore.clearToken()
-                    navController.navigate("login") {
-                        popUpTo(0) { inclusive = true }
+                    // Revokes the refresh token server-side before clearing it
+                    // locally; navigation waits for that so the user is never
+                    // returned to the login screen while still holding a live
+                    // session. Failures still clear locally — see the ViewModel.
+                    authViewModel.logout {
+                        navController.navigate("login") {
+                            popUpTo(0) { inclusive = true }
+                        }
                     }
                 }
             )
