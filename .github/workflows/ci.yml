@@ -82,3 +82,19 @@ jobs:
         run: |
           chmod +x gradlew
           ./gradlew --no-daemon assembleDebug testDebugUnitTest
+
+      # Keep the APK that CI just built, so any change can be installed and
+      # tried on a real device without cutting a public release or building
+      # locally. This is a *debug* build: it points at http://10.0.2.2:8080/
+      # (the emulator's alias for the host), so it is for emulator testing, not
+      # for handing to anyone. Signed release builds come from tags only —
+      # see android-release.yml.
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-debug-${{ github.sha }}
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          # Long enough to be useful while reviewing a PR, short enough that
+          # stale builds are not mistaken for current ones.
+          retention-days: 14
+          if-no-files-found: error

@@ -34,6 +34,10 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ inputs.tag }}
+          # versionCode is derived from the commit count below, which needs the
+          # full history. The default shallow clone would report 1 every time
+          # and every release would collide.
+          fetch-depth: 0
 
       - uses: actions/setup-java@v4
         with:
@@ -67,18 +71,31 @@ jobs:
           keyPassword=${{ secrets.ANDROID_KEY_PASSWORD }}
           EOF
 
-      - name: Resolve release tag
+      # Version metadata is derived here rather than hand-edited in
+      # build.gradle.kts, because a forgotten bump produces an APK that existing
+      # installs silently refuse to upgrade to.
+      #
+      #   versionName — the tag with its leading "v" removed, so the release
+      #                 page and the APK can never disagree.
+      #   versionCode — the number of commits reachable from this tag. Strictly
+      #                 increasing, needs no commit back to protected `main`,
+      #                 and cannot be forgotten.
+      - name: Resolve release tag and version
         id: tag
         run: |
           T="${{ inputs.tag }}"
           if [ -z "$T" ]; then T="${GITHUB_REF_NAME}"; fi
           echo "tag=${T}" >> "$GITHUB_OUTPUT"
+          echo "version_name=${T#v}" >> "$GITHUB_OUTPUT"
+          echo "version_code=$(git rev-list --count HEAD)" >> "$GITHUB_OUTPUT"
 
       - name: Build signed release APK
         working-directory: android
         run: |
           chmod +x gradlew
           ./gradlew --no-daemon assembleRelease \
+            -PversionCode=${{ steps.tag.outputs.version_code }} \
+            -PversionName=${{ steps.tag.outputs.version_name }} \
             -PreleaseApiBaseUrl=${{ vars.SITE_URL || format('https://{0}', vars.DOMAIN) }}/
 
       # Shred the decoded key material and property file so nothing signing
