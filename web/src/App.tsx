@@ -12,14 +12,21 @@ import { PhotoCompareModal } from './components/PhotoCompareModal';
 import { Users, Sparkles } from 'lucide-react';
 
 export function App() {
-  const { token, logout } = useAuth();
+  const { token, initialising, logout } = useAuth();
 
-  // Listen for 401 responses emitted by authFetch and force logout
+  // Listen for 401 responses emitted by authFetch and force logout.
+  // authFetch only emits this after a refresh attempt has already failed, so
+  // by the time it fires the session really is over.
   useEffect(() => {
     const handler = () => logout();
     window.addEventListener('beauty:unauthorized', handler);
     return () => window.removeEventListener('beauty:unauthorized', handler);
   }, [logout]);
+
+  // On a reload the access token is always briefly absent while the refresh
+  // cookie is exchanged. Rendering the login page during that window would
+  // flash a login form at a user who is in fact signed in.
+  if (initialising) return null;
 
   // Show login page when unauthenticated
   if (!token) return <LoginPage />;

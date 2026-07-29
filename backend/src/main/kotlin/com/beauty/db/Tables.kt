@@ -16,6 +16,43 @@ object UsersTable : Table("users") {
     override val primaryKey = PrimaryKey(id)
 }
 
+/**
+ * Long-lived refresh tokens, one row per issued token.
+ *
+ * Access tokens are short-lived JWTs and are deliberately *not* stored — that
+ * is the point of a stateless token. Refresh tokens are the opposite: they
+ * live for weeks, so they must be revocable, which means the server has to
+ * know about them.
+ *
+ * Only the SHA-256 hash of the token is stored. A refresh token is a bearer
+ * credential, so a dump of this table must not hand an attacker a working set
+ * of logins. (Unlike a password, the token is high-entropy random, so a plain
+ * fast hash is appropriate here — BCrypt's slowness exists to frustrate
+ * dictionary attacks on guessable input, and there is nothing to guess.)
+ */
+object RefreshTokensTable : Table("refresh_tokens") {
+    val id = varchar("id", 64)
+    val userId = varchar("user_id", 64).references(UsersTable.id)
+
+    /** SHA-256 hex digest of the token. Never the token itself. */
+    val tokenHash = varchar("token_hash", 64).uniqueIndex()
+
+    /**
+     * Groups every token descended from one login. Rotation issues a new token
+     * in the same family, so detecting reuse of a spent token lets us revoke
+     * the entire chain rather than just the one row.
+     */
+    val familyId = varchar("family_id", 64).index()
+
+    val issuedAt = datetime("issued_at")
+    val expiresAt = datetime("expires_at")
+
+    /** Set when the token is spent by rotation, or explicitly revoked by logout. */
+    val revokedAt = datetime("revoked_at").nullable()
+
+    override val primaryKey = PrimaryKey(id)
+}
+
 object ClientsTable : Table("clients") {
     val id = varchar("id", 64)
     val name = varchar("name", 255)

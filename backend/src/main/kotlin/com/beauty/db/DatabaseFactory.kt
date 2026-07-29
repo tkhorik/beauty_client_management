@@ -67,7 +67,7 @@ object DatabaseFactory {
     }
 
     private fun createSchema() = transaction {
-        SchemaUtils.create(UsersTable, ClientsTable, VisitsTable, AttachmentsTable)
+        SchemaUtils.create(UsersTable, RefreshTokensTable, ClientsTable, VisitsTable, AttachmentsTable)
     }
 
     suspend fun <T> dbQuery(block: suspend () -> T): T =

@@ -26,8 +26,37 @@ data class RegisterRequest(
 
 @Serializable
 data class AuthResponse(
+    /** Short-lived access token. Send as `Authorization: Bearer <token>`. */
     val token: String,
+    /**
+     * Long-lived refresh token, used to obtain a new access token.
+     *
+     * Null for browser clients: their refresh token is delivered in an
+     * httpOnly cookie instead, so that JavaScript — and therefore any XSS on
+     * the page — cannot read it. Native clients get it here and store it in
+     * platform-encrypted storage.
+     */
+    val refreshToken: String? = null,
+    /** Access-token lifetime in seconds, so clients can refresh before it lapses. */
+    val expiresInSeconds: Long,
     val user: UserDto
+)
+
+/** Body for `/api/auth/refresh` and `/api/auth/logout` from non-browser clients. */
+@Serializable
+data class RefreshRequest(
+    val refreshToken: String? = null
+)
+
+/**
+ * A 400 response body for rejected input, keyed by field name so the client
+ * can render each message next to the input that caused it. A single flat
+ * `error` string forces the user to guess which field was wrong.
+ */
+@Serializable
+data class ValidationErrorResponse(
+    val error: String = "Validation failed",
+    val errors: Map<String, String>
 )
 
 @Serializable

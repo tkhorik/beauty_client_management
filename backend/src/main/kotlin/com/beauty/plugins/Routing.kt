@@ -3,6 +3,7 @@ package com.beauty.plugins
 import com.beauty.config.AppSettings
 import com.beauty.routes.attachmentRoutes
 import com.beauty.routes.authRoutes
+import com.beauty.routes.authenticatedAuthRoutes
 import com.beauty.routes.clientRoutes
 import com.beauty.routes.visitRoutes
 import io.ktor.http.*
@@ -26,6 +27,16 @@ fun Application.configureRouting() {
         allowMethod(HttpMethod.Patch)
         allowHeader(HttpHeaders.Authorization)
         allowHeader(HttpHeaders.ContentType)
+        // Lets a client declare that its refresh token should be delivered as
+        // an httpOnly cookie rather than in the response body.
+        allowHeader("X-Auth-Transport")
+
+        // Required for the browser to send and store the refresh cookie on a
+        // cross-origin request. Note this is incompatible with `anyHost()`:
+        // browsers reject `Access-Control-Allow-Origin: *` on a credentialed
+        // request, which is why the development branch below lists origins
+        // explicitly instead.
+        allowCredentials = true
 
         if (settings.isProduction) {
             // Production serves the web app and the API from the same origin
@@ -36,8 +47,17 @@ fun Application.configureRouting() {
                 allowHost(parsed.hostWithPort, schemes = listOf(parsed.protocol.name))
             }
         } else {
-            // Local development: Vite dev server, Android emulator, curl.
-            anyHost()
+            // Local development: the Vite dev server runs on a different port
+            // from the API, so this genuinely is cross-origin. Listed
+            // explicitly rather than `anyHost()` because credentialed requests
+            // (the refresh cookie) cannot use a wildcard origin.
+            //
+            // Native clients and curl are unaffected — CORS is a browser
+            // mechanism and is never applied to them.
+            listOf("127.0.0.1", "localhost").forEach { host ->
+                allowHost("$host:5174", schemes = listOf("http"))
+                allowHost("$host:5173", schemes = listOf("http"))
+            }
         }
     }
 
@@ -71,6 +91,7 @@ fun Application.configureRouting() {
         authRoutes()
 
         authenticate("auth-jwt") {
+            authenticatedAuthRoutes()
             clientRoutes()
             visitRoutes()
             attachmentRoutes()
