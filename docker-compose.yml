@@ -63,6 +63,26 @@ services:
       UPLOAD_DIR: /app/uploads
       # Empty because the web app is served from the same origin as the API.
       ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-}
+
+      # Canonical origin baked into verification and password-reset email
+      # links. Falls back to DOMAIN + the external HTTPS port so an existing
+      # .env without SITE_URL keeps working; the suffix is empty on 443.
+      SITE_URL: ${SITE_URL:-https://${DOMAIN}}
+
+      # --- Mail -------------------------------------------------------
+      # The backend refuses to start in production without MAIL_HOST: the
+      # fallback sender writes reset links into the logs rather than mailing
+      # them, which would be both a broken feature and a credential leak.
+      MAIL_HOST: ${MAIL_HOST}
+      MAIL_PORT: ${MAIL_PORT:-587}
+      MAIL_USER: ${MAIL_USER:-}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+      MAIL_FROM: ${MAIL_FROM}
+      MAIL_FROM_NAME: ${MAIL_FROM_NAME:-Aura Beauty Log}
+      MAIL_STARTTLS: ${MAIL_STARTTLS:-true}
+      MAIL_SSL_ON_CONNECT: ${MAIL_SSL_ON_CONNECT:-false}
+      VERIFICATION_TOKEN_HOURS: ${VERIFICATION_TOKEN_HOURS:-24}
+      RESET_TOKEN_MINUTES: ${RESET_TOKEN_MINUTES:-60}
     volumes:
       # Uploaded photos live in a named volume, so rebuilding or replacing the
       # container never deletes them.

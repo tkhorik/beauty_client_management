@@ -35,12 +35,9 @@ fun Route.userRoutes() {
     val accessTokenMinutes = settings.accessTokenMinutes
     val refreshTokens = RefreshTokenService(settings.refreshTokenDays)
 
-    fun userRowToDto(row: org.jetbrains.exposed.sql.ResultRow) = UserDto(
-        id = row[UsersTable.id],
-        email = row[UsersTable.email],
-        fullName = row[UsersTable.fullName],
-        createdAt = row[UsersTable.createdAt].toString()
-    )
+    // Delegates to the shared mapper in AuthRoutes.kt rather than repeating the
+    // field list, so `emailVerified` cannot silently default to false here.
+    fun userRowToDto(row: org.jetbrains.exposed.sql.ResultRow) = userDto(row)
 
     route("/api/users/me") {
         /** Lets the client (re)hydrate the profile it doesn't otherwise have — the JWT carries only id and email, not the display name. */

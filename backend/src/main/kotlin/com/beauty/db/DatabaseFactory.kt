@@ -66,8 +66,25 @@ object DatabaseFactory {
         return HikariDataSource(config)
     }
 
+    /**
+     * Creates any missing tables.
+     *
+     * `SchemaUtils.create` only ever creates whole tables — it does **not**
+     * alter existing ones. So `OneTimeTokensTable` appears automatically on a
+     * database that has never seen it, but `users.email_verified_at` does not,
+     * because `users` already exists. That column ships as a hand-written
+     * migration in `backend/migrations/`, which must be run before deploying
+     * this version against an existing database.
+     */
     private fun createSchema() = transaction {
-        SchemaUtils.create(UsersTable, RefreshTokensTable, ClientsTable, VisitsTable, AttachmentsTable)
+        SchemaUtils.create(
+            UsersTable,
+            RefreshTokensTable,
+            OneTimeTokensTable,
+            ClientsTable,
+            VisitsTable,
+            AttachmentsTable
+        )
     }
 
     suspend fun <T> dbQuery(block: suspend () -> T): T =
