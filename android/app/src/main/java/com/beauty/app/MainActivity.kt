@@ -9,12 +9,16 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.pullrefresh.PullRefreshIndicator
+import androidx.compose.material.pullrefresh.pullRefresh
+import androidx.compose.material.pullrefresh.rememberPullRefreshState
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -27,7 +31,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -44,6 +51,7 @@ import com.beauty.app.ui.client.EditClientViewModel
 import com.beauty.app.ui.settings.SettingsScreen
 import com.beauty.app.ui.settings.SettingsViewModel
 import com.beauty.app.ui.theme.*
+import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 
 data class DirectoryClient(
@@ -178,7 +186,9 @@ fun AppNavHost() {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+private const val DIRECTORY_RESUME_REFRESH_AGE_MS = 60_000L
+
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterialApi::class)
 @Composable
 fun BeautyAppScreen(
     tokenStore: com.beauty.app.data.local.TokenStore,
@@ -191,10 +201,57 @@ fun BeautyAppScreen(
     val database = remember { BeautyDatabaseProvider.get(context) }
     val repository = remember { AppContainer.repository(context, tokenStore) }
     val clients by database.clientDao().getAllClients().collectAsState(initial = emptyList())
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val scope = rememberCoroutineScope()
+    var isRefreshing by remember { mutableStateOf(false) }
+    var lastSuccessfulSyncAt by rememberSaveable { mutableLongStateOf(0L) }
+    var refreshError by rememberSaveable { mutableStateOf<String?>(null) }
+
+    // Room stays the only UI data source. This action refreshes the Room cache
+    // from the API, so the list reacts to web changes as soon as the request
+    // completes while remaining usable when the device is offline.
+    val refreshDirectory = {
+        if (!isRefreshing) {
+            // Set this before launching so an ON_RESUME event and the initial
+            // screen load cannot start two concurrent refreshes.
+            isRefreshing = true
+            scope.launch {
+                repository.refreshClients()
+                    .onSuccess {
+                        lastSuccessfulSyncAt = System.currentTimeMillis()
+                        refreshError = null
+                    }
+                    .onFailure { error ->
+                        refreshError = error.message ?: "Could not reach the server"
+                    }
+                isRefreshing = false
+            }
+        }
+    }
+    val pullRefreshState = rememberPullRefreshState(
+        refreshing = isRefreshing,
+        onRefresh = refreshDirectory
+    )
 
     LaunchedEffect(Unit) {
-        repository.refreshClients()
+        refreshDirectory()
         SyncWorker.enqueue(context)
+    }
+
+    // A foreground app should not retain a stale directory after the user
+    // switches back from the web app.  The age guard avoids unnecessary calls
+    // during routine configuration/navigation events; pull-to-refresh always
+    // bypasses it.
+    DisposableEffect(lifecycleOwner, lastSuccessfulSyncAt) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME &&
+                System.currentTimeMillis() - lastSuccessfulSyncAt >= DIRECTORY_RESUME_REFRESH_AGE_MS
+            ) {
+                refreshDirectory()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
     Scaffold(
@@ -246,64 +303,90 @@ fun BeautyAppScreen(
             }
         }
     ) { paddingValues ->
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .padding(16.dp)
+                .pullRefresh(pullRefreshState)
         ) {
-            OutlinedTextField(
-                value = searchQuery,
-                onValueChange = { searchQuery = it },
-                placeholder = { Text("Search clients or procedure specs...", color = TextMuted) },
-                leadingIcon = {
-                    Icon(Icons.Default.Search, contentDescription = "Search", tint = TextMuted)
-                },
+            Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(12.dp)),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = RoseGoldPrimary,
-                    unfocusedBorderColor = Color(0x33E5B899)
-                )
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                    .fillMaxSize()
+                    .padding(16.dp)
             ) {
-                Text(
-                    "Client Directory",
-                    color = TextLight,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 16.sp
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    placeholder = { Text("Search clients or procedure specs...", color = TextMuted) },
+                    leadingIcon = {
+                        Icon(Icons.Default.Search, contentDescription = "Search", tint = TextMuted)
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp)),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = RoseGoldPrimary,
+                        unfocusedBorderColor = Color(0x33E5B899)
+                    )
                 )
-                Text(
-                    "Offline Caching Active",
-                    color = EmeraldStatus,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.SemiBold
-                )
-            }
 
-            Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                items(clients.filter { client ->
-                    client.name.contains(searchQuery, ignoreCase = true) ||
-                        client.tagsJson.contains(searchQuery, ignoreCase = true)
-                }) { client ->
-                    ClientCardItem(
-                        client = client.toDirectoryClient(),
-                        onClick = { onClientTap(client.id) }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        "Client Directory",
+                        color = TextLight,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp
+                    )
+                    Text(
+                        directorySyncLabel(isRefreshing, lastSuccessfulSyncAt, refreshError),
+                        color = EmeraldStatus,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold
                     )
                 }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    items(clients.filter { client ->
+                        client.name.contains(searchQuery, ignoreCase = true) ||
+                            client.tagsJson.contains(searchQuery, ignoreCase = true)
+                    }) { client ->
+                        ClientCardItem(
+                            client = client.toDirectoryClient(),
+                            onClick = { onClientTap(client.id) }
+                        )
+                    }
+                }
             }
+
+            PullRefreshIndicator(
+                refreshing = isRefreshing,
+                state = pullRefreshState,
+                modifier = Modifier.align(Alignment.TopCenter),
+                contentColor = RoseGoldPrimary,
+                backgroundColor = CardSurface
+            )
         }
     }
+}
+
+private fun directorySyncLabel(
+    isRefreshing: Boolean,
+    lastSuccessfulSyncAt: Long,
+    refreshError: String?
+): String = when {
+    isRefreshing -> "Updating directory…"
+    refreshError != null -> "Offline — showing cached data"
+    lastSuccessfulSyncAt == 0L -> "Offline cache"
+    System.currentTimeMillis() - lastSuccessfulSyncAt < 60_000L -> "Synced just now"
+    else -> "Synced ${(System.currentTimeMillis() - lastSuccessfulSyncAt) / 60_000L} min ago"
 }
 
 @Composable

@@ -70,11 +70,38 @@ interface ClientDao {
     @Query("SELECT * FROM clients WHERE id = :id")
     suspend fun getClientById(id: String): ClientEntity?
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    // REPLACE is implemented as DELETE + INSERT in SQLite, which would fire
+    // the visit foreign-key cascade during every directory refresh. Upsert
+    // updates the client row in place and keeps the local visit sync queue.
+    @Upsert
     suspend fun insertClient(client: ClientEntity)
+
+    @Upsert
+    suspend fun insertClients(clients: List<ClientEntity>)
 
     @Query("DELETE FROM clients WHERE id = :id")
     suspend fun deleteClient(id: String)
+
+    // Do not discard an unsent visit simply because its client was removed on
+    // another device.  The pending visit remains available for an explicit
+    // retry/error resolution instead of being silently lost through the
+    // foreign-key cascade.
+    @Query("DELETE FROM clients WHERE id NOT IN (:serverIds) AND NOT EXISTS (SELECT 1 FROM visits WHERE visits.clientId = clients.id AND visits.isPendingSync = 1)")
+    suspend fun deleteClientsMissingFromSnapshot(serverIds: List<String>)
+
+    @Query("DELETE FROM clients WHERE NOT EXISTS (SELECT 1 FROM visits WHERE visits.clientId = clients.id AND visits.isPendingSync = 1)")
+    suspend fun deleteAllClientsWithoutPendingVisits()
+
+    /** Atomically make the local directory match the server's authoritative snapshot. */
+    @Transaction
+    suspend fun reconcileClients(serverClients: List<ClientEntity>) {
+        insertClients(serverClients)
+        if (serverClients.isEmpty()) {
+            deleteAllClientsWithoutPendingVisits()
+        } else {
+            deleteClientsMissingFromSnapshot(serverClients.map { it.id })
+        }
+    }
 }
 
 @Dao

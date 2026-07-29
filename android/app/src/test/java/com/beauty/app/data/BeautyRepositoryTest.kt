@@ -50,9 +50,10 @@ class BeautyRepositoryTest {
         val result = BeautyRepository(api, clientDao, visitDao).refreshClients()
 
         assertTrue(result.isSuccess)
-        verify(clientDao).insertClient(org.mockito.kotlin.check { entity ->
-            assertEquals("client-1", entity.id)
-            assertEquals("[\"VIP\"]", entity.tagsJson)
+        verify(clientDao).reconcileClients(org.mockito.kotlin.check { clients ->
+            assertEquals(1, clients.size)
+            assertEquals("client-1", clients.single().id)
+            assertEquals("[\"VIP\"]", clients.single().tagsJson)
         })
     }
 
