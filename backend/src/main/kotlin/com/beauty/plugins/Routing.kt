@@ -14,8 +14,28 @@ import io.ktor.server.plugins.cors.routing.*
 import io.ktor.server.plugins.forwardedheaders.*
 import io.ktor.server.plugins.statuspages.*
 import io.ktor.server.response.*
+import io.ktor.server.plugins.ratelimit.*
 import io.ktor.server.routing.*
 import io.ktor.server.auth.*
+import io.ktor.server.plugins.origin
+import kotlin.time.Duration.Companion.seconds
+
+/** Tight bucket for endpoints that send mail to an address the caller does not own. */
+const val RATE_LIMIT_EMAIL = "auth-email"
+
+/** Looser bucket for credential endpoints. */
+const val RATE_LIMIT_AUTH = "auth-credentials"
+
+/**
+ * The bucket key for a request: the real client IP.
+ *
+ * `request.origin.remoteHost` is the value XForwardedHeaders has already
+ * resolved from X-Forwarded-For, so behind the proxy this is the browser's
+ * address rather than the Docker network gateway. Trusting that header is safe
+ * here for the same reason it is safe elsewhere in this file: the backend binds
+ * no host port, so only Nginx can reach it to set one.
+ */
+private fun ApplicationCall.clientKey(): String = request.origin.remoteHost
 
 fun Application.configureRouting() {
     val settings = AppSettings(environment.config)
@@ -72,6 +92,38 @@ fun Application.configureRouting() {
                 allowHost("$host:5174", schemes = listOf("http"))
                 allowHost("$host:5173", schemes = listOf("http"))
             }
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // Rate limiting for the public auth surface.
+    //
+    // Keyed on the client IP, which is only correct because XForwardedHeaders
+    // is installed above and nothing but the proxy can reach this process —
+    // without both, every request would appear to come from the Docker gateway
+    // and share one bucket, so a single attacker would lock out all users.
+    //
+    // Two named limiters rather than one, because the endpoints fail
+    // differently. Guessing a password is bounded by the password; asking for
+    // reset mail costs the attacker nothing and lands in a real person's inbox,
+    // so it needs a much tighter bound.
+    // -----------------------------------------------------------------------
+    install(RateLimit) {
+        // /forgot-password and /resend-verification: each call sends an email
+        // to an address the caller does not control. Loose limits here mean
+        // this API can be used to flood a stranger's inbox and burn the
+        // domain's sending reputation.
+        register(RateLimitName(RATE_LIMIT_EMAIL)) {
+            rateLimiter(limit = 3, refillPeriod = 60.seconds)
+            requestKey { call -> call.clientKey() }
+        }
+
+        // /login and /register: generous enough that a salon on one office IP
+        // never notices, tight enough to make online password guessing and
+        // bulk account creation impractical.
+        register(RateLimitName(RATE_LIMIT_AUTH)) {
+            rateLimiter(limit = 10, refillPeriod = 60.seconds)
+            requestKey { call -> call.clientKey() }
         }
     }
 

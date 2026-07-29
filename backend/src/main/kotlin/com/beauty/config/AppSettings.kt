@@ -26,6 +26,51 @@ class AppSettings(private val config: ApplicationConfig) {
 
     val uploadDir: File = File(str("app.uploadDir", "uploads"))
 
+    /**
+     * Canonical public origin, no trailing slash — e.g. `https://beautyclient.duckdns.org`.
+     *
+     * Used to build the links inside verification and password-reset emails.
+     * The request's own Host header is deliberately *not* used for this: an
+     * attacker who can set `Host: evil.test` on a `/forgot-password` call would
+     * otherwise cause the real user to be mailed a reset link pointing at the
+     * attacker's server, which is a classic host-header account takeover. The
+     * origin must come from configuration the attacker cannot influence.
+     *
+     * Reuses the `SITE_URL` name already used by the deploy workflow, rather
+     * than introducing a second source of truth for the same value.
+     */
+    val publicUrl: String = str("app.publicUrl", "http://127.0.0.1:5174").trimEnd('/')
+
+    /**
+     * SMTP transport. A blank [mailHost] selects the console-logging sender,
+     * which is what makes the flow runnable locally without a mail server.
+     */
+    val mailHost: String = str("mail.host", "")
+    val mailPort: Int = str("mail.port", "587").toIntOrNull() ?: 587
+    val mailUser: String = str("mail.user", "")
+    val mailPassword: String = str("mail.password", "")
+    val mailFrom: String = str("mail.from", "no-reply@localhost")
+    val mailFromName: String = str("mail.fromName", "Aura Beauty Log")
+
+    /** STARTTLS on the standard submission port (587). */
+    val mailStartTls: Boolean = str("mail.startTls", "true").toBoolean()
+
+    /** Implicit TLS from the first byte (port 465). Mutually exclusive with [mailStartTls]. */
+    val mailSslOnConnect: Boolean = str("mail.sslOnConnect", "false").toBoolean()
+
+    /** How long an email-verification link stays usable. */
+    val verificationTokenHours: Long = str("mail.verificationTokenHours", "24").toLongOrNull() ?: 24L
+
+    /**
+     * How long a password-reset link stays usable.
+     *
+     * Much shorter than verification, because the two links are not equally
+     * dangerous: a leaked verification link only confirms an address, while a
+     * leaked reset link is a complete account takeover. The window is the only
+     * thing bounding exposure once the mail is sitting in an inbox.
+     */
+    val resetTokenMinutes: Long = str("mail.resetTokenMinutes", "60").toLongOrNull() ?: 60L
+
     val jwtSecret: String = str("jwt.secret", INSECURE_DEV_SECRET)
     val jwtIssuer: String = str("jwt.issuer", "aura-beauty-log")
     val jwtAudience: String = str("jwt.audience", "aura-beauty-log-users")
@@ -78,6 +123,27 @@ class AppSettings(private val config: ApplicationConfig) {
             }
             if (!dbUrl.startsWith("jdbc:postgresql://")) {
                 add("DB_URL is not a PostgreSQL URL (got: $dbUrl). Production must not run on H2.")
+            }
+
+            // A verification or reset link is only as trustworthy as the origin
+            // baked into it. Pointing at localhost makes the feature silently
+            // useless; pointing at http:// puts a single-use account-takeover
+            // token in cleartext across the network.
+            if (!publicUrl.startsWith("https://")) {
+                add("SITE_URL must be an https:// origin in production (got: '$publicUrl').")
+            }
+
+            // Blank MAIL_HOST would select LogMailSender, which writes reset
+            // links — single-use account-takeover tokens — straight into the
+            // container logs and never delivers them.
+            if (mailHost.isBlank()) {
+                add("MAIL_HOST is not set. Production would fall back to the dev logging mail sender, which prints reset links to the logs instead of sending them.")
+            }
+            if (mailStartTls && mailSslOnConnect) {
+                add("MAIL_STARTTLS and MAIL_SSL_ON_CONNECT are both true. Choose one: STARTTLS for port 587, implicit TLS for port 465.")
+            }
+            if (!mailStartTls && !mailSslOnConnect) {
+                add("Both MAIL_STARTTLS and MAIL_SSL_ON_CONNECT are false: mail, including password-reset links, would be sent unencrypted.")
             }
         }
 

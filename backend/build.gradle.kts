@@ -48,6 +48,13 @@ dependencies {
     implementation("com.zaxxer:HikariCP:5.1.0")
     runtimeOnly("com.h2database:h2:2.2.224")
 
+    // Rate limiting for the public auth endpoints. Without it, /forgot-password
+    // is an unauthenticated lever for sending unlimited mail to any address.
+    implementation("io.ktor:ktor-server-rate-limit-jvm:$ktorVersion")
+
+    // Outbound SMTP for verification and password-reset mail.
+    implementation("com.sun.mail:jakarta.mail:2.0.1")
+
     // Security & Utilities
     implementation("org.mindrot:jbcrypt:0.4")
     implementation("ch.qos.logback:logback-classic:$logbackVersion")
