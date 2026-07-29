@@ -3,11 +3,14 @@ package com.beauty.app.data
 import com.beauty.app.data.api.AuthRequest
 import com.beauty.app.data.api.AuthResponse
 import com.beauty.app.data.api.BeautyApi
+import com.beauty.app.data.api.ChangePasswordRequest
 import com.beauty.app.data.api.ClientDto
 import com.beauty.app.data.api.CreateVisitRequest
 import com.beauty.app.data.api.RefreshRequest
 import com.beauty.app.data.api.RegisterRequest
 import com.beauty.app.data.api.UpdateClientRequest
+import com.beauty.app.data.api.UpdateProfileRequest
+import com.beauty.app.data.api.UserDto
 import com.beauty.app.data.api.VisitDto
 import com.beauty.app.data.local.ClientDao
 import com.beauty.app.data.local.VisitDao
@@ -39,6 +42,9 @@ class BeautyRepositoryTest {
             )
             override suspend fun updateClient(id: String, request: UpdateClientRequest) = error("not used in this test")
             override suspend fun createVisit(request: CreateVisitRequest) = VisitDto("unused")
+            override suspend fun getCurrentUser(): UserDto = error("not used in this test")
+            override suspend fun updateProfile(request: UpdateProfileRequest): UserDto = error("not used in this test")
+            override suspend fun changePassword(request: ChangePasswordRequest): AuthResponse = error("not used in this test")
         }
 
         val result = BeautyRepository(api, clientDao, visitDao).refreshClients()
@@ -102,6 +108,9 @@ class BeautyRepositoryTest {
         override suspend fun getClients(): List<ClientDto> = error("Network unavailable")
         override suspend fun updateClient(id: String, request: UpdateClientRequest): ClientDto = error("Network unavailable")
         override suspend fun createVisit(request: CreateVisitRequest): VisitDto = error("Network unavailable")
+        override suspend fun getCurrentUser(): UserDto = error("Network unavailable")
+        override suspend fun updateProfile(request: UpdateProfileRequest): UserDto = error("Network unavailable")
+        override suspend fun changePassword(request: ChangePasswordRequest): AuthResponse = error("Network unavailable")
     }
 
     private fun visitApi(create: suspend (CreateVisitRequest) -> VisitDto) = object : BeautyApi {
@@ -111,5 +120,8 @@ class BeautyRepositoryTest {
         override suspend fun getClients() = emptyList<ClientDto>()
         override suspend fun updateClient(id: String, request: UpdateClientRequest) = error("not used in this test")
         override suspend fun createVisit(request: CreateVisitRequest) = create(request)
+        override suspend fun getCurrentUser(): UserDto = error("not used in this test")
+        override suspend fun updateProfile(request: UpdateProfileRequest): UserDto = error("not used in this test")
+        override suspend fun changePassword(request: ChangePasswordRequest): AuthResponse = error("not used in this test")
     }
 }
