@@ -30,6 +30,9 @@ dependencies {
     implementation("io.ktor:ktor-server-auth-jvm:$ktorVersion")
     implementation("io.ktor:ktor-server-auth-jwt-jvm:$ktorVersion")
     implementation("io.ktor:ktor-server-cors-jvm:$ktorVersion")
+    // Lets the app see the original scheme/host/client IP behind the Nginx
+    // proxy, which terminates TLS and forwards over plain HTTP internally.
+    implementation("io.ktor:ktor-server-forwarded-header-jvm:$ktorVersion")
     implementation("io.ktor:ktor-server-status-pages-jvm:$ktorVersion")
     implementation("io.ktor:ktor-server-call-logging-jvm:$ktorVersion")
 
