@@ -10,6 +10,7 @@ import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.http.content.*
 import io.ktor.server.plugins.cors.routing.*
+import io.ktor.server.plugins.forwardedheaders.*
 import io.ktor.server.plugins.statuspages.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
@@ -17,6 +18,18 @@ import io.ktor.server.auth.*
 
 fun Application.configureRouting() {
     val settings = AppSettings(environment.config)
+
+    // Nginx terminates TLS and forwards to this process over plain HTTP on the
+    // internal Docker network. Without this plugin the app believes every
+    // request arrived unencrypted, which breaks client-IP logging and makes
+    // Ktor refuse to set `Secure` cookies ("You should set secure cookie only
+    // via secure transport") even though the browser-facing connection is HTTPS.
+    //
+    // `deploy/nginx/proxy_params_aura.conf` sets X-Forwarded-Proto/For/Host on
+    // every proxied location. Trusting those headers is only safe because the
+    // backend is never published directly — only the proxy container binds a
+    // host port, so nothing but Nginx can reach it to forge them.
+    install(XForwardedHeaders)
 
     install(CORS) {
         allowMethod(HttpMethod.Options)

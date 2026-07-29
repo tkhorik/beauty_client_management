@@ -30,10 +30,19 @@ android {
         targetSdk = 34
         // versionCode must strictly increase on every published release —
         // Android refuses to install an APK whose versionCode is <= the one
-        // already on the device. The release workflow does NOT bump this for
-        // you; bump it here in the same commit as the release tag.
-        versionCode = 1
-        versionName = "1.0.0"
+        // already on the device, so a stale value silently blocks upgrades.
+        //
+        // CI therefore derives it from the git commit count rather than from a
+        // literal here (see android-release.yml). That is monotonic by
+        // construction, and unlike an auto-bump commit it needs no write access
+        // to the protected `main` branch. The value below is only the fallback
+        // for local builds.
+        versionCode = providers.gradleProperty("versionCode").map(String::toInt).orElse(1).get()
+
+        // Release builds are passed the git tag with its leading "v" stripped
+        // (v1.2.0 -> "1.2.0"), so the APK version and the tag cannot disagree.
+        // The "-local" fallback makes a hand-built APK obvious at a glance.
+        versionName = providers.gradleProperty("versionName").orElse("1.0.0-local").get()
 
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"

@@ -10,6 +10,7 @@ import com.beauty.plugins.userId
 import com.beauty.validation.Validation
 import io.ktor.http.*
 import io.ktor.server.application.*
+import io.ktor.server.plugins.origin
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
@@ -70,6 +71,25 @@ fun Route.authRoutes() {
     fun ApplicationCall.deliverRefreshToken(rawToken: String): String? {
         if (!usesCookieTransport()) return rawToken
 
+        // Derived from the actual connection rather than from `isProduction`.
+        //
+        // Ktor throws if a `Secure` cookie is set on a connection it considers
+        // plaintext, so tying the flag to the environment turns any
+        // proxy misconfiguration into a 500 on every login. Reading the real
+        // scheme means the flag is correct by construction and this can never
+        // crash — behind Nginx that scheme comes from X-Forwarded-Proto, via
+        // the XForwardedHeaders plugin installed in Routing.kt.
+        val overHttps = request.origin.scheme == "https"
+        if (settings.isProduction && !overHttps) {
+            // Loud, because the refresh cookie is now going out without the
+            // Secure flag: the proxy is not forwarding X-Forwarded-Proto.
+            application.log.warn(
+                "Refresh cookie issued WITHOUT the Secure flag: request scheme is " +
+                    "'${request.origin.scheme}', not https. Check that the proxy sets " +
+                    "X-Forwarded-Proto and that XForwardedHeaders is installed."
+            )
+        }
+
         response.cookies.append(
             Cookie(
                 name = REFRESH_COOKIE,
@@ -77,9 +97,9 @@ fun Route.authRoutes() {
                 // Unreadable from JavaScript, so an XSS payload cannot exfiltrate
                 // the long-lived half of the session.
                 httpOnly = true,
-                // Never sent over plain HTTP. Relaxed in development because
-                // localhost is not served over TLS.
-                secure = settings.isProduction,
+                // Never sent over plain HTTP. False in local development, which
+                // is not served over TLS.
+                secure = overHttps,
                 // The refresh endpoint changes server state, so it needs CSRF
                 // protection. `Strict` means the browser will not attach this
                 // cookie to any cross-site request, which removes the attack
@@ -99,7 +119,10 @@ fun Route.authRoutes() {
                 name = REFRESH_COOKIE,
                 value = "",
                 httpOnly = true,
-                secure = settings.isProduction,
+                // Same reasoning as above: read the real scheme so expiring the
+                // cookie can never throw. This runs on the rejection path, where
+                // a 500 would mask the actual reason the session ended.
+                secure = request.origin.scheme == "https",
                 extensions = mapOf("SameSite" to "Strict"),
                 path = "/api/auth",
                 maxAge = 0
