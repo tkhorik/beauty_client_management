@@ -44,6 +44,23 @@ data class VisitDto(val id: String)
 data class AuthRequest(val email: String, val password: String)
 
 @Serializable
+data class RegisterRequest(
+    val email: String,
+    val password: String,
+    val fullName: String
+)
+
+/**
+ * The backend's 400 body for rejected input: `field name -> message`, so the
+ * error can be shown against the input that caused it.
+ */
+@Serializable
+data class ValidationErrorResponse(
+    val error: String = "Validation failed",
+    val errors: Map<String, String> = emptyMap()
+)
+
+@Serializable
 data class UserDto(
     val id: String,
     val email: String,
@@ -52,7 +69,16 @@ data class UserDto(
 )
 
 @Serializable
-data class AuthResponse(val token: String, val user: UserDto)
+data class AuthResponse(
+    val token: String,
+    /** Null only for browser clients, which receive it as an httpOnly cookie. */
+    val refreshToken: String? = null,
+    val expiresInSeconds: Long = 0,
+    val user: UserDto
+)
+
+@Serializable
+data class RefreshRequest(val refreshToken: String)
 
 @Serializable
 data class UpdateClientRequest(
@@ -69,6 +95,19 @@ data class UpdateClientRequest(
 
 interface BeautyApi {
     suspend fun login(request: AuthRequest): AuthResponse
+
+    /**
+     * Public endpoint — must be called through [com.beauty.app.AppContainer.buildLoginClient],
+     * which has no bearer-token plugin installed. There is no token to send yet.
+     */
+    suspend fun register(request: RegisterRequest): AuthResponse
+
+    /**
+     * Revokes the refresh token server-side. Clearing local storage alone
+     * leaves the token valid for its full lifetime, so a logout on a device
+     * that was handed to someone else would not actually end the session.
+     */
+    suspend fun logout(request: RefreshRequest)
     suspend fun getClients(): List<ClientDto>
     suspend fun updateClient(id: String, request: UpdateClientRequest): ClientDto
     suspend fun createVisit(request: CreateVisitRequest): VisitDto
@@ -85,6 +124,19 @@ class KtorBeautyApi(private val client: HttpClient) : BeautyApi {
             contentType(ContentType.Application.Json)
             setBody(request)
         }.body()
+
+    override suspend fun register(request: RegisterRequest): AuthResponse =
+        client.post("api/auth/register") {
+            contentType(ContentType.Application.Json)
+            setBody(request)
+        }.body()
+
+    override suspend fun logout(request: RefreshRequest) {
+        client.post("api/auth/logout") {
+            contentType(ContentType.Application.Json)
+            setBody(request)
+        }
+    }
 
     override suspend fun getClients(): List<ClientDto> =
         client.get("api/clients").body()

@@ -5,6 +5,8 @@ import com.beauty.app.data.api.AuthResponse
 import com.beauty.app.data.api.BeautyApi
 import com.beauty.app.data.api.ClientDto
 import com.beauty.app.data.api.CreateVisitRequest
+import com.beauty.app.data.api.RefreshRequest
+import com.beauty.app.data.api.RegisterRequest
 import com.beauty.app.data.api.UpdateClientRequest
 import com.beauty.app.data.api.VisitDto
 import com.beauty.app.data.local.ClientDao
@@ -30,6 +32,8 @@ class BeautyRepositoryTest {
     fun `refresh stores backend clients`() = runTest {
         val api = object : BeautyApi {
             override suspend fun login(request: AuthRequest) = error("not used in this test")
+            override suspend fun register(request: RegisterRequest) = error("not used in this test")
+            override suspend fun logout(request: RefreshRequest) = error("not used in this test")
             override suspend fun getClients() = listOf(
                 ClientDto("client-1", "Ada", "+100", tags = listOf("VIP"), customFields = JsonObject(emptyMap()), totalVisits = 2, createdAt = "now", updatedAt = "now")
             )
@@ -93,6 +97,8 @@ class BeautyRepositoryTest {
 
     private fun failingApi() = object : BeautyApi {
         override suspend fun login(request: AuthRequest): AuthResponse = error("Network unavailable")
+        override suspend fun register(request: RegisterRequest): AuthResponse = error("Network unavailable")
+        override suspend fun logout(request: RefreshRequest) = error("Network unavailable")
         override suspend fun getClients(): List<ClientDto> = error("Network unavailable")
         override suspend fun updateClient(id: String, request: UpdateClientRequest): ClientDto = error("Network unavailable")
         override suspend fun createVisit(request: CreateVisitRequest): VisitDto = error("Network unavailable")
@@ -100,6 +106,8 @@ class BeautyRepositoryTest {
 
     private fun visitApi(create: suspend (CreateVisitRequest) -> VisitDto) = object : BeautyApi {
         override suspend fun login(request: AuthRequest) = error("not used in this test")
+        override suspend fun register(request: RegisterRequest) = error("not used in this test")
+        override suspend fun logout(request: RefreshRequest) = error("not used in this test")
         override suspend fun getClients() = emptyList<ClientDto>()
         override suspend fun updateClient(id: String, request: UpdateClientRequest) = error("not used in this test")
         override suspend fun createVisit(request: CreateVisitRequest) = create(request)

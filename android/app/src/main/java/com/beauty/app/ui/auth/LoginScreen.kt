@@ -21,7 +21,8 @@ import com.beauty.app.ui.theme.TextMuted
 @Composable
 fun LoginScreen(
     viewModel: AuthViewModel,
-    onLoginSuccess: () -> Unit
+    onLoginSuccess: () -> Unit,
+    onNavigateToRegister: () -> Unit
 ) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
@@ -31,6 +32,12 @@ fun LoginScreen(
         if (viewModel.loginState is AuthViewModel.LoginState.Success) {
             onLoginSuccess()
         }
+    }
+
+    // The AuthViewModel is shared with RegisterScreen, so an error left behind
+    // by the other screen must not appear here.
+    DisposableEffect(Unit) {
+        onDispose { viewModel.resetState() }
     }
 
     Box(
@@ -135,6 +142,17 @@ fun LoginScreen(
                             fontSize = 15.sp
                         )
                     }
+                }
+
+                TextButton(
+                    onClick = onNavigateToRegister,
+                    enabled = viewModel.loginState !is AuthViewModel.LoginState.Loading
+                ) {
+                    Text(
+                        text = "First time here? Create an account",
+                        color = RoseGoldPrimary,
+                        fontSize = 13.sp
+                    )
                 }
             }
         }
