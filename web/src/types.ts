@@ -40,6 +40,14 @@ export interface CreateClientInput {
   customFields: Record<string, string | number | boolean>;
 }
 
+/** The signed-in user's own profile — distinct from `Client`, which is a salon customer record. */
+export interface UserProfile {
+  id: string;
+  email: string;
+  fullName: string;
+  createdAt: string;
+}
+
 export interface CreateVisitInput {
   clientId: string;
   visitDateTime: string;

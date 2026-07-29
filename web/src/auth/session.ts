@@ -1,5 +1,6 @@
-import { getToken, setToken, clearToken } from './tokenStore';
+import { setToken, clearToken } from './tokenStore';
 import { API_BASE_URL } from '../config';
+import type { UserProfile } from '../types';
 
 /**
  * Tells the backend to deliver the refresh token as an httpOnly cookie rather
@@ -22,6 +23,13 @@ const AUTH_FETCH_INIT: RequestInit = {
 interface AuthResponseBody {
   token: string;
   expiresInSeconds: number;
+  user: UserProfile;
+}
+
+/** What a successful login, register, refresh, or password change hands back. */
+export interface SessionResult {
+  token: string;
+  user: UserProfile;
 }
 
 /**
@@ -35,13 +43,14 @@ interface AuthResponseBody {
  * logged out by their own app. Sharing one promise is not an optimisation
  * here; it is what makes rotation workable.
  */
-let inFlightRefresh: Promise<string | null> | null = null;
+let inFlightRefresh: Promise<SessionResult | null> | null = null;
 
 /**
  * Exchanges the refresh cookie for a new access token. Resolves to the new
- * token, or null when the session is over and the user must sign in again.
+ * token and the profile it belongs to, or null when the session is over and
+ * the user must sign in again.
  */
-export function refreshAccessToken(): Promise<string | null> {
+export function refreshAccessToken(): Promise<SessionResult | null> {
   if (inFlightRefresh) return inFlightRefresh;
 
   inFlightRefresh = (async () => {
@@ -59,7 +68,7 @@ export function refreshAccessToken(): Promise<string | null> {
 
       const data: AuthResponseBody = await res.json();
       setToken(data.token);
-      return data.token;
+      return { token: data.token, user: data.user };
     } catch {
       // Network failure is not an expired session — keep whatever token we
       // have and let the caller's own error handling deal with being offline.
@@ -77,10 +86,9 @@ export function refreshAccessToken(): Promise<string | null> {
  *
  * The access token lives in memory, so a reload always starts with none. The
  * refresh cookie survives, so this call is what turns "no token" back into a
- * signed-in session without prompting for a password.
+ * signed-in session — profile included — without prompting for a password.
  */
-export async function restoreSession(): Promise<string | null> {
-  if (getToken()) return getToken();
+export async function restoreSession(): Promise<SessionResult | null> {
   return refreshAccessToken();
 }
 
