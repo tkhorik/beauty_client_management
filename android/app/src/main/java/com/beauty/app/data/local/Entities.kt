@@ -25,7 +25,8 @@ data class ClientEntity(
             childColumns = ["clientId"],
             onDelete = ForeignKey.CASCADE
         )
-    ]
+    ],
+    indices = [Index(value = ["clientId"])]
 )
 data class VisitEntity(
     @PrimaryKey val id: String,
@@ -50,7 +51,8 @@ data class VisitEntity(
             childColumns = ["visitId"],
             onDelete = ForeignKey.CASCADE
         )
-    ]
+    ],
+    indices = [Index(value = ["visitId"])]
 )
 data class AttachmentEntity(
     @PrimaryKey val id: String,
@@ -124,7 +126,7 @@ interface VisitDao {
 
 @Database(
     entities = [ClientEntity::class, VisitEntity::class, AttachmentEntity::class],
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 abstract class BeautyDatabase : RoomDatabase() {
