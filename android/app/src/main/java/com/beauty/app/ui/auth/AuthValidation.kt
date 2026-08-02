@@ -43,8 +43,9 @@ object AuthValidation {
 
     /**
      * Checked only on the client: the confirmation field is never sent. A typo
-     * here would otherwise lock the user out of an account they just created
-     * and have no way to reset.
+     * here would otherwise lock the user out of an account they just created,
+     * recoverable then only by going through the reset flow — which is a poor
+     * substitute for catching the mistake in front of them.
      */
     fun confirmPasswordError(password: String, confirmPassword: String): String? =
         if (password != confirmPassword) "Passwords do not match." else null

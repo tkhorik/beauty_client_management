@@ -95,6 +95,21 @@ data class AuthResponse(
 @Serializable
 data class RefreshRequest(val refreshToken: String)
 
+/**
+ * Body for `POST /api/auth/forgot-password`.
+ *
+ * There is no matching "reset" request here on purpose. The emailed link points
+ * at the web app (`SITE_URL/reset-password?token=…`), which is where the new
+ * password is actually typed — see `AccountMailer.sendPasswordReset`. Adding an
+ * in-app token field would mean asking the user to copy a 43-character secret
+ * out of their mail client, and a deep link cannot be added safely until the
+ * host serves an `assetlinks.json` for Android App Links verification: without
+ * it, any installed app can register the same URL pattern and intercept reset
+ * links.
+ */
+@Serializable
+data class ForgotPasswordRequest(val email: String)
+
 /** Body for `PATCH /api/users/me`. Only the display name is editable — email is the login identifier. */
 @Serializable
 data class UpdateProfileRequest(val fullName: String)
@@ -182,6 +197,19 @@ interface BeautyApi {
      */
     suspend fun logout(request: RefreshRequest)
 
+    /**
+     * Asks the backend to mail a password-reset link.
+     *
+     * Public, and must go through the same token-less client as [register] —
+     * the caller has no session, which is the entire premise.
+     *
+     * Returns [Unit] rather than a result because the endpoint deliberately
+     * answers 200 with the same body whether or not the address has an account.
+     * Anything a caller could branch on here would be an account-enumeration
+     * oracle, so there is nothing to return.
+     */
+    suspend fun forgotPassword(request: ForgotPasswordRequest)
+
     // -- Organization-scoped data ----------------------------------------
     //
     // `orgId` is a parameter on every one of these, not an ambient setting.
@@ -246,6 +274,13 @@ class KtorBeautyApi(private val client: HttpClient) : BeautyApi {
 
     override suspend fun logout(request: RefreshRequest) {
         client.post("api/auth/logout") {
+            contentType(ContentType.Application.Json)
+            setBody(request)
+        }
+    }
+
+    override suspend fun forgotPassword(request: ForgotPasswordRequest) {
+        client.post("api/auth/forgot-password") {
             contentType(ContentType.Application.Json)
             setBody(request)
         }

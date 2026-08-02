@@ -4,6 +4,7 @@ import { Sparkles, Eye, EyeOff } from 'lucide-react';
 import { API_BASE_URL } from '../config';
 import { AUTH_TRANSPORT_HEADERS } from '../auth/session';
 import { PASSWORD_MIN_LENGTH, validatePasswordLocally } from '../utils/passwordRules';
+import { FORGOT_PASSWORD_PATH, navigate } from '../auth/route';
 
 type Mode = 'login' | 'register';
 
@@ -44,7 +45,7 @@ export function LoginPage() {
     }
     // Checked in the browser only: the server never sees the confirmation
     // field, and a typo here would otherwise lock the user out of an account
-    // they just created and cannot yet reset.
+    // they just created, recoverable only by going through the reset flow.
     if (password !== confirmPassword) {
       errors.confirmPassword = 'Passwords do not match.';
     }
@@ -252,7 +253,20 @@ export function LoginPage() {
               <div style={{ color: 'var(--text-muted)', fontSize: '12px', marginTop: '5px' }}>
                 At least {PASSWORD_MIN_LENGTH} characters. A memorable phrase beats a short, complex password.
               </div>
-            ) : null}
+            ) : (
+              // Sign-in only. Offering "forgot password" on the registration
+              // form would point someone with no account at a flow that, by
+              // design, tells them nothing about whether one exists.
+              <div style={{ textAlign: 'right', marginTop: '6px' }}>
+                <button
+                  type="button"
+                  onClick={() => navigate(FORGOT_PASSWORD_PATH)}
+                  style={{ background: 'none', border: 'none', color: 'var(--rose-gold-primary)', cursor: 'pointer', fontSize: '12px', padding: 0 }}
+                >
+                  Forgot password?
+                </button>
+              </div>
+            )}
           </div>
 
           {isRegister && (
