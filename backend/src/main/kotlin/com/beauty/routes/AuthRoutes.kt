@@ -21,7 +21,6 @@ import io.ktor.server.plugins.ratelimit.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
-import kotlinx.coroutines.launch
 import org.jetbrains.exposed.exceptions.ExposedSQLException
 import org.mindrot.jbcrypt.BCrypt
 import org.jetbrains.exposed.sql.insert
@@ -47,32 +46,6 @@ private val DUMMY_PASSWORD_HASH: String =
 
 /** PostgreSQL SQLSTATE for a unique-constraint violation. */
 private const val SQLSTATE_UNIQUE_VIOLATION = "23505"
-
-/**
- * Hands a mail send to the application scope so the HTTP response does not wait
- * for SMTP.
- *
- * This is not primarily about latency. `/forgot-password` deliberately returns
- * the same 200 and the same body for a registered address, an unregistered one
- * and a malformed one — but awaiting the send made the registered case take a
- * full SMTP round trip while the other two answered immediately. Hundreds of
- * milliseconds is trivially measurable from outside, so an endpoint carefully
- * written to reveal nothing in its status or body was revealing it in its
- * timing instead. The send has to leave the request path entirely; equalising
- * it is not possible when the slow branch is a network call to a third party.
- *
- * Failures are logged and swallowed. By the time any of these run the state
- * change they describe — account created, password changed — is already
- * committed, so turning a bounced email into a failed response would tell the
- * user the operation did not happen when in fact it did.
- */
-private fun ApplicationCall.mailInBackground(what: String, block: suspend () -> Unit) {
-    val app = application
-    app.launch {
-        runCatching { block() }
-            .onFailure { app.log.warn("Background mail task '{}' failed: {}", what, it.message) }
-    }
-}
 
 /** Name of the httpOnly cookie carrying the refresh token for browser clients. */
 private const val REFRESH_COOKIE = "beauty_refresh"
@@ -224,7 +197,8 @@ fun Route.authRoutes() {
     val accessTokenMinutes = settings.accessTokenMinutes
     val refreshTokens = RefreshTokenService(settings.refreshTokenDays)
     val oneTimeTokens = OneTimeTokenService()
-    val accountMailer = AccountMailer(settings, oneTimeTokens, MailSender.from(settings))
+    // `application` is the scope the SMTP sends run in — see AccountMailer.
+    val accountMailer = AccountMailer(settings, oneTimeTokens, MailSender.from(settings), application)
 
     /** Reads the refresh token from the cookie, falling back to the request body. */
     suspend fun ApplicationCall.readRefreshToken(): String? {
@@ -302,11 +276,10 @@ fun Route.authRoutes() {
             // checked. Enforcement is soft — the account works whether or not
             // the address is confirmed — so a bounced or slow SMTP server must
             // not fail the registration. `MailSender.send` swallows its own
-            // errors for the same reason, and `mailInBackground` keeps a slow
-            // one from holding the new user on a spinner.
-            call.mailInBackground("verification") {
-                accountMailer.sendVerification(id, email, fullName)
-            }
+            // errors for the same reason, and AccountMailer hands the SMTP call
+            // off to the application scope so a slow server does not hold the
+            // new user on a spinner.
+            accountMailer.sendVerification(id, email, fullName)
 
             // One timestamp, used for both the stored row and the response.
             // Computing it twice means the client is told a creation time that
@@ -474,11 +447,13 @@ fun Route.authRoutes() {
          * must be indistinguishable from the outside.
          *
          * The two things that used to break that promise are both handled
-         * here: the lookup runs for a malformed address as well as a valid one
-         * so the work done is the same either way, and the mail itself is
-         * dispatched off the request path (see [mailInBackground]) so a
-         * registered address does not answer an SMTP round trip later than an
-         * unregistered one.
+         * now: the lookup runs for a malformed address as well as a valid one
+         * so the work done is the same either way, and `AccountMailer` hands
+         * the SMTP call to the application scope rather than awaiting it, so a
+         * registered address does not answer a network round trip later than
+         * an unregistered one. What is left is the token write, two local
+         * indexed statements — orders of magnitude below the variance of the
+         * request itself.
          */
         rateLimit(RateLimitName(RATE_LIMIT_EMAIL)) {
         post("/forgot-password") {
@@ -493,13 +468,11 @@ fun Route.authRoutes() {
             val row = found?.takeIf { Validation.validateEmail(email) == null }
 
             if (row != null) {
-                call.mailInBackground("password-reset") {
-                    accountMailer.sendPasswordReset(
-                        userId = row[UsersTable.id],
-                        email = row[UsersTable.email],
-                        fullName = row[UsersTable.fullName]
-                    )
-                }
+                accountMailer.sendPasswordReset(
+                    userId = row[UsersTable.id],
+                    email = row[UsersTable.email],
+                    fullName = row[UsersTable.fullName]
+                )
             } else {
                 // Logged server-side only. The requester is told nothing.
                 call.application.log.info("Password reset requested for an address with no account.")
@@ -568,17 +541,15 @@ fun Route.authRoutes() {
             call.clearRefreshCookie()
 
             if (row != null) {
-                // Off the request path: the password is already changed, so a
-                // slow or failing SMTP server must not delay or fail the
-                // response. AccountMailer logs a warning if this one cannot be
-                // delivered, since it is the notice that makes a takeover
+                // The password is already changed, so a slow or failing SMTP
+                // server must not delay or fail the response. AccountMailer
+                // dispatches the send and logs a warning if it cannot be
+                // delivered, since this is the notice that makes a takeover
                 // visible to the account's owner.
-                call.mailInBackground("password-changed-notice") {
-                    accountMailer.sendPasswordChangedNotice(
-                        email = row[UsersTable.email],
-                        fullName = row[UsersTable.fullName]
-                    )
-                }
+                accountMailer.sendPasswordChangedNotice(
+                    email = row[UsersTable.email],
+                    fullName = row[UsersTable.fullName]
+                )
             }
 
             // No new session is issued. Making the user sign in with the
@@ -602,7 +573,8 @@ fun Route.authenticatedAuthRoutes() {
     val settings = AppSettings(application.environment.config)
     val refreshTokens = RefreshTokenService(settings.refreshTokenDays)
     val oneTimeTokens = OneTimeTokenService()
-    val accountMailer = AccountMailer(settings, oneTimeTokens, MailSender.from(settings))
+    // `application` is the scope the SMTP sends run in — see AccountMailer.
+    val accountMailer = AccountMailer(settings, oneTimeTokens, MailSender.from(settings), application)
 
     route("/api/auth") {
         /**
@@ -627,13 +599,11 @@ fun Route.authenticatedAuthRoutes() {
 
             val row = dbQuery { UsersTable.select { UsersTable.id eq userId }.singleOrNull() }
             if (row != null && row[UsersTable.emailVerifiedAt] == null) {
-                call.mailInBackground("resend-verification") {
-                    accountMailer.sendVerification(
-                        userId = userId,
-                        email = row[UsersTable.email],
-                        fullName = row[UsersTable.fullName]
-                    )
-                }
+                accountMailer.sendVerification(
+                    userId = userId,
+                    email = row[UsersTable.email],
+                    fullName = row[UsersTable.fullName]
+                )
             }
             call.respond(HttpStatusCode.NoContent)
         }
