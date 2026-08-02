@@ -1,0 +1,515 @@
+package com.beauty.routes
+
+import com.beauty.module
+import com.beauty.plugins.ORG_HEADER
+import io.ktor.client.request.*
+import io.ktor.client.statement.*
+import io.ktor.http.*
+import io.ktor.server.config.*
+import io.ktor.server.testing.*
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import java.util.UUID
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
+import kotlin.test.assertTrue
+
+/**
+ * End-to-end tests for tenant isolation.
+ *
+ * These run the real application module against in-memory H2 and drive it over
+ * HTTP, rather than calling the services directly. That is deliberate: the
+ * property under test is "the *endpoint* refuses", and every historical
+ * multi-tenancy bug of this shape has been a route that forgot the filter while
+ * the service beneath it was perfectly correct. A service-level test would pass
+ * against exactly the code that leaks.
+ *
+ * Each test gets its own H2 database name so rows cannot leak between them —
+ * `DB_CLOSE_DELAY=-1` keeps a database alive for the whole JVM.
+ *
+ * Requests are built as raw JSON strings and responses parsed with
+ * `Json.parseToJsonElement`, rather than using the typed client, to avoid
+ * pulling `ktor-client-content-negotiation` in just for tests.
+ */
+class OrganizationIsolationTest {
+
+    // -----------------------------------------------------------------------
+    // Harness
+    // -----------------------------------------------------------------------
+
+    private fun ApplicationTestBuilder.startApp() {
+        environment {
+            // Replaces application.conf entirely. Anything not listed falls
+            // back to the defaults in AppSettings, which are the development
+            // ones — that is what we want here.
+            config = MapApplicationConfig(
+                "app.environment" to "development",
+                "app.uploadDir" to "build/test-uploads",
+                "db.driver" to "org.h2.Driver",
+                "db.url" to "jdbc:h2:mem:isolation-${UUID.randomUUID()};DB_CLOSE_DELAY=-1",
+                "db.user" to "sa",
+                "db.password" to ""
+            )
+        }
+        application { module() }
+    }
+
+    /** Registers an account and returns its access token. */
+    private suspend fun ApplicationTestBuilder.register(email: String): String {
+        val response = client.post("/api/auth/register") {
+            contentType(ContentType.Application.Json)
+            setBody(
+                body(
+                    """{"email":"$email","password":"a-long-enough-password","fullName":"Test User"}"""
+                )
+            )
+        }
+        assertEquals(HttpStatusCode.Created, response.status, "registration failed: ${response.bodyAsText()}")
+        return Json.parseToJsonElement(response.bodyAsText())
+            .jsonObject["token"]!!.jsonPrimitive.content
+    }
+
+    /** Creates an organization owned by [token]'s user and returns its id. */
+    private suspend fun ApplicationTestBuilder.createOrg(token: String, slug: String): String {
+        val response = client.post("/api/organizations") {
+            bearerAuth(token)
+            contentType(ContentType.Application.Json)
+            setBody(body("""{"name":"$slug","slug":"$slug"}"""))
+        }
+        assertEquals(HttpStatusCode.Created, response.status, "createOrg failed: ${response.bodyAsText()}")
+        return Json.parseToJsonElement(response.bodyAsText())
+            .jsonObject["id"]!!.jsonPrimitive.content
+    }
+
+    /** Creates a client in [orgId] and returns its id. */
+    private suspend fun ApplicationTestBuilder.createClient(token: String, orgId: String, name: String): String {
+        val response = client.post("/api/clients") {
+            bearerAuth(token)
+            header(ORG_HEADER, orgId)
+            contentType(ContentType.Application.Json)
+            setBody(body("""{"name":"$name","phone":"+1 555 0100"}"""))
+        }
+        assertEquals(HttpStatusCode.Created, response.status, "createClient failed: ${response.bodyAsText()}")
+        return Json.parseToJsonElement(response.bodyAsText())
+            .jsonObject["id"]!!.jsonPrimitive.content
+    }
+
+    // -----------------------------------------------------------------------
+    // Cross-organization reads and writes
+    // -----------------------------------------------------------------------
+
+    @Test
+    fun `a user only sees clients from the organization they asked for`() = testApplication {
+        startApp()
+
+        val alice = register("alice@example.com")
+        val bob = register("bob@example.com")
+        val orgA = createOrg(alice, "org-a")
+        val orgB = createOrg(bob, "org-b")
+
+        createClient(alice, orgA, "Alice Client")
+        createClient(bob, orgB, "Bob Client")
+
+        val listed = client.get("/api/clients") {
+            bearerAuth(alice)
+            header(ORG_HEADER, orgA)
+        }
+        assertEquals(HttpStatusCode.OK, listed.status)
+
+        val names = Json.parseToJsonElement(listed.bodyAsText()).jsonArray
+            .map { it.jsonObject["name"]!!.jsonPrimitive.content }
+
+        assertEquals(listOf("Alice Client"), names, "Alice's list must not contain Bob's client")
+    }
+
+    @Test
+    fun `reading another organization's client answers 404, not 403`() = testApplication {
+        startApp()
+
+        val alice = register("alice@example.com")
+        val bob = register("bob@example.com")
+        val orgA = createOrg(alice, "org-a")
+        val orgB = createOrg(bob, "org-b")
+        val bobsClient = createClient(bob, orgB, "Bob Client")
+
+        // Alice authenticates against her own organization — the request is
+        // perfectly valid — and asks for a record id belonging to Bob's.
+        val response = client.get("/api/clients/$bobsClient") {
+            bearerAuth(alice)
+            header(ORG_HEADER, orgA)
+        }
+
+        // 404 rather than 403: a 403 would confirm the id exists, turning this
+        // endpoint into a probe for other tenants' record ids.
+        assertEquals(HttpStatusCode.NotFound, response.status)
+    }
+
+    @Test
+    fun `naming an organization you do not belong to is refused`() = testApplication {
+        startApp()
+
+        val alice = register("alice@example.com")
+        val bob = register("bob@example.com")
+        createOrg(alice, "org-a")
+        val orgB = createOrg(bob, "org-b")
+
+        val response = client.get("/api/clients") {
+            bearerAuth(alice)
+            header(ORG_HEADER, orgB)
+        }
+
+        assertEquals(HttpStatusCode.Forbidden, response.status)
+        assertEquals(
+            "NOT_A_MEMBER",
+            Json.parseToJsonElement(response.bodyAsText()).jsonObject["code"]!!.jsonPrimitive.content
+        )
+    }
+
+    @Test
+    fun `updating another organization's client does not change it`() = testApplication {
+        startApp()
+
+        val alice = register("alice@example.com")
+        val bob = register("bob@example.com")
+        val orgA = createOrg(alice, "org-a")
+        val orgB = createOrg(bob, "org-b")
+        val bobsClient = createClient(bob, orgB, "Bob Client")
+
+        val attempt = client.put("/api/clients/$bobsClient") {
+            bearerAuth(alice)
+            header(ORG_HEADER, orgA)
+            contentType(ContentType.Application.Json)
+            setBody(body("""{"name":"Hijacked"}"""))
+        }
+        assertEquals(HttpStatusCode.NotFound, attempt.status)
+
+        // The refusal is not enough on its own — confirm the row is untouched.
+        // A route that scopes its SELECT but not its UPDATE would answer 404
+        // here *and* have already written the change.
+        val asBob = client.get("/api/clients/$bobsClient") {
+            bearerAuth(bob)
+            header(ORG_HEADER, orgB)
+        }
+        assertEquals(
+            "Bob Client",
+            Json.parseToJsonElement(asBob.bodyAsText()).jsonObject["name"]!!.jsonPrimitive.content
+        )
+    }
+
+    @Test
+    fun `deleting another organization's client does not remove it`() = testApplication {
+        startApp()
+
+        val alice = register("alice@example.com")
+        val bob = register("bob@example.com")
+        val orgA = createOrg(alice, "org-a")
+        val orgB = createOrg(bob, "org-b")
+        val bobsClient = createClient(bob, orgB, "Bob Client")
+
+        val attempt = client.delete("/api/clients/$bobsClient") {
+            bearerAuth(alice)
+            header(ORG_HEADER, orgA)
+        }
+        assertEquals(HttpStatusCode.NotFound, attempt.status)
+
+        val stillThere = client.get("/api/clients/$bobsClient") {
+            bearerAuth(bob)
+            header(ORG_HEADER, orgB)
+        }
+        assertEquals(HttpStatusCode.OK, stillThere.status)
+    }
+
+    @Test
+    fun `a visit cannot be attached to another organization's client`() = testApplication {
+        startApp()
+
+        val alice = register("alice@example.com")
+        val bob = register("bob@example.com")
+        val orgA = createOrg(alice, "org-a")
+        val orgB = createOrg(bob, "org-b")
+        val bobsClient = createClient(bob, orgB, "Bob Client")
+
+        val response = client.post("/api/visits") {
+            bearerAuth(alice)
+            header(ORG_HEADER, orgA)
+            contentType(ContentType.Application.Json)
+            setBody(
+                body(
+                    """{"clientId":"$bobsClient","visitDateTime":"2026-07-29T10:00:00","durationMinutes":60,"procedureNotes":"injected"}"""
+                )
+            )
+        }
+
+        assertEquals(HttpStatusCode.NotFound, response.status)
+
+        // And nothing landed on Bob's client.
+        val bobsVisits = client.get("/api/visits?clientId=$bobsClient") {
+            bearerAuth(bob)
+            header(ORG_HEADER, orgB)
+        }
+        assertTrue(
+            Json.parseToJsonElement(bobsVisits.bodyAsText()).jsonArray.isEmpty(),
+            "no visit should have been created on the other organization's client"
+        )
+    }
+
+    @Test
+    fun `omitting the organization header is a distinguishable error`() = testApplication {
+        startApp()
+
+        val alice = register("alice@example.com")
+        createOrg(alice, "org-a")
+
+        val response = client.get("/api/clients") { bearerAuth(alice) }
+
+        // 400 with a machine-readable code, not 403: the client's correct
+        // reaction is "choose an organization and retry", which is a different
+        // thing from "you are not allowed".
+        assertEquals(HttpStatusCode.BadRequest, response.status)
+        assertEquals(
+            "MISSING_ORGANIZATION",
+            Json.parseToJsonElement(response.bodyAsText()).jsonObject["code"]!!.jsonPrimitive.content
+        )
+    }
+
+    // -----------------------------------------------------------------------
+    // Revocation
+    // -----------------------------------------------------------------------
+
+    @Test
+    fun `removing a member revokes access immediately, on the very next request`() = testApplication {
+        startApp()
+
+        val alice = register("alice@example.com")   // org admin
+        val bob = register("bob@example.com")       // will be added, then removed
+        val orgA = createOrg(alice, "org-a")
+
+        // Bob asks to join; Alice approves.
+        val join = client.post("/api/organizations/join-requests") {
+            bearerAuth(bob)
+            contentType(ContentType.Application.Json)
+            setBody(body("""{"slug":"org-a"}"""))
+        }
+        assertEquals(HttpStatusCode.OK, join.status)
+
+        val members = client.get("/api/organizations/$orgA/members") {
+            bearerAuth(alice)
+            header(ORG_HEADER, orgA)
+        }
+        val bobId = Json.parseToJsonElement(members.bodyAsText()).jsonArray
+            .map { it.jsonObject }
+            .first { it["email"]!!.jsonPrimitive.content == "bob@example.com" }["userId"]!!
+            .jsonPrimitive.content
+
+        assertEquals(
+            HttpStatusCode.OK,
+            client.post("/api/organizations/$orgA/members/$bobId/approval") {
+                bearerAuth(alice)
+                header(ORG_HEADER, orgA)
+            }.status
+        )
+
+        // Bob can now read the organization's clients.
+        val before = client.get("/api/clients") {
+            bearerAuth(bob)
+            header(ORG_HEADER, orgA)
+        }
+        assertEquals(HttpStatusCode.OK, before.status)
+
+        // Alice removes him.
+        assertEquals(
+            HttpStatusCode.OK,
+            client.delete("/api/organizations/$orgA/members/$bobId") {
+                bearerAuth(alice)
+                header(ORG_HEADER, orgA)
+            }.status
+        )
+
+        // Bob's access token is still perfectly valid and unexpired. Access is
+        // gone anyway, because membership is re-read from the database on every
+        // request rather than carried in the token. This assertion is the whole
+        // reason for that design; if it ever fails, someone has "optimised"
+        // membership into a JWT claim.
+        val after = client.get("/api/clients") {
+            bearerAuth(bob)
+            header(ORG_HEADER, orgA)
+        }
+        assertEquals(HttpStatusCode.Forbidden, after.status)
+    }
+
+    @Test
+    fun `data created by a removed user stays with the organization`() = testApplication {
+        startApp()
+
+        val alice = register("alice@example.com")
+        val bob = register("bob@example.com")
+        val orgA = createOrg(alice, "org-a")
+
+        client.post("/api/organizations/join-requests") {
+            bearerAuth(bob)
+            contentType(ContentType.Application.Json)
+            setBody(body("""{"slug":"org-a"}"""))
+        }
+        val members = client.get("/api/organizations/$orgA/members") {
+            bearerAuth(alice)
+            header(ORG_HEADER, orgA)
+        }
+        val bobId = Json.parseToJsonElement(members.bodyAsText()).jsonArray
+            .map { it.jsonObject }
+            .first { it["email"]!!.jsonPrimitive.content == "bob@example.com" }["userId"]!!
+            .jsonPrimitive.content
+        client.post("/api/organizations/$orgA/members/$bobId/approval") {
+            bearerAuth(alice)
+            header(ORG_HEADER, orgA)
+        }
+
+        // Bob enters a client, then leaves.
+        val bobsEntry = createClient(bob, orgA, "Client Bob Entered")
+        client.delete("/api/organizations/$orgA/members/$bobId") {
+            bearerAuth(alice)
+            header(ORG_HEADER, orgA)
+        }
+
+        // The record belongs to the organization, not to Bob: a salon does not
+        // lose its client history because a stylist left.
+        val asAlice = client.get("/api/clients/$bobsEntry") {
+            bearerAuth(alice)
+            header(ORG_HEADER, orgA)
+        }
+        assertEquals(HttpStatusCode.OK, asAlice.status)
+        assertEquals(
+            "Client Bob Entered",
+            Json.parseToJsonElement(asAlice.bodyAsText()).jsonObject["name"]!!.jsonPrimitive.content
+        )
+    }
+
+    // -----------------------------------------------------------------------
+    // Role enforcement
+    // -----------------------------------------------------------------------
+
+    @Test
+    fun `a plain member cannot manage membership`() = testApplication {
+        startApp()
+
+        val alice = register("alice@example.com")
+        val bob = register("bob@example.com")
+        val orgA = createOrg(alice, "org-a")
+
+        client.post("/api/organizations/join-requests") {
+            bearerAuth(bob)
+            contentType(ContentType.Application.Json)
+            setBody(body("""{"slug":"org-a"}"""))
+        }
+        val members = client.get("/api/organizations/$orgA/members") {
+            bearerAuth(alice)
+            header(ORG_HEADER, orgA)
+        }
+        val bobId = Json.parseToJsonElement(members.bodyAsText()).jsonArray
+            .map { it.jsonObject }
+            .first { it["email"]!!.jsonPrimitive.content == "bob@example.com" }["userId"]!!
+            .jsonPrimitive.content
+        client.post("/api/organizations/$orgA/members/$bobId/approval") {
+            bearerAuth(alice)
+            header(ORG_HEADER, orgA)
+        }
+
+        // Bob is a full member — he can read clients — but membership
+        // management is not a member capability.
+        val roster = client.get("/api/organizations/$orgA/members") {
+            bearerAuth(bob)
+            header(ORG_HEADER, orgA)
+        }
+        assertEquals(HttpStatusCode.Forbidden, roster.status)
+        assertEquals(
+            "ADMIN_REQUIRED",
+            Json.parseToJsonElement(roster.bodyAsText()).jsonObject["code"]!!.jsonPrimitive.content
+        )
+
+        val eviction = client.delete("/api/organizations/$orgA/members/$bobId") {
+            bearerAuth(bob)
+            header(ORG_HEADER, orgA)
+        }
+        assertEquals(HttpStatusCode.Forbidden, eviction.status)
+    }
+
+    @Test
+    fun `a pending join request grants no access`() = testApplication {
+        startApp()
+
+        val alice = register("alice@example.com")
+        val bob = register("bob@example.com")
+        val orgA = createOrg(alice, "org-a")
+        createClient(alice, orgA, "Alice Client")
+
+        client.post("/api/organizations/join-requests") {
+            bearerAuth(bob)
+            contentType(ContentType.Application.Json)
+            setBody(body("""{"slug":"org-a"}"""))
+        }
+
+        // A row exists for Bob in this organization. It is PENDING, and every
+        // authorization query matches on ACTIVE explicitly — a check that
+        // merely tested for the row's existence would pass here.
+        val response = client.get("/api/clients") {
+            bearerAuth(bob)
+            header(ORG_HEADER, orgA)
+        }
+        assertEquals(HttpStatusCode.Forbidden, response.status)
+    }
+
+    @Test
+    fun `the last administrator cannot be removed`() = testApplication {
+        startApp()
+
+        val alice = register("alice@example.com")
+        val orgA = createOrg(alice, "org-a")
+
+        val me = client.get("/api/organizations/$orgA/members") {
+            bearerAuth(alice)
+            header(ORG_HEADER, orgA)
+        }
+        val aliceId = Json.parseToJsonElement(me.bodyAsText()).jsonArray
+            .first().jsonObject["userId"]!!.jsonPrimitive.content
+
+        // An organization with no admin can never approve, invite or promote
+        // anyone again — it is unrecoverable without database access.
+        val response = client.delete("/api/organizations/$orgA/members/$aliceId") {
+            bearerAuth(alice)
+            header(ORG_HEADER, orgA)
+        }
+        assertEquals(HttpStatusCode.Conflict, response.status)
+    }
+
+    @Test
+    fun `a user can belong to several organizations at once`() = testApplication {
+        startApp()
+
+        val alice = register("alice@example.com")
+        val orgA = createOrg(alice, "salon-one")
+        val orgB = createOrg(alice, "salon-two")
+
+        createClient(alice, orgA, "One Client")
+        createClient(alice, orgB, "Two Client")
+
+        // Same token, same user, different header — different data. The
+        // organization comes from the request, not from server-side session
+        // state, which is what makes two browser tabs on two salons safe.
+        fun names(bodyText: String) = Json.parseToJsonElement(bodyText).jsonArray
+            .map { it.jsonObject["name"]!!.jsonPrimitive.content }
+
+        val inA = client.get("/api/clients") { bearerAuth(alice); header(ORG_HEADER, orgA) }
+        val inB = client.get("/api/clients") { bearerAuth(alice); header(ORG_HEADER, orgB) }
+
+        assertEquals(listOf("One Client"), names(inA.bodyAsText()))
+        assertEquals(listOf("Two Client"), names(inB.bodyAsText()))
+
+        val listed = client.get("/api/organizations") { bearerAuth(alice) }
+        val slugs = Json.parseToJsonElement(listed.bodyAsText()).jsonArray
+            .map { it.jsonObject["slug"]!!.jsonPrimitive.content }
+        assertTrue(slugs.containsAll(listOf("salon-one", "salon-two")))
+        assertNotNull(orgB)
+    }
+}

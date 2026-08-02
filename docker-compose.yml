@@ -69,6 +69,15 @@ services:
       # .env without SITE_URL keeps working; the suffix is empty on 443.
       SITE_URL: ${SITE_URL:-https://${DOMAIN}}
 
+      # --- Organizations ----------------------------------------------
+      # Comma-separated addresses promoted to the global SUPER_ADMIN role at
+      # startup. Empty is the normal case: organizations are self-service, and
+      # nothing about routine operation needs an account that can read every
+      # tenant's data. Deliberately configuration rather than an API — an
+      # endpoint able to grant unrestricted cross-organization access is an
+      # endpoint worth attacking.
+      SUPER_ADMIN_EMAILS: ${SUPER_ADMIN_EMAILS:-}
+
       # --- Mail -------------------------------------------------------
       # The backend refuses to start in production without MAIL_HOST: the
       # fallback sender writes reset links into the logs rather than mailing

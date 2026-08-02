@@ -1,6 +1,7 @@
 import React from 'react';
-import { Search, Plus, Sparkles, Filter, Settings } from 'lucide-react';
+import { Search, Plus, Sparkles, Filter, Settings, Users } from 'lucide-react';
 import { useAuth } from '../auth/AuthContext';
+import { useOrg } from '../auth/OrgContext';
 
 interface HeaderProps {
   searchQuery: string;
@@ -10,6 +11,7 @@ interface HeaderProps {
   onOpenNewClient: () => void;
   onOpenNewVisit: () => void;
   onOpenSettings: () => void;
+  onOpenMembers: () => void;
   totalClients: number;
 }
 
@@ -21,9 +23,11 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenNewClient,
   onOpenNewVisit,
   onOpenSettings,
+  onOpenMembers,
   totalClients
 }) => {
   const { user } = useAuth();
+  const { current, activeOrganizations, offline, select } = useOrg();
   const tagsList = ['All', 'VIP', 'Sensitive Skin', 'Lash Extensions', 'Hair Coloring', 'Skin Treatment'];
 
   return (
@@ -55,6 +59,45 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Action Buttons */}
         <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+          {/*
+            Organization switcher. Rendered as a plain <select> rather than a
+            fancy menu because getting this wrong is expensive: the visible
+            label here is the only thing telling a user which salon's records
+            they are about to edit.
+          */}
+          {current && (
+            <select
+              className="input-field"
+              value={current.id}
+              onChange={(e) => select(e.target.value)}
+              title={offline ? 'Offline demo data — the backend is unreachable' : 'Active organization'}
+              aria-label="Active organization"
+              style={{ width: 'auto', padding: '9px 12px', fontSize: '13px' }}
+              disabled={activeOrganizations.length <= 1}
+            >
+              {activeOrganizations.map(org => (
+                <option key={org.id} value={org.id}>{org.name}</option>
+              ))}
+            </select>
+          )}
+
+          {/*
+            Shown to administrators only — a convenience, not the control. The
+            backend refuses these calls from a plain member regardless of what
+            the UI renders.
+          */}
+          {current?.role === 'ORG_ADMIN' && !offline && (
+            <button
+              className="btn-secondary"
+              onClick={onOpenMembers}
+              title="Manage members"
+              aria-label="Manage members"
+              style={{ padding: '10px', display: 'flex' }}
+            >
+              <Users size={18} />
+            </button>
+          )}
+
           <button className="btn-secondary" onClick={onOpenNewVisit}>
             <Plus size={16} /> Log New Visit
           </button>

@@ -75,10 +75,17 @@ object DatabaseFactory {
      * because `users` already exists. That column ships as a hand-written
      * migration in `backend/migrations/`, which must be run before deploying
      * this version against an existing database.
+     *
+     * The same applies to `clients.organization_id`, `visits.organization_id`
+     * and `users.global_role`: `organizations` and `user_organizations` appear
+     * here automatically on a fresh database, but the new columns on the three
+     * pre-existing tables need `002_multi_tenant_rbac.sql`.
      */
     private fun createSchema() = transaction {
         SchemaUtils.create(
             UsersTable,
+            OrganizationsTable,
+            UserOrganizationsTable,
             RefreshTokensTable,
             OneTimeTokensTable,
             ClientsTable,

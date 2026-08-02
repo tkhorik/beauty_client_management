@@ -89,6 +89,49 @@ object Validation {
         else -> null
     }
 
+    const val ORG_NAME_MAX_LENGTH = 255
+    const val ORG_SLUG_MAX_LENGTH = 100
+    const val ORG_SLUG_MIN_LENGTH = 3
+
+    /**
+     * Lowercase letters, digits and single interior hyphens.
+     *
+     * Narrow on purpose: the slug is spoken aloud and typed from memory when
+     * one person tells another which organization to join, so anything that is
+     * ambiguous out loud (case, underscores, spaces) is worse than useless.
+     */
+    private val ORG_SLUG_PATTERN = Regex("^[a-z0-9]+(-[a-z0-9]+)*$")
+
+    fun validateOrganizationName(name: String): String? = when {
+        name.isBlank() -> "Organization name is required."
+        name.length > ORG_NAME_MAX_LENGTH ->
+            "Organization name must be at most $ORG_NAME_MAX_LENGTH characters."
+        else -> null
+    }
+
+    fun validateOrganizationSlug(slug: String): String? = when {
+        slug.isBlank() -> "Organization handle is required."
+        slug.length < ORG_SLUG_MIN_LENGTH ->
+            "Organization handle must be at least $ORG_SLUG_MIN_LENGTH characters."
+        slug.length > ORG_SLUG_MAX_LENGTH ->
+            "Organization handle must be at most $ORG_SLUG_MAX_LENGTH characters."
+        !ORG_SLUG_PATTERN.matches(slug) ->
+            "Organization handle may contain only lowercase letters, numbers and hyphens."
+        else -> null
+    }
+
+    /**
+     * Turns a display name into a candidate slug.
+     *
+     * Best-effort: the result still goes through [validateOrganizationSlug], so
+     * a name made entirely of characters this strips (say, one written in a
+     * non-Latin script) is rejected with a message asking for an explicit
+     * handle rather than silently becoming an empty string.
+     */
+    fun slugify(raw: String): String = raw.trim().lowercase()
+        .replace(Regex("[^a-z0-9]+"), "-")
+        .trim('-')
+
     /**
      * Validates a registration payload against already-normalised values.
      * Returns an empty map when everything is acceptable.

@@ -26,9 +26,33 @@ class KtorBeautyApiTest {
         }
         val client = HttpClient(engine) { install(ContentNegotiation) { json(Json { ignoreUnknownKeys = true }) } }
 
-        val clients = KtorBeautyApi(client).getClients()
+        val clients = KtorBeautyApi(client).getClients("org-a")
 
         assertEquals("c1", clients.single().id)
         assertEquals("Ada", clients.single().name)
+    }
+
+    /**
+     * The header is what scopes the request. Without it the backend answers
+     * `MISSING_ORGANIZATION`, and with the wrong one it answers another salon's
+     * records — so this asserts on the wire format rather than trusting that
+     * the parameter is used somewhere.
+     */
+    @Test
+    fun `scoped calls send the organization header`() = runTest {
+        var seenHeader: String? = null
+        val engine = MockEngine { request ->
+            seenHeader = request.headers[ORG_HEADER]
+            respond(
+                "[]",
+                HttpStatusCode.OK,
+                headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString())
+            )
+        }
+        val client = HttpClient(engine) { install(ContentNegotiation) { json(Json { ignoreUnknownKeys = true }) } }
+
+        KtorBeautyApi(client).getClients("org-b")
+
+        assertEquals("org-b", seenHeader)
     }
 }

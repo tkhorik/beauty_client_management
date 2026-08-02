@@ -5,6 +5,7 @@ import com.beauty.routes.attachmentRoutes
 import com.beauty.routes.authRoutes
 import com.beauty.routes.authenticatedAuthRoutes
 import com.beauty.routes.clientRoutes
+import com.beauty.routes.organizationRoutes
 import com.beauty.routes.userRoutes
 import com.beauty.routes.visitRoutes
 import io.ktor.http.*
@@ -64,6 +65,10 @@ fun Application.configureRouting() {
         // Lets a client declare that its refresh token should be delivered as
         // an httpOnly cookie rather than in the response body.
         allowHeader("X-Auth-Transport")
+        // Names the organization a request is scoped to. Without it in this
+        // list the browser's preflight fails and every data request 403s with
+        // a CORS error that says nothing about organizations.
+        allowHeader(ORG_HEADER)
 
         // Required for the browser to send and store the refresh cookie on a
         // cross-origin request. Note this is incompatible with `anyHost()`:
@@ -159,6 +164,10 @@ fun Application.configureRouting() {
         authenticate("auth-jwt") {
             authenticatedAuthRoutes()
             userRoutes()
+            // Mounted before the data routes because a user with no
+            // organization can still reach these — they are how one is
+            // obtained. Everything below requires an organization context.
+            organizationRoutes()
             clientRoutes()
             visitRoutes()
             attachmentRoutes()

@@ -26,7 +26,95 @@ object UsersTable : Table("users") {
      */
     val emailVerifiedAt = datetime("email_verified_at").nullable()
 
+    /**
+     * System-wide role: `USER` or `SUPER_ADMIN` (see `auth/Roles.GlobalRole`).
+     *
+     * Deliberately *not* the same column as organization role. Organization
+     * membership is many-to-many and lives in [UserOrganizationsTable]; this is
+     * the one privilege that has no organization to scope it to. Keeping them
+     * apart means an `org_admin` promotion can never accidentally grant global
+     * access, which is exactly the mistake a single `role` column invites.
+     *
+     * Defaults to `USER` so that any insert that forgets it fails closed.
+     */
+    val globalRole = varchar("global_role", 32).default("USER")
+
     override val primaryKey = PrimaryKey(id)
+}
+
+/**
+ * A tenant. Every client and visit belongs to exactly one of these.
+ *
+ * Ownership sits on the organization rather than the user who typed the record
+ * in: a salon's client history has to outlive the receptionist who created it,
+ * so removing a person from the organization must revoke *their* access without
+ * touching the data (see [UserOrganizationsTable]).
+ */
+object OrganizationsTable : Table("organizations") {
+    val id = varchar("id", 64)
+    val name = varchar("name", 255)
+
+    /**
+     * Lowercase URL-safe handle, unique across the system.
+     *
+     * This is what a user types when asking to join an organization they were
+     * told about verbally. Requests are made by slug rather than by id so that
+     * the flow does not require the admin to send a UUID, and unique so that
+     * "join aura-downtown" is never ambiguous.
+     */
+    val slug = varchar("slug", 100).uniqueIndex()
+
+    /** The user who created it. Nullable so deleting a founder never orphans the org. */
+    val createdBy = varchar("created_by", 64).references(UsersTable.id).nullable()
+
+    val createdAt = datetime("created_at")
+
+    override val primaryKey = PrimaryKey(id)
+}
+
+/**
+ * Membership: which users belong to which organizations, in what capacity.
+ *
+ * A join table rather than a column on `users`, because a user can belong to
+ * several organizations at once with a *different* role in each — a person can
+ * own their own studio and be a plain member of a partner salon.
+ *
+ * [status] carries the onboarding handshake. `PENDING` is a user asking to get
+ * in, `INVITED` is an admin asking a user in, and only `ACTIVE` grants any
+ * access at all. Every authorization check in `plugins/OrgAccess.kt` matches on
+ * `ACTIVE` explicitly — treating "row exists" as "is a member" would let anyone
+ * who has merely *requested* to join read the organization's data.
+ *
+ * Removal deletes the row. There is no `REMOVED` tombstone: an expired
+ * membership that is still queryable is one forgotten status check away from
+ * being honoured, and the audit value does not justify that risk.
+ */
+object UserOrganizationsTable : Table("user_organizations") {
+    val id = varchar("id", 64)
+    val userId = varchar("user_id", 64).references(UsersTable.id).index()
+    val organizationId = varchar("organization_id", 64).references(OrganizationsTable.id).index()
+
+    /** `ORG_ADMIN` or `ORG_USER`. See `auth/Roles.OrgRole`. */
+    val role = varchar("role", 32)
+
+    /** `ACTIVE`, `PENDING` or `INVITED`. See `auth/Roles.MembershipStatus`. */
+    val status = varchar("status", 32)
+
+    /** Who issued the invitation, when this row started as one. */
+    val invitedBy = varchar("invited_by", 64).references(UsersTable.id).nullable()
+
+    val createdAt = datetime("created_at")
+    val updatedAt = datetime("updated_at")
+
+    override val primaryKey = PrimaryKey(id)
+
+    init {
+        // One row per (user, organization). Without this, a second join request
+        // from someone already removed — or a race between an invitation and a
+        // request — leaves two rows, and a membership check that finds the
+        // wrong one silently grants or denies the wrong thing.
+        uniqueIndex(userId, organizationId)
+    }
 }
 
 /**
@@ -110,6 +198,21 @@ object RefreshTokensTable : Table("refresh_tokens") {
 
 object ClientsTable : Table("clients") {
     val id = varchar("id", 64)
+
+    /**
+     * The owning tenant. Not nullable, and not defaulted.
+     *
+     * Every read of this table must be filtered on it. A nullable column would
+     * mean "belongs to no one", and the natural handling of that — skip the
+     * filter — is precisely the cross-tenant leak this whole feature exists to
+     * prevent. The database refusing the insert is a better failure than a row
+     * nobody can safely query.
+     */
+    val organizationId = varchar("organization_id", 64).references(OrganizationsTable.id).index()
+
+    /** Who first entered this record. Informational only — access comes from [organizationId]. */
+    val createdBy = varchar("created_by", 64).references(UsersTable.id).nullable()
+
     val name = varchar("name", 255)
     val phone = varchar("phone", 50)
     val email = varchar("email", 255).nullable()
@@ -124,6 +227,22 @@ object ClientsTable : Table("clients") {
 object VisitsTable : Table("visits") {
     val id = varchar("id", 64)
     val clientId = varchar("client_id", 64).references(ClientsTable.id)
+
+    /**
+     * Denormalised copy of the parent client's organization.
+     *
+     * Redundant — it is always `clients.organization_id` for [clientId] — and
+     * kept anyway, because the alternative is that every visit query joins
+     * `clients` to find out who may see it, and the one query that forgets the
+     * join leaks. A `WHERE organization_id = ?` that is impossible to omit is
+     * worth the duplication. `VisitRoutes` derives it from the client on insert
+     * and never accepts it from the request body, so the two cannot diverge.
+     */
+    val organizationId = varchar("organization_id", 64).references(OrganizationsTable.id).index()
+
+    /** Who recorded this visit. Informational only — access comes from [organizationId]. */
+    val createdBy = varchar("created_by", 64).references(UsersTable.id).nullable()
+
     val visitDateTime = datetime("visit_date_time")
     val durationMinutes = integer("duration_minutes")
     val procedureNotes = text("procedure_notes")
