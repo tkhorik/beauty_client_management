@@ -49,6 +49,8 @@ import com.beauty.app.ui.auth.LoginScreen
 import com.beauty.app.ui.auth.RegisterScreen
 import com.beauty.app.ui.client.EditClientScreen
 import com.beauty.app.ui.client.EditClientViewModel
+import com.beauty.app.ui.org.OrganizationScreen
+import com.beauty.app.ui.org.OrganizationViewModel
 import com.beauty.app.ui.settings.SettingsScreen
 import com.beauty.app.ui.settings.SettingsViewModel
 import com.beauty.app.ui.theme.*
@@ -84,6 +86,7 @@ class MainActivity : ComponentActivity() {
 fun AppNavHost() {
     val context = LocalContext.current
     val tokenStore = remember { AppContainer.tokenStore(context) }
+    val orgStore = remember { AppContainer.orgStore(context) }
     val repository = remember { AppContainer.repository(context, tokenStore) }
     val database = remember { BeautyDatabaseProvider.get(context) }
 
@@ -96,8 +99,19 @@ fun AppNavHost() {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
                 val api = com.beauty.app.data.api.KtorBeautyApi(AppContainer.buildLoginClient())
-                return AuthViewModel(api, tokenStore) as T
+                return AuthViewModel(api, tokenStore, orgStore) as T
             }
+        }
+    )
+
+    // Hoisted to the NavHost so the "clients" and "organizations" destinations
+    // share one instance: switching salons on the second must be visible to the
+    // first without a reload.
+    val orgViewModel: OrganizationViewModel = viewModel(
+        factory = object : ViewModelProvider.Factory {
+            @Suppress("UNCHECKED_CAST")
+            override fun <T : ViewModel> create(modelClass: Class<T>): T =
+                OrganizationViewModel(repository, orgStore) as T
         }
     )
 
@@ -131,12 +145,35 @@ fun AppNavHost() {
         }
 
         composable("clients") {
+            // Clients belong to an organization, so with none selected there is
+            // nothing to show and every request would come back
+            // MISSING_ORGANIZATION. Send the user somewhere they can act on it
+            // instead of to an empty list that never loads.
+            val activeOrgId = orgViewModel.activeOrgId
+            if (!orgViewModel.loading && activeOrgId == null) {
+                OrganizationScreen(
+                    viewModel = orgViewModel,
+                    onDone = null,
+                    onLogout = {
+                        authViewModel.logout {
+                            navController.navigate("login") { popUpTo(0) { inclusive = true } }
+                        }
+                    }
+                )
+                return@composable
+            }
+
             BeautyAppScreen(
                 tokenStore = tokenStore,
+                // Keying the screen on the organization means switching salons
+                // rebuilds it, rather than leaving the previous one's search
+                // text and selection sitting over the new one's data.
+                organizationId = activeOrgId ?: return@composable,
                 onClientTap = { clientId ->
                     navController.navigate("edit_client/$clientId")
                 },
                 onOpenSettings = { navController.navigate("settings") },
+                onOpenOrganizations = { navController.navigate("organizations") },
                 onLogout = {
                     // Revokes the refresh token server-side before clearing it
                     // locally; navigation waits for that so the user is never
@@ -146,6 +183,18 @@ fun AppNavHost() {
                         navController.navigate("login") {
                             popUpTo(0) { inclusive = true }
                         }
+                    }
+                }
+            )
+        }
+
+        composable("organizations") {
+            OrganizationScreen(
+                viewModel = orgViewModel,
+                onDone = { navController.popBackStack() },
+                onLogout = {
+                    authViewModel.logout {
+                        navController.navigate("login") { popUpTo(0) { inclusive = true } }
                     }
                 }
             )
@@ -171,12 +220,15 @@ fun AppNavHost() {
         ) { backStackEntry ->
             val clientId = backStackEntry.arguments!!.getString("clientId")!!
             val clientDao = database.clientDao()
+            // Captured when the editor opens, so a switch made elsewhere cannot
+            // retarget a save that was started against this salon's record.
+            val editOrgId = orgViewModel.activeOrgId ?: return@composable
             val editViewModel: EditClientViewModel = viewModel(
-                key = "edit_$clientId",
+                key = "edit_${editOrgId}_$clientId",
                 factory = object : ViewModelProvider.Factory {
                     @Suppress("UNCHECKED_CAST")
                     override fun <T : ViewModel> create(modelClass: Class<T>): T =
-                        EditClientViewModel(clientId, repository, clientDao) as T
+                        EditClientViewModel(clientId, editOrgId, repository, clientDao) as T
                 }
             )
             EditClientScreen(
@@ -193,15 +245,22 @@ private const val DIRECTORY_RESUME_REFRESH_AGE_MS = 60_000L
 @Composable
 fun BeautyAppScreen(
     tokenStore: com.beauty.app.data.local.TokenStore,
+    /** The organization whose directory this screen shows. Never inferred. */
+    organizationId: String,
     onClientTap: (clientId: String) -> Unit,
     onOpenSettings: () -> Unit,
+    onOpenOrganizations: () -> Unit,
     onLogout: () -> Unit
 ) {
     var searchQuery by remember { mutableStateOf("") }
     val context = LocalContext.current
     val database = remember { BeautyDatabaseProvider.get(context) }
     val repository = remember { AppContainer.repository(context, tokenStore) }
-    val clients by database.clientDao().getAllClients().collectAsState(initial = emptyList())
+    // Room holds every organization this device has seen, so the query is
+    // scoped. An unscoped read here would show one salon's clients under
+    // another's name for as long as the cache survives.
+    val clients by database.clientDao().getAllClients(organizationId)
+        .collectAsState(initial = emptyList())
     val lifecycleOwner = LocalLifecycleOwner.current
     val scope = rememberCoroutineScope()
     var isRefreshing by remember { mutableStateOf(false) }
@@ -217,7 +276,7 @@ fun BeautyAppScreen(
             // screen load cannot start two concurrent refreshes.
             isRefreshing = true
             scope.launch {
-                repository.refreshClients()
+                repository.refreshClients(organizationId)
                     .onSuccess {
                         lastSuccessfulSyncAt = System.currentTimeMillis()
                         refreshError = null
@@ -234,7 +293,10 @@ fun BeautyAppScreen(
         onRefresh = refreshDirectory
     )
 
-    LaunchedEffect(Unit) {
+    // Keyed on the organization, not Unit: switching salons has to re-download
+    // the directory, otherwise the screen sits on whatever this organization
+    // happened to have cached the last time it was open.
+    LaunchedEffect(organizationId) {
         refreshDirectory()
         SyncWorker.enqueue(context)
     }
@@ -274,6 +336,13 @@ fun BeautyAppScreen(
                     }
                 },
                 actions = {
+                    IconButton(onClick = onOpenOrganizations) {
+                        Icon(
+                            Icons.Default.Person,
+                            contentDescription = "Organizations",
+                            tint = TextMuted
+                        )
+                    }
                     IconButton(onClick = onOpenSettings) {
                         Icon(
                             Icons.Default.Settings,

@@ -19,6 +19,14 @@ import kotlinx.serialization.json.jsonObject
 
 class EditClientViewModel(
     private val clientId: String,
+    /**
+     * The organization this client belongs to.
+     *
+     * Passed in rather than read from the store at save time: the screen was
+     * opened against one salon's record, and a switch made in another tab of
+     * the user's life must not silently retarget the update.
+     */
+    private val organizationId: String,
     private val repository: BeautyRepository,
     private val clientDao: ClientDao
 ) : ViewModel() {
@@ -45,7 +53,7 @@ class EditClientViewModel(
 
     init {
         viewModelScope.launch {
-            val entity: ClientEntity? = clientDao.getClientById(clientId)
+            val entity: ClientEntity? = clientDao.getClientById(clientId, organizationId)
             entity?.let { e ->
                 name = e.name
                 phone = e.phone
@@ -89,6 +97,7 @@ class EditClientViewModel(
                 )
 
                 val dto = repository.updateClient(
+                    orgId = organizationId,
                     id = clientId,
                     name = name,
                     phone = phone,
@@ -99,6 +108,7 @@ class EditClientViewModel(
 
                 val updatedEntity = ClientEntity(
                     id = dto.id,
+                    organizationId = organizationId,
                     name = dto.name,
                     phone = dto.phone,
                     email = dto.email,

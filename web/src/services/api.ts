@@ -1,7 +1,27 @@
-import type { Client, Visit, Attachment, CreateClientInput, CreateVisitInput, UserProfile } from '../types';
+import type {
+  Client,
+  Visit,
+  Attachment,
+  CreateClientInput,
+  CreateVisitInput,
+  UserProfile,
+  Organization,
+  OrgMember,
+  OrgRole,
+} from '../types';
 import { getToken, clearToken } from '../auth/tokenStore';
+import { getActiveOrgId } from '../auth/orgStore';
 import { refreshAccessToken, type SessionResult } from '../auth/session';
 import { API_BASE_URL } from '../config';
+
+/**
+ * Names the organization a request is scoped to.
+ *
+ * Must match `ORG_HEADER` in `backend/.../plugins/OrgAccess.kt` and the CORS
+ * allowlist in `Routing.kt`. A mismatch shows up as a preflight failure that
+ * says nothing about organizations, so the three move together.
+ */
+export const ORG_HEADER = 'X-Org-Id';
 
 /**
  * Carries the parsed error body (field-level messages, or a flat `error`
@@ -159,6 +179,14 @@ class ApiService {
     const send = (token: string | null) => {
       const headers = new Headers(init.headers);
       if (token) headers.set('Authorization', `Bearer ${token}`);
+
+      // Every data request is scoped to one organization, and the header is
+      // attached here rather than at each call site so a new endpoint cannot
+      // be added without it. The organization endpoints themselves override
+      // this with an explicit value or omit it — see `orgFetch`.
+      const orgId = getActiveOrgId();
+      if (orgId && !headers.has(ORG_HEADER)) headers.set(ORG_HEADER, orgId);
+
       return fetch(input, { ...init, headers });
     };
 
@@ -446,6 +474,102 @@ class ApiService {
       throw new ApiError(res.status, body);
     }
     return res.json();
+  }
+
+  // -- Organizations ---------------------------------------------------
+  //
+  // No localStorage fallback here either, and for a sharper reason than the
+  // account endpoints above: this is the authorization surface. Fabricating a
+  // membership locally when the network is down would let the UI show an
+  // "admin" a Members panel and an approve button that quietly do nothing —
+  // the one place where an optimistic lie is worse than an error message.
+  //
+  // `DemoOrgProvider` in `OrgContext.tsx` handles the offline/demo case
+  // separately and visibly, so the mock-data mode still works without any of
+  // these calls pretending to have succeeded.
+
+  private async orgJson<T>(path: string, init: RequestInit = {}): Promise<T> {
+    const res = await this.authFetch(`${API_BASE_URL}${path}`, init);
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new ApiError(res.status, body);
+    }
+    return res.json();
+  }
+
+  /** Everything the signed-in user belongs to, including pending and invited rows. */
+  async getOrganizations(): Promise<Organization[]> {
+    return this.orgJson<Organization[]>('/organizations');
+  }
+
+  /** Creates an organization; the caller becomes its first administrator. */
+  async createOrganization(name: string, slug?: string): Promise<Organization> {
+    return this.orgJson<Organization>('/organizations', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(slug ? { name, slug } : { name }),
+    });
+  }
+
+  /**
+   * Asks to join by handle. Returns the resulting membership, which is
+   * `PENDING` unless the user had already been invited — in which case this is
+   * the acceptance and comes back `ACTIVE`.
+   */
+  async requestToJoinOrganization(slug: string): Promise<Organization> {
+    return this.orgJson<Organization>('/organizations/join-requests', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ slug }),
+    });
+  }
+
+  /**
+   * The roster, including the admin's pending-approval queue.
+   *
+   * `orgId` is passed explicitly rather than relying on the active
+   * organization, because these calls act on a specific organization in the
+   * URL and the backend rejects a header that disagrees with the path.
+   */
+  async getOrganizationMembers(orgId: string): Promise<OrgMember[]> {
+    return this.orgJson<OrgMember[]>(`/organizations/${orgId}/members`, {
+      headers: { [ORG_HEADER]: orgId },
+    });
+  }
+
+  async approveMember(orgId: string, userId: string): Promise<void> {
+    await this.orgJson(`/organizations/${orgId}/members/${userId}/approval`, {
+      method: 'POST',
+      headers: { [ORG_HEADER]: orgId },
+    });
+  }
+
+  async inviteMember(orgId: string, email: string, role: OrgRole = 'ORG_USER'): Promise<void> {
+    await this.orgJson(`/organizations/${orgId}/members/invitations`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', [ORG_HEADER]: orgId },
+      body: JSON.stringify({ email, role }),
+    });
+  }
+
+  async changeMemberRole(orgId: string, userId: string, role: OrgRole): Promise<void> {
+    await this.orgJson(`/organizations/${orgId}/members/${userId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', [ORG_HEADER]: orgId },
+      body: JSON.stringify({ role }),
+    });
+  }
+
+  /**
+   * Removes a member. Their access ends on their next request — the backend
+   * re-reads membership every time rather than trusting the access token — so
+   * there is nothing for the UI to do about their existing session.
+   */
+  async removeMember(orgId: string, userId: string): Promise<void> {
+    await this.orgJson(`/organizations/${orgId}/members/${userId}`, {
+      method: 'DELETE',
+      headers: { [ORG_HEADER]: orgId },
+    });
   }
 }
 

@@ -20,6 +20,7 @@ The app now requires login before accessing client data.
 
 - The backend protects all `/api/clients`, `/api/visits`, and `/api/attachments` routes with JWT authentication. Requests without a valid Bearer token receive `401 Unauthorized`.
 - `/api/auth/register`, `/login`, `/refresh` and `/logout` are public. `/logout-all` requires a token.
+- A valid token is no longer sufficient on its own — every data route is also scoped to an **organization**. See the next section.
 - **Registration rules**: passwords must be at least 12 characters and at most 72 bytes (BCrypt ignores anything beyond that). Emails are stored lowercase, so `Owner@x.com` and `owner@x.com` are the same account. Invalid input returns `400` with a `{"errors": {"<field>": "<message>"}}` body.
 - **First run**: create an account using the "Create an account" toggle on the web login page, or with curl:
 
@@ -28,6 +29,66 @@ curl -s -X POST http://127.0.0.1:8080/api/auth/register \
   -H "Content-Type: application/json" \
   -d '{"email":"owner@example.com","password":"salon test passphrase","fullName":"Salon Owner"}'
 ```
+
+### Organizations
+
+Clients and visits belong to an **organization**, not to the person who typed
+them in. Signing in is no longer enough to see any data: you also have to be an
+active member of the organization you are asking about.
+
+- Every request to `/api/clients`, `/api/visits` and `/api/attachments` must
+  carry an **`X-Org-Id: <organization id>`** header. Without it the response is
+  `400` with `{"code": "MISSING_ORGANIZATION"}`; with an organization you do not
+  belong to, `403` with `{"code": "NOT_A_MEMBER"}`.
+- **Membership is re-checked against the database on every request.** Removing
+  someone takes effect on their very next call — their existing access token
+  keeps working for authentication and stops working for that organization.
+- A record belonging to another organization answers **`404`, not `403`**. That
+  is deliberate: a 403 would confirm the id exists, which turns
+  `GET /api/clients/{uuid}` into a way to probe for other tenants' record ids.
+
+**Roles**
+
+| Role | Scope | Can do |
+|---|---|---|
+| `super_admin` | global | Everything, in every organization. Granted only by `SUPER_ADMIN_EMAILS` or a manual `UPDATE` — there is no API for it |
+| `org_admin` | one organization | Everything an `org_user` can, plus approve join requests, invite, remove members and change roles |
+| `org_user` | one organization | Read and write that organization's clients and visits |
+
+**Membership status** is `ACTIVE`, `PENDING` (the user asked to join) or
+`INVITED` (an admin asked them in). Only `ACTIVE` grants anything at all.
+
+**First run after registering**, a new account belongs to no organization and
+the web and Android apps show an onboarding screen. Create one, or ask to join
+one by handle:
+
+```bash
+TOKEN="<paste token from register/login>"
+
+# Create one — you become its org_admin
+curl -s -X POST http://127.0.0.1:8080/api/organizations \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"name":"Aura Downtown","slug":"aura-downtown"}'
+
+# …or ask to join an existing one (PENDING until an admin approves)
+curl -s -X POST http://127.0.0.1:8080/api/organizations/join-requests \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"slug":"aura-downtown"}'
+
+# What you belong to, including pending requests
+curl -s -H "Authorization: Bearer $TOKEN" http://127.0.0.1:8080/api/organizations
+```
+
+Admin endpoints, all under `/api/organizations/{orgId}/members` and all
+requiring `org_admin`: `GET` (roster + approval queue),
+`POST /{userId}/approval`, `POST /invitations`, `PATCH /{userId}` (role), and
+`DELETE /{userId}`. The last admin cannot be removed or demoted — an
+organization with none can never approve or invite anyone again.
+
+**Worth testing deliberately:** register two accounts, give each its own
+organization, then try to read the other's client by id. You should get `404`.
+Then add the second user to the first organization, remove them again, and
+reuse their *unexpired* token — the very next request should be `403`.
 
 ### Sessions
 
@@ -92,22 +153,30 @@ into one request precisely so that this does not look like token reuse.
 # Health check (public)
 curl -s http://127.0.0.1:8080/
 
-# Client list (requires Bearer token)
+# Client list (requires a Bearer token AND an organization)
 TOKEN="<paste token here>"
-curl -s -H "Authorization: Bearer $TOKEN" http://127.0.0.1:8080/api/clients
+ORG="<paste organization id here>"
+curl -s -H "Authorization: Bearer $TOKEN" -H "X-Org-Id: $ORG" \
+  http://127.0.0.1:8080/api/clients
 ```
 
 Expected results:
 
 - `/` returns `Beauty Client & Visit Management API v1.0.0 is running.`
 - `/api/clients` without a token returns `401 Unauthorized`
-- `/api/clients` with a valid token returns JSON (or `[]` on a fresh H2 start)
+- `/api/clients` with a token but no `X-Org-Id` returns `400` and `{"code":"MISSING_ORGANIZATION"}`
+- `/api/clients` with an organization you are not an active member of returns `403` and `{"code":"NOT_A_MEMBER"}`
+- `/api/clients` with both returns JSON (or `[]` on a fresh organization)
 
 ---
 
 ## Web Testing
 
-The web app shows a login page on first load. After login the JWT token is stored in `localStorage` and all API calls include it automatically. If the backend is offline the app falls back to LocalStorage demo data (no login required in fallback mode).
+The web app shows a login page on first load. After login the access token is held in memory (never `localStorage`) and all API calls include it automatically, along with the active organization's `X-Org-Id` header.
+
+A user who belongs to no organization lands on an onboarding screen to create or join one. With more than one, a switcher appears in the header; switching remounts the app, so one salon's records can never be left on screen under another's name. Administrators get a members panel from the same header.
+
+If the backend is offline the app falls back to LocalStorage demo data under a clearly labelled "Demo (offline)" organization (no login required in fallback mode).
 
 ### Run the web app
 

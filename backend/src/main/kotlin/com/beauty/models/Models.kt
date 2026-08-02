@@ -197,3 +197,72 @@ data class SearchQuery(
     val q: String? = null,
     val tag: String? = null
 )
+
+// ---------------------------------------------------------------------------
+// Organizations and membership
+// ---------------------------------------------------------------------------
+
+/**
+ * One organization as seen by a user, together with *their* standing in it.
+ *
+ * Role and status are folded into the organization rather than returned
+ * separately because they are only ever meaningful as a pair — the same
+ * organization is `ORG_ADMIN/ACTIVE` to one caller and `ORG_USER/PENDING` to
+ * another, so there is no such thing as "the organization" on its own here.
+ */
+@Serializable
+data class OrganizationDto(
+    val id: String,
+    val name: String,
+    val slug: String,
+    /** `ORG_ADMIN` or `ORG_USER`. */
+    val role: String,
+    /** `ACTIVE`, `PENDING` or `INVITED`. Only `ACTIVE` grants access to any data. */
+    val status: String,
+    val createdAt: String? = null
+)
+
+/** Body for `POST /api/organizations`. */
+@Serializable
+data class CreateOrganizationRequest(
+    val name: String,
+    /**
+     * Optional URL-safe handle. Derived from [name] when omitted.
+     *
+     * Client-supplied because it is what other people will type to request
+     * access, and an auto-generated `aura-beauty-log-2` helps nobody.
+     */
+    val slug: String? = null
+)
+
+/** Body for `POST /api/organizations/join-requests` — asking to be let in. */
+@Serializable
+data class JoinOrganizationRequest(
+    /** The organization's handle, as told to the user by someone already inside. */
+    val slug: String
+)
+
+/** Body for `POST /api/organizations/{id}/invitations`. */
+@Serializable
+data class InviteMemberRequest(
+    val email: String,
+    /** `ORG_ADMIN` or `ORG_USER`; anything unrecognised is treated as `ORG_USER`. */
+    val role: String = "ORG_USER"
+)
+
+/** Body for `PATCH /api/organizations/{id}/members/{userId}`. */
+@Serializable
+data class ChangeMemberRoleRequest(
+    val role: String
+)
+
+/** A member of an organization, as listed to an administrator. */
+@Serializable
+data class MemberDto(
+    val userId: String,
+    val email: String,
+    val fullName: String,
+    val role: String,
+    val status: String,
+    val joinedAt: String
+)
