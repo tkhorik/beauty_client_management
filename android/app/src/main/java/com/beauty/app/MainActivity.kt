@@ -45,6 +45,7 @@ import com.beauty.app.data.local.BeautyDatabaseProvider
 import com.beauty.app.data.local.ClientEntity
 import com.beauty.app.sync.SyncWorker
 import com.beauty.app.ui.auth.AuthViewModel
+import com.beauty.app.ui.auth.ForgotPasswordScreen
 import com.beauty.app.ui.auth.LoginScreen
 import com.beauty.app.ui.auth.RegisterScreen
 import com.beauty.app.ui.client.EditClientScreen
@@ -125,7 +126,18 @@ fun AppNavHost() {
                         popUpTo("login") { inclusive = true }
                     }
                 },
-                onNavigateToRegister = { navController.navigate("register") }
+                onNavigateToRegister = { navController.navigate("register") },
+                onNavigateToForgotPassword = { navController.navigate("forgot-password") }
+            )
+        }
+
+        composable("forgot-password") {
+            // Only starts the flow. The emailed link opens the web app, which
+            // is where the new password is actually set, so there is nothing
+            // to navigate to on success — the user comes back and signs in.
+            ForgotPasswordScreen(
+                viewModel = authViewModel,
+                onNavigateBackToLogin = { navController.popBackStack() }
             )
         }
 

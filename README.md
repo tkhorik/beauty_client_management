@@ -279,7 +279,8 @@ uninstall a release build (or vice versa) before testing.
 5. Build and launch the Android app in the emulator.
 6. Log in with the same credentials on Android, verify the client list loads, tap a card, and save an edit.
 7. Confirm the change is reflected on both web and Android (both read from the same backend).
-8. If PostgreSQL is available, rerun the backend against it for a real database check.
+8. Test the password reset: click **Forgot password?** on the web login page, submit the registered address, and copy the link the backend prints to its log. With `MAIL_HOST` unset the app uses `LogMailSender`, so the link appears in the console instead of an inbox — that is the intended local behaviour. Open it, set a new password, then confirm the old one no longer works and the new one does. Clicking the same link a second time must fail.
+9. If PostgreSQL is available, rerun the backend against it for a real database check.
 
 ---
 

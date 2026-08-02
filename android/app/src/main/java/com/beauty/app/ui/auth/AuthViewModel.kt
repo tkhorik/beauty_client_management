@@ -7,6 +7,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.beauty.app.data.api.AuthRequest
 import com.beauty.app.data.api.BeautyApi
+import com.beauty.app.data.api.ForgotPasswordRequest
 import com.beauty.app.data.api.RefreshRequest
 import com.beauty.app.data.api.RegisterRequest
 import com.beauty.app.data.api.ValidationErrorResponse
@@ -14,6 +15,7 @@ import com.beauty.app.data.local.OrgStore
 import com.beauty.app.data.local.TokenStore
 import io.ktor.client.call.body
 import io.ktor.client.plugins.ClientRequestException
+import io.ktor.client.plugins.ResponseException
 import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.launch
 
@@ -50,10 +52,37 @@ class AuthViewModel(
         ) : RegisterState
     }
 
+    /**
+     * Note what is missing: any state meaning "no account for that address".
+     *
+     * The backend answers `/forgot-password` with the same 200 and the same
+     * body for a registered address, an unregistered one and a malformed one,
+     * so that the endpoint cannot be used to test which addresses have
+     * accounts. A state this screen could branch on would put that signal back
+     * — so [Sent] is the only success, and it says nothing.
+     */
+    sealed interface ForgotPasswordState {
+        object Idle : ForgotPasswordState
+        object Loading : ForgotPasswordState
+
+        /** The request was accepted. Carries no claim that mail was actually sent. */
+        object Sent : ForgotPasswordState
+
+        /**
+         * Reserved for failures that are about *this device*: no network, or a
+         * rate limit keyed on this IP. Neither reveals anything about the
+         * address, and both are things the user can act on.
+         */
+        data class Error(val message: String) : ForgotPasswordState
+    }
+
     var loginState: LoginState by mutableStateOf(LoginState.Idle)
         private set
 
     var registerState: RegisterState by mutableStateOf(RegisterState.Idle)
+        private set
+
+    var forgotPasswordState: ForgotPasswordState by mutableStateOf(ForgotPasswordState.Idle)
         private set
 
     fun login(email: String, password: String) {
@@ -140,6 +169,49 @@ class AuthViewModel(
     }
 
     /**
+     * Asks the backend to mail a reset link.
+     *
+     * The address is checked for *shape* before sending — that is pure syntax
+     * and reveals nothing about any account — but the outcome afterwards is
+     * uniform. A 5xx or an unexpected status still lands on [Sent]: an error
+     * shown only for addresses the server recognises would rebuild the
+     * enumeration oracle the endpoint exists to prevent, just by a longer
+     * route. Only a failure that cannot depend on the address at all — the
+     * request never left the device, or was rate-limited by IP — is surfaced.
+     *
+     * The new password itself is typed on the web app, which is where the
+     * emailed link points. See [ForgotPasswordRequest] for why there is no
+     * in-app reset form.
+     */
+    fun forgotPassword(email: String) {
+        val normalisedEmail = AuthValidation.normaliseEmail(email)
+        AuthValidation.emailError(normalisedEmail)?.let {
+            forgotPasswordState = ForgotPasswordState.Error(it)
+            return
+        }
+
+        viewModelScope.launch {
+            forgotPasswordState = ForgotPasswordState.Loading
+            forgotPasswordState = try {
+                api.forgotPassword(ForgotPasswordRequest(normalisedEmail))
+                ForgotPasswordState.Sent
+            } catch (e: ClientRequestException) {
+                if (e.response.status == HttpStatusCode.TooManyRequests) {
+                    ForgotPasswordState.Error("Too many requests. Please wait a minute and try again.")
+                } else {
+                    ForgotPasswordState.Sent
+                }
+            } catch (e: ResponseException) {
+                // 5xx. The server was reached, so whether it succeeded is not
+                // something the user can usefully be told apart from success.
+                ForgotPasswordState.Sent
+            } catch (e: Exception) {
+                ForgotPasswordState.Error("Server could not be reached. Please check your connection.")
+            }
+        }
+    }
+
+    /**
      * Ends the session: revokes the refresh token server-side, then clears
      * local storage.
      *
@@ -167,9 +239,10 @@ class AuthViewModel(
         }
     }
 
-    /** Clears transient auth state when moving between the login and register screens. */
+    /** Clears transient auth state when moving between the auth screens. */
     fun resetState() {
         loginState = LoginState.Idle
         registerState = RegisterState.Idle
+        forgotPasswordState = ForgotPasswordState.Idle
     }
 }
