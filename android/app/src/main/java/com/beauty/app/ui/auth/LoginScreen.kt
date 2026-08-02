@@ -22,7 +22,8 @@ import com.beauty.app.ui.theme.TextMuted
 fun LoginScreen(
     viewModel: AuthViewModel,
     onLoginSuccess: () -> Unit,
-    onNavigateToRegister: () -> Unit
+    onNavigateToRegister: () -> Unit,
+    onNavigateToForgotPassword: () -> Unit
 ) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
@@ -142,6 +143,17 @@ fun LoginScreen(
                             fontSize = 15.sp
                         )
                     }
+                }
+
+                TextButton(
+                    onClick = onNavigateToForgotPassword,
+                    enabled = viewModel.loginState !is AuthViewModel.LoginState.Loading
+                ) {
+                    Text(
+                        text = "Forgot password?",
+                        color = RoseGoldPrimary,
+                        fontSize = 13.sp
+                    )
                 }
 
                 TextButton(
