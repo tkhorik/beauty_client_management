@@ -1,6 +1,7 @@
 package com.beauty
 
 import com.beauty.auth.MembershipService
+import com.beauty.auth.OneTimeTokenService
 import com.beauty.auth.RefreshTokenService
 import com.beauty.config.AppSettings
 import com.beauty.db.DatabaseFactory
@@ -29,6 +30,15 @@ fun Application.module() {
     launch {
         runCatching { RefreshTokenService(settings.refreshTokenDays).purgeExpired() }
             .onFailure { log.warn("Could not purge expired refresh tokens: {}", it.message) }
+    }
+
+    // Same reasoning for the verification and password-reset tokens: every
+    // registration mints one, every reset request mints another, and nothing
+    // ever removed them. Unlike refresh tokens there is no reuse detection to
+    // preserve, so the service's own grace period is the only retention rule.
+    launch {
+        runCatching { OneTimeTokenService().purgeExpired() }
+            .onFailure { log.warn("Could not purge expired one-time tokens: {}", it.message) }
     }
 
     // Promote the configured addresses to SUPER_ADMIN. Done here rather than

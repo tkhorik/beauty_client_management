@@ -8,6 +8,7 @@ import com.beauty.app.data.api.ChangePasswordRequest
 import com.beauty.app.data.api.ClientDto
 import com.beauty.app.data.api.CreateOrganizationRequest
 import com.beauty.app.data.api.CreateVisitRequest
+import com.beauty.app.data.api.ForgotPasswordRequest
 import com.beauty.app.data.api.InviteMemberRequest
 import com.beauty.app.data.api.JoinOrganizationRequest
 import com.beauty.app.data.api.MemberDto
@@ -33,6 +34,7 @@ abstract class FakeBeautyApi(private val reason: String = "not used in this test
     override suspend fun login(request: AuthRequest): AuthResponse = error(reason)
     override suspend fun register(request: RegisterRequest): AuthResponse = error(reason)
     override suspend fun logout(request: RefreshRequest): Unit = error(reason)
+    override suspend fun forgotPassword(request: ForgotPasswordRequest): Unit = error(reason)
     override suspend fun getClients(orgId: String): List<ClientDto> = error(reason)
     override suspend fun updateClient(orgId: String, id: String, request: UpdateClientRequest): ClientDto = error(reason)
     override suspend fun createVisit(orgId: String, request: CreateVisitRequest): VisitDto = error(reason)

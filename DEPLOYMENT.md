@@ -296,6 +296,18 @@ binding, `SITE_URL` is the address clients use, and conflating them means the
 origin string gets reassembled in four places instead of stated once. If
 `SITE_URL` is unset, CI falls back to `https://${DOMAIN}`.
 
+`SITE_URL` must be the origin **the web app is served from**, not just any
+public address for the API. The password-reset email links to
+`$SITE_URL/reset-password?token=…`, which is a page in the SPA — the backend
+never sees that request. Get the origin or the port wrong and every reset link
+lands on a 404 or on someone else's site, while the endpoint itself looks
+perfectly healthy. The same applies to `/verify-email`, where
+`GET /api/auth/verify-email` redirects after redeeming its token.
+
+Both paths rely on the SPA fallback in `web/nginx.conf`
+(`try_files $uri $uri/ /index.html`); if that is ever narrowed, the reset links
+break with it.
+
 Android releases additionally need these **secrets** (see §7.1):
 `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`,
 `ANDROID_KEY_PASSWORD`.
