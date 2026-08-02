@@ -27,6 +27,25 @@ class AppSettings(private val config: ApplicationConfig) {
     val uploadDir: File = File(str("app.uploadDir", "uploads"))
 
     /**
+     * Addresses promoted to `SUPER_ADMIN` at startup, comma-separated.
+     *
+     * The only way into that role short of a manual `UPDATE`, and deliberately
+     * so: any API that can grant global access is an API worth attacking, and
+     * the role is needed rarely enough that configuration is a fair price.
+     *
+     * Promotion is idempotent and one-directional — startup never *demotes* an
+     * account that has dropped off the list, because silently removing the last
+     * super admin during a routine deploy is a worse failure than an extra one
+     * lingering until someone revokes it explicitly.
+     *
+     * Normalised to lowercase to match the storage form of `users.email`.
+     */
+    val superAdminEmails: List<String> = str("app.superAdminEmails", "")
+        .split(',')
+        .map { it.trim().lowercase() }
+        .filter { it.isNotEmpty() }
+
+    /**
      * Canonical public origin, no trailing slash — e.g. `https://beautyclient.duckdns.org`.
      *
      * Used to build the links inside verification and password-reset emails.

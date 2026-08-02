@@ -6,11 +6,25 @@ import io.ktor.client.request.get
 import io.ktor.client.request.patch
 import io.ktor.client.request.post
 import io.ktor.client.request.put
+import io.ktor.client.request.delete
+import io.ktor.client.request.header
 import io.ktor.client.request.setBody
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonObject
+
+/**
+ * Names the organization a request is scoped to.
+ *
+ * Must match `ORG_HEADER` in the backend's `plugins/OrgAccess.kt`. Sent
+ * explicitly on each data call rather than injected into every request by the
+ * HTTP client, because the right organization is not always the one currently
+ * selected in the UI — `SyncWorker` uploads visits queued while a *different*
+ * organization was active, and an ambient header would file them under the
+ * wrong salon.
+ */
+const val ORG_HEADER = "X-Org-Id"
 
 // ──────────────────────────────────────────────
 // DTOs
@@ -104,6 +118,51 @@ data class UpdateClientRequest(
 )
 
 // ──────────────────────────────────────────────
+// Organizations
+// ──────────────────────────────────────────────
+
+/**
+ * An organization together with *this* user's standing in it.
+ *
+ * `role` is `ORG_ADMIN` or `ORG_USER`; `status` is `ACTIVE`, `PENDING` or
+ * `INVITED`, and only `ACTIVE` grants access to any client or visit data.
+ */
+@Serializable
+data class OrganizationDto(
+    val id: String,
+    val name: String,
+    val slug: String,
+    val role: String,
+    val status: String,
+    val createdAt: String? = null
+) {
+    val isActive: Boolean get() = status == "ACTIVE"
+    val isAdmin: Boolean get() = role == "ORG_ADMIN"
+}
+
+@Serializable
+data class CreateOrganizationRequest(val name: String, val slug: String? = null)
+
+@Serializable
+data class JoinOrganizationRequest(val slug: String)
+
+@Serializable
+data class InviteMemberRequest(val email: String, val role: String = "ORG_USER")
+
+@Serializable
+data class ChangeMemberRoleRequest(val role: String)
+
+@Serializable
+data class MemberDto(
+    val userId: String,
+    val email: String,
+    val fullName: String,
+    val role: String,
+    val status: String,
+    val joinedAt: String
+)
+
+// ──────────────────────────────────────────────
 // Interface
 // ──────────────────────────────────────────────
 
@@ -122,9 +181,42 @@ interface BeautyApi {
      * that was handed to someone else would not actually end the session.
      */
     suspend fun logout(request: RefreshRequest)
-    suspend fun getClients(): List<ClientDto>
-    suspend fun updateClient(id: String, request: UpdateClientRequest): ClientDto
-    suspend fun createVisit(request: CreateVisitRequest): VisitDto
+
+    // -- Organization-scoped data ----------------------------------------
+    //
+    // `orgId` is a parameter on every one of these, not an ambient setting.
+    // These endpoints return 400 without it and 403 for an organization the
+    // caller does not actively belong to, so making it explicit means a new
+    // call site cannot forget it and get a runtime error instead of a
+    // compile-time one.
+
+    suspend fun getClients(orgId: String): List<ClientDto>
+    suspend fun updateClient(orgId: String, id: String, request: UpdateClientRequest): ClientDto
+    suspend fun createVisit(orgId: String, request: CreateVisitRequest): VisitDto
+
+    // -- Organizations and membership ------------------------------------
+
+    /** Everything the user belongs to or has asked to belong to. Needs no organization context. */
+    suspend fun getOrganizations(): List<OrganizationDto>
+
+    /** Creates one; the caller becomes its first administrator. */
+    suspend fun createOrganization(request: CreateOrganizationRequest): OrganizationDto
+
+    /** Asks to join by handle, or accepts a standing invitation. */
+    suspend fun requestToJoinOrganization(request: JoinOrganizationRequest): OrganizationDto
+
+    /** The roster, including pending requests. Administrators only. */
+    suspend fun getMembers(orgId: String): List<MemberDto>
+
+    suspend fun approveMember(orgId: String, userId: String)
+    suspend fun inviteMember(orgId: String, request: InviteMemberRequest)
+    suspend fun changeMemberRole(orgId: String, userId: String, request: ChangeMemberRoleRequest)
+
+    /**
+     * Removes a member. Their access ends on their next request — the backend
+     * re-reads membership every time — so there is no token to invalidate here.
+     */
+    suspend fun removeMember(orgId: String, userId: String)
 
     /** The signed-in user's own profile. The JWT carries id and email only, not the display name. */
     suspend fun getCurrentUser(): UserDto
@@ -159,20 +251,68 @@ class KtorBeautyApi(private val client: HttpClient) : BeautyApi {
         }
     }
 
-    override suspend fun getClients(): List<ClientDto> =
-        client.get("api/clients").body()
+    override suspend fun getClients(orgId: String): List<ClientDto> =
+        client.get("api/clients") { header(ORG_HEADER, orgId) }.body()
 
-    override suspend fun updateClient(id: String, request: UpdateClientRequest): ClientDto =
+    override suspend fun updateClient(orgId: String, id: String, request: UpdateClientRequest): ClientDto =
         client.put("api/clients/$id") {
+            header(ORG_HEADER, orgId)
             contentType(ContentType.Application.Json)
             setBody(request)
         }.body()
 
-    override suspend fun createVisit(request: CreateVisitRequest): VisitDto =
+    override suspend fun createVisit(orgId: String, request: CreateVisitRequest): VisitDto =
         client.post("api/visits") {
+            header(ORG_HEADER, orgId)
             contentType(ContentType.Application.Json)
             setBody(request)
         }.body()
+
+    override suspend fun getOrganizations(): List<OrganizationDto> =
+        client.get("api/organizations").body()
+
+    override suspend fun createOrganization(request: CreateOrganizationRequest): OrganizationDto =
+        client.post("api/organizations") {
+            contentType(ContentType.Application.Json)
+            setBody(request)
+        }.body()
+
+    override suspend fun requestToJoinOrganization(request: JoinOrganizationRequest): OrganizationDto =
+        client.post("api/organizations/join-requests") {
+            contentType(ContentType.Application.Json)
+            setBody(request)
+        }.body()
+
+    override suspend fun getMembers(orgId: String): List<MemberDto> =
+        client.get("api/organizations/$orgId/members") { header(ORG_HEADER, orgId) }.body()
+
+    override suspend fun approveMember(orgId: String, userId: String) {
+        client.post("api/organizations/$orgId/members/$userId/approval") {
+            header(ORG_HEADER, orgId)
+        }
+    }
+
+    override suspend fun inviteMember(orgId: String, request: InviteMemberRequest) {
+        client.post("api/organizations/$orgId/members/invitations") {
+            header(ORG_HEADER, orgId)
+            contentType(ContentType.Application.Json)
+            setBody(request)
+        }
+    }
+
+    override suspend fun changeMemberRole(orgId: String, userId: String, request: ChangeMemberRoleRequest) {
+        client.patch("api/organizations/$orgId/members/$userId") {
+            header(ORG_HEADER, orgId)
+            contentType(ContentType.Application.Json)
+            setBody(request)
+        }
+    }
+
+    override suspend fun removeMember(orgId: String, userId: String) {
+        client.delete("api/organizations/$orgId/members/$userId") {
+            header(ORG_HEADER, orgId)
+        }
+    }
 
     override suspend fun getCurrentUser(): UserDto =
         client.get("api/users/me").body()

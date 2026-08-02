@@ -72,7 +72,33 @@ android {
 
     buildTypes {
         debug {
-            buildConfigField("String", "API_BASE_URL", "\"http://10.0.2.2:8080/\"")
+            // Where a debug build looks for the backend.
+            //
+            // The default, `10.0.2.2`, is the *emulator's* alias for the host
+            // loopback. It does not exist on a physical device — nothing on a
+            // real phone can reach it — which is why this is overridable:
+            //
+            //   # emulator (default, no flag needed)
+            //   ./gradlew assembleDebug
+            //
+            //   # physical device over USB, paired with:
+            //   #   adb reverse tcp:8080 tcp:8080
+            //   ./gradlew assembleDebug -PdebugApiBaseUrl=http://127.0.0.1:8080/
+            //
+            // `adb reverse` tunnels the phone's own localhost:8080 back down
+            // the cable to the host, so the traffic never touches Wi-Fi. That
+            // beats hardcoding a LAN IP: no dependence on both devices sharing
+            // a network, nothing to re-edit when DHCP moves your address, and
+            // the backend is not briefly exposed to everything else on the
+            // coffee-shop subnet.
+            //
+            // Trailing slash matters — Ktor's `defaultRequest { url(...) }`
+            // resolves relative paths against it, and without one the last
+            // segment is replaced rather than appended.
+            val debugApiBaseUrl = providers.gradleProperty("debugApiBaseUrl")
+                .orElse("http://10.0.2.2:8080/")
+                .get()
+            buildConfigField("String", "API_BASE_URL", "\"$debugApiBaseUrl\"")
 
             // Debug and release used to share one applicationId, which made
             // them the same "app" as far as the OS is concerned — but signed

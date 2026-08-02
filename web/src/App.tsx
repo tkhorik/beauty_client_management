@@ -2,7 +2,10 @@ import { useEffect, useState } from 'react';
 import type { Client, Visit, Attachment } from './types';
 import { api } from './services/api';
 import { useAuth } from './auth/AuthContext';
+import { useOrg } from './auth/OrgContext';
 import { LoginPage } from './components/LoginPage';
+import { OrganizationOnboarding } from './components/OrganizationOnboarding';
+import { MembersModal } from './components/MembersModal';
 import { Header } from './components/Header';
 import { ClientCard } from './components/ClientCard';
 import { ClientDetailModal } from './components/ClientDetailModal';
@@ -32,7 +35,32 @@ export function App() {
   // Show login page when unauthenticated
   if (!token) return <LoginPage />;
 
-  return <AuthenticatedApp />;
+  return <OrganizationGate />;
+}
+
+/**
+ * Stands between a valid session and the app proper.
+ *
+ * Clients and visits belong to an organization, so with none selected there is
+ * nothing to render and the backend answers every data request with
+ * `MISSING_ORGANIZATION`. Rather than let the user watch an empty grid fail to
+ * load, send them somewhere they can actually do something about it.
+ */
+function OrganizationGate() {
+  const { current, loading } = useOrg();
+
+  // Same reasoning as `initialising` above: a brief null while the list loads
+  // is not the same as "has no organization", and flashing the onboarding
+  // screen at someone who has three salons would be alarming.
+  if (loading) return null;
+  if (!current) return <OrganizationOnboarding />;
+
+  // Keyed on the organization id so switching salons remounts the whole app.
+  // Without the key, React keeps the previous organization's clients, selected
+  // client and open modals mounted while the new data loads — showing one
+  // tenant's records under another's name, which is the exact confusion this
+  // feature exists to prevent.
+  return <AuthenticatedApp key={current.id} />;
 }
 
 function AuthenticatedApp() {
@@ -49,6 +77,7 @@ function AuthenticatedApp() {
   const [newVisitTargetClient, setNewVisitTargetClient] = useState<Client | undefined>(undefined);
   const [compareAttachments, setCompareAttachments] = useState<Attachment[] | null>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isMembersOpen, setIsMembersOpen] = useState(false);
 
   const loadData = async () => {
     setLoading(true);
@@ -95,6 +124,7 @@ function AuthenticatedApp() {
         onOpenNewClient={() => setIsNewClientOpen(true)}
         onOpenNewVisit={() => handleOpenNewVisit(undefined)}
         onOpenSettings={() => setIsSettingsOpen(true)}
+        onOpenMembers={() => setIsMembersOpen(true)}
         totalClients={clients.length}
       />
 
@@ -174,6 +204,11 @@ function AuthenticatedApp() {
       {/* Account Settings Modal */}
       {isSettingsOpen && (
         <SettingsModal onClose={() => setIsSettingsOpen(false)} />
+      )}
+
+      {/* Organization Members Modal (administrators only) */}
+      {isMembersOpen && (
+        <MembersModal onClose={() => setIsMembersOpen(false)} />
       )}
     </div>
   );

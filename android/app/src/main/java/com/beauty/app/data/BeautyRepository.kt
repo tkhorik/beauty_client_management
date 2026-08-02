@@ -2,9 +2,15 @@ package com.beauty.app.data
 
 import com.beauty.app.data.api.AuthResponse
 import com.beauty.app.data.api.BeautyApi
+import com.beauty.app.data.api.ChangeMemberRoleRequest
 import com.beauty.app.data.api.ChangePasswordRequest
 import com.beauty.app.data.api.ClientDto
+import com.beauty.app.data.api.CreateOrganizationRequest
 import com.beauty.app.data.api.CreateVisitRequest
+import com.beauty.app.data.api.InviteMemberRequest
+import com.beauty.app.data.api.JoinOrganizationRequest
+import com.beauty.app.data.api.MemberDto
+import com.beauty.app.data.api.OrganizationDto
 import com.beauty.app.data.api.UpdateClientRequest
 import com.beauty.app.data.api.UpdateProfileRequest
 import com.beauty.app.data.api.UserDto
@@ -27,27 +33,55 @@ class BeautyRepository(
     private val visitDao: VisitDao,
     private val json: Json = Json
 ) : VisitSyncRepository {
-    suspend fun refreshClients(): Result<Unit> = runCatching {
+    suspend fun refreshClients(orgId: String): Result<Unit> = runCatching {
         // The API list is the source of truth for downloaded data.  Reconciling
         // it in one Room transaction means a manual refresh also reflects
         // records deleted from the web app, rather than only adding/updating.
-        clientDao.reconcileClients(api.getClients().map { it.toEntity(json) })
+        //
+        // Both sides of the reconcile are scoped to `orgId`: the snapshot only
+        // describes one organization, so rows outside it are not "deleted on
+        // the server", they are simply not part of this answer.
+        clientDao.reconcileClients(orgId, api.getClients(orgId).map { it.toEntity(orgId, json) })
     }
 
     /** Update a client on the backend and return the updated ClientDto. */
     suspend fun updateClient(
+        orgId: String,
         id: String,
         name: String,
         phone: String,
         email: String?,
         tags: List<String>,
         customFields: JsonObject
-    ): ClientDto = api.updateClient(id, UpdateClientRequest(name, phone, email, tags, customFields))
+    ): ClientDto = api.updateClient(orgId, id, UpdateClientRequest(name, phone, email, tags, customFields))
+
+    // -- Organizations ---------------------------------------------------
+
+    suspend fun getOrganizations(): List<OrganizationDto> = api.getOrganizations()
+
+    suspend fun createOrganization(name: String, slug: String?): OrganizationDto =
+        api.createOrganization(CreateOrganizationRequest(name, slug?.takeIf { it.isNotBlank() }))
+
+    suspend fun requestToJoinOrganization(slug: String): OrganizationDto =
+        api.requestToJoinOrganization(JoinOrganizationRequest(slug))
+
+    suspend fun getMembers(orgId: String): List<MemberDto> = api.getMembers(orgId)
+
+    suspend fun approveMember(orgId: String, userId: String) = api.approveMember(orgId, userId)
+
+    suspend fun inviteMember(orgId: String, email: String, role: String) =
+        api.inviteMember(orgId, InviteMemberRequest(email, role))
+
+    suspend fun changeMemberRole(orgId: String, userId: String, role: String) =
+        api.changeMemberRole(orgId, userId, ChangeMemberRoleRequest(role))
+
+    suspend fun removeMember(orgId: String, userId: String) = api.removeMember(orgId, userId)
 
     /** Write (upsert) a ClientEntity into the local Room cache. */
     suspend fun upsertClientLocally(entity: ClientEntity) = clientDao.insertClient(entity)
 
     suspend fun enqueueVisit(
+        orgId: String,
         clientId: String,
         visitDateTime: String,
         durationMinutes: Int,
@@ -58,6 +92,9 @@ class BeautyRepository(
         visitDao.insertVisit(
             VisitEntity(
                 id = localId,
+                // Captured now, not read at upload time: this visit may sit in
+                // the queue while the user switches to a different salon.
+                organizationId = orgId,
                 clientId = clientId,
                 visitDateTime = visitDateTime,
                 durationMinutes = durationMinutes,
@@ -83,7 +120,10 @@ class BeautyRepository(
         var allSucceeded = true
         visitDao.getUnsyncedVisits().forEach { visit ->
             try {
-                val created = api.createVisit(visit.toRequest())
+                // The organization comes from the queued row, not from whatever
+                // is currently selected. Uploading a treatment record to the
+                // wrong salon would be silent, permanent, and a privacy breach.
+                val created = api.createVisit(visit.organizationId, visit.toRequest())
                 if (created.id.isBlank()) error("Backend returned a visit without an ID")
                 visitDao.markVisitSynced(visit.id, created.id)
             } catch (error: Exception) {
@@ -95,8 +135,9 @@ class BeautyRepository(
     }
 }
 
-private fun ClientDto.toEntity(json: Json) = ClientEntity(
+private fun ClientDto.toEntity(organizationId: String, json: Json) = ClientEntity(
     id = id,
+    organizationId = organizationId,
     name = name,
     phone = phone,
     email = email,
