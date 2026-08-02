@@ -6,6 +6,7 @@ import com.beauty.app.data.api.AuthResponse
 import com.beauty.app.data.api.KtorBeautyApi
 import com.beauty.app.data.api.RefreshRequest
 import com.beauty.app.data.local.BeautyDatabaseProvider
+import com.beauty.app.data.local.OrgStore
 import com.beauty.app.data.local.TokenStore
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
@@ -116,6 +117,17 @@ object AppContainer {
     }
 
     fun tokenStore(context: Context): TokenStore = TokenStore(context)
+
+    /**
+     * The active-organization store.
+     *
+     * Note that no HTTP client here injects `X-Org-Id` automatically. That is
+     * deliberate — `BeautyApi` takes the organization as an explicit parameter
+     * on every scoped call, because the correct organization is not always the
+     * selected one: `SyncWorker` uploads visits queued while a different salon
+     * was active, and an ambient header would file them under the wrong one.
+     */
+    fun orgStore(context: Context): OrgStore = OrgStore(context)
 
     /** Build a plain HttpClient for the login endpoint (no bearer token needed). */
     fun buildLoginClient(): HttpClient = HttpClient(OkHttp) {

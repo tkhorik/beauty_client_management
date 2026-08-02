@@ -1,5 +1,6 @@
 package com.beauty
 
+import com.beauty.auth.MembershipService
 import com.beauty.auth.RefreshTokenService
 import com.beauty.config.AppSettings
 import com.beauty.db.DatabaseFactory
@@ -28,5 +29,17 @@ fun Application.module() {
     launch {
         runCatching { RefreshTokenService(settings.refreshTokenDays).purgeExpired() }
             .onFailure { log.warn("Could not purge expired refresh tokens: {}", it.message) }
+    }
+
+    // Promote the configured addresses to SUPER_ADMIN. Done here rather than
+    // through an API because an endpoint capable of granting unrestricted
+    // access to every organization is an endpoint worth attacking. Only ever
+    // promotes — see AppSettings.superAdminEmails for why it never demotes.
+    launch {
+        runCatching { MembershipService.bootstrapSuperAdmins(settings.superAdminEmails) }
+            .onSuccess { promoted ->
+                if (promoted > 0) log.info("Promoted {} account(s) to SUPER_ADMIN from SUPER_ADMIN_EMAILS.", promoted)
+            }
+            .onFailure { log.warn("Could not apply SUPER_ADMIN_EMAILS: {}", it.message) }
     }
 }

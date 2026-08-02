@@ -313,6 +313,38 @@ Android releases additionally need these **secrets** (see §7.1):
 ### Deploy
 Merge a PR into `main`. That's it. Watch it in the Actions tab.
 
+**Except when the change ships a migration.** There is no Flyway or Liquibase
+here, and `SchemaUtils.create` only creates whole missing tables — it never
+alters an existing one. Files in `backend/migrations/` are run **by hand, on the
+VPS, before** merging the version that expects them. Deploying first means the
+new code meets the old schema and 500s on every affected route.
+
+```bash
+cd /srv/aura
+docker compose exec -T db psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
+  < backend/migrations/00X_whatever.sql
+```
+
+Current migrations, in order:
+
+| File | Adds | Destructive? |
+|---|---|---|
+| `001_email_verification.sql` | `users.email_verified_at`, backfills existing accounts as verified | No |
+| `002_multi_tenant_rbac.sql` | `organizations`, `user_organizations`, `users.global_role`, `organization_id`/`created_by` on `clients` and `visits` | **Yes** |
+
+`002` is destructive by design: `organization_id` is `NOT NULL` with no backfill,
+because there is no correct organization to guess for a pre-existing row, so it
+**deletes all existing clients, visits and attachments**. That was the accepted
+trade for this cutover. If you are reading this with data you care about, do not
+run it as-is — take a `pg_dump` first, then rewrite it to create one
+organization, `UPDATE` the rows to point at it, and add the constraint last.
+
+After `002`, existing users belong to no organization and see the onboarding
+screen. They create one or ask to join by handle; there is no automatic
+migration of who belongs where. Set `SUPER_ADMIN_EMAILS` in `.env` only if you
+actually need an account with cross-organization access — normal operation
+doesn't.
+
 ### Roll back
 **Actions → Deploy to production → Run workflow**, and enter the commit SHA of the last known-good deploy in `image_tag`. Every build is tagged by SHA, so rollback is a 30-second image swap, not a revert-and-rebuild.
 

@@ -40,7 +40,7 @@ android/keystore.properties
 
 # Local scratch/shared directory, not part of the build
 common/*
-
+docs/
 # Local AI project memory — not for the remote
 CLAUDE.md
 deploy_strategy.md

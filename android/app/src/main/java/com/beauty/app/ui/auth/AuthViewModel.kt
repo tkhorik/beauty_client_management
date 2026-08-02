@@ -10,6 +10,7 @@ import com.beauty.app.data.api.BeautyApi
 import com.beauty.app.data.api.RefreshRequest
 import com.beauty.app.data.api.RegisterRequest
 import com.beauty.app.data.api.ValidationErrorResponse
+import com.beauty.app.data.local.OrgStore
 import com.beauty.app.data.local.TokenStore
 import io.ktor.client.call.body
 import io.ktor.client.plugins.ClientRequestException
@@ -18,7 +19,12 @@ import kotlinx.coroutines.launch
 
 class AuthViewModel(
     private val api: BeautyApi,
-    private val tokenStore: TokenStore
+    private val tokenStore: TokenStore,
+    /**
+     * Cleared on logout alongside the tokens. Nullable so the existing tests,
+     * which have no Android context to build one from, need no change.
+     */
+    private val orgStore: OrgStore? = null
 ) : ViewModel() {
 
     sealed interface LoginState {
@@ -153,6 +159,9 @@ class AuthViewModel(
                 // Best effort. The token expires on its own regardless.
             } finally {
                 tokenStore.clearToken()
+                // The next account to sign in on this device must not inherit
+                // a selected organization it may have no membership of.
+                orgStore?.clear()
                 onComplete()
             }
         }
