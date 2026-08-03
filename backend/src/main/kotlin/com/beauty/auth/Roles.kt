@@ -55,10 +55,10 @@ enum class OrgRole {
 /**
  * Where a membership sits in the join handshake.
  *
- * Only [ACTIVE] grants access. The other two exist so that a request or an
- * invitation can be recorded without conferring anything, which is why every
- * authorization query matches this column explicitly rather than testing for
- * the row's existence.
+ * Only [ACTIVE] grants access. The other three exist so that a request, an
+ * invitation, or an admin's block can be recorded without conferring
+ * anything, which is why every authorization query matches this column
+ * explicitly rather than testing for the row's existence.
  */
 enum class MembershipStatus {
     /** A full member. The only status that grants any access. */
@@ -68,7 +68,20 @@ enum class MembershipStatus {
     PENDING,
 
     /** An admin asked the user to join and is waiting on them. Grants nothing. */
-    INVITED;
+    INVITED,
+
+    /**
+     * An admin blocked this membership without removing it.
+     *
+     * Distinct from deletion (see [UserOrganizationsTable]'s note on why
+     * removal has no tombstone): a suspension is meant to be temporary and
+     * reversible by an admin, so the row — and its role, and its join date —
+     * is worth keeping. Adding this value is safe by construction: every
+     * existing authorization check already matches `== ACTIVE` explicitly
+     * rather than testing row existence, so a membership newly in this state
+     * is denied everywhere without touching a single existing check.
+     */
+    SUSPENDED;
 
     companion object {
         fun parse(raw: String?): MembershipStatus? =

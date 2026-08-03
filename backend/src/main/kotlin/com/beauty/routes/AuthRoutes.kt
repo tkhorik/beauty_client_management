@@ -148,7 +148,8 @@ internal fun userDto(row: org.jetbrains.exposed.sql.ResultRow) = UserDto(
     email = row[UsersTable.email],
     fullName = row[UsersTable.fullName],
     createdAt = row[UsersTable.createdAt].toString(),
-    emailVerified = row[UsersTable.emailVerifiedAt] != null
+    emailVerified = row[UsersTable.emailVerifiedAt] != null,
+    globalRole = row[UsersTable.globalRole]
 )
 
 /**

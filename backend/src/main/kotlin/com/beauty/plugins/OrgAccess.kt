@@ -88,7 +88,22 @@ suspend fun PipelineContext<Unit, ApplicationCall>.requireOrgAccess(
         return null
     }
 
-    val isSuperAdmin = memberships.globalRole(userId) == GlobalRole.SUPER_ADMIN
+    val account = memberships.accountStatus(userId)
+    if (account.isSuspended) {
+        // Checked before anything else, and from the same row read that
+        // resolves SUPER_ADMIN below — a suspended super admin must not fall
+        // through to unscoped access. Existing refresh-token families are
+        // revoked by the admin route that set this, so the token behind this
+        // request is the last one that will ever work; it stops working the
+        // moment it expires.
+        call.respond(
+            HttpStatusCode.Forbidden,
+            mapOf("error" to "This account has been suspended.", "code" to "ACCOUNT_SUSPENDED")
+        )
+        return null
+    }
+
+    val isSuperAdmin = account.globalRole == GlobalRole.SUPER_ADMIN
     val requestedOrg = call.request.headers[ORG_HEADER]?.trim()?.takeIf { it.isNotEmpty() }
 
     if (requestedOrg == null) {
@@ -140,4 +155,80 @@ suspend fun PipelineContext<Unit, ApplicationCall>.requireOrgAccess(
     }
 
     return OrgContext(userId, requestedOrg, membership.role, isSuperAdmin = false)
+}
+
+/**
+ * Resolves the caller as a `SUPER_ADMIN` in good standing, answering an error
+ * and returning null otherwise.
+ *
+ * The admin panel's own guard — deliberately simpler than [requireOrgAccess]:
+ * there is no organization to scope, just "is this account a super admin".
+ * Suspension is checked here too, for the same reason it is checked in
+ * [requireOrgAccess]: a suspended account, even a `SUPER_ADMIN` one, must lose
+ * access on its very next request rather than whenever its token expires.
+ */
+suspend fun PipelineContext<Unit, ApplicationCall>.requireSuperAdmin(
+    memberships: MembershipService
+): String? {
+    val userId = call.userId()
+    if (userId == null) {
+        call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Invalid token"))
+        return null
+    }
+
+    val account = memberships.accountStatus(userId)
+    if (account.isSuspended) {
+        call.respond(
+            HttpStatusCode.Forbidden,
+            mapOf("error" to "This account has been suspended.", "code" to "ACCOUNT_SUSPENDED")
+        )
+        return null
+    }
+
+    if (account.globalRole != GlobalRole.SUPER_ADMIN) {
+        call.respond(
+            HttpStatusCode.Forbidden,
+            mapOf(
+                "error" to "This action requires a super administrator.",
+                "code" to "SUPER_ADMIN_REQUIRED"
+            )
+        )
+        return null
+    }
+
+    return userId
+}
+
+/**
+ * Resolves the caller as an authenticated account in good standing — no
+ * organization scoping at all, unlike [requireOrgAccess].
+ *
+ * For the "no orgId" routes in `OrganizationRoutes.kt` — listing the
+ * caller's own organizations, requesting to join one, creating one — which
+ * use `call.userId()` directly rather than [requireOrgAccess] specifically so
+ * a brand-new account with no organization yet is never locked out of
+ * getting one (see that file's class doc). That reasoning has nothing to do
+ * with suspension, though, and a suspended account creating a *new*
+ * organization or requesting to join one defeats the point of suspending
+ * them. This is the same DB read [requireOrgAccess] and [requireSuperAdmin]
+ * already do, applied without the organization-scoping logic those two add.
+ */
+suspend fun PipelineContext<Unit, ApplicationCall>.requireActiveAccount(
+    memberships: MembershipService
+): String? {
+    val userId = call.userId()
+    if (userId == null) {
+        call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Invalid token"))
+        return null
+    }
+
+    if (memberships.accountStatus(userId).isSuspended) {
+        call.respond(
+            HttpStatusCode.Forbidden,
+            mapOf("error" to "This account has been suspended.", "code" to "ACCOUNT_SUSPENDED")
+        )
+        return null
+    }
+
+    return userId
 }
