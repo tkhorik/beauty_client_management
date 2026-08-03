@@ -1,6 +1,7 @@
 package com.beauty.plugins
 
 import com.beauty.config.AppSettings
+import com.beauty.routes.adminRoutes
 import com.beauty.routes.attachmentRoutes
 import com.beauty.routes.authRoutes
 import com.beauty.routes.authenticatedAuthRoutes
@@ -168,6 +169,7 @@ fun Application.configureRouting() {
             // organization can still reach these — they are how one is
             // obtained. Everything below requires an organization context.
             organizationRoutes()
+            adminRoutes()
             clientRoutes()
             visitRoutes()
             attachmentRoutes()
