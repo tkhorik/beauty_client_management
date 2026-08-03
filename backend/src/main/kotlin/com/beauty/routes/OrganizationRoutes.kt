@@ -2,6 +2,7 @@ package com.beauty.routes
 
 import com.beauty.auth.MembershipService
 import com.beauty.auth.MembershipStatus
+import com.beauty.auth.OrgCreationTokenService
 import com.beauty.auth.OrgRole
 import com.beauty.db.DatabaseFactory.dbQuery
 import com.beauty.db.OrganizationsTable
@@ -9,11 +10,13 @@ import com.beauty.db.UsersTable
 import com.beauty.models.*
 import com.beauty.plugins.ORG_HEADER
 import com.beauty.plugins.OrgContext
+import com.beauty.plugins.RATE_LIMIT_AUTH
+import com.beauty.plugins.requireActiveAccount
 import com.beauty.plugins.requireOrgAccess
-import com.beauty.plugins.userId
 import com.beauty.validation.Validation
 import io.ktor.http.*
 import io.ktor.server.application.*
+import io.ktor.server.plugins.ratelimit.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
@@ -39,13 +42,16 @@ private const val SQLSTATE_UNIQUE_VIOLATION = "23505"
  * The split between the two route groups matters:
  *  - `/api/organizations` (no id): things a user with no organization at all
  *    must still be able to do — list what they have, create one, ask to join
- *    one. These use `call.userId()` directly, because requiring an organization
- *    context here would lock a brand-new account out of ever getting one.
+ *    one. These use [requireActiveAccount] rather than [requireOrgAccess],
+ *    because requiring an organization context here would lock a brand-new
+ *    account out of ever getting one — but a suspended account still must not
+ *    reach any of them.
  *  - `/api/organizations/{orgId}/...`: management of a specific organization,
  *    gated by [requireOrgAccess] with `requireAdmin = true`.
  */
 fun Route.organizationRoutes() {
     val memberships = MembershipService()
+    val creationTokens = OrgCreationTokenService()
 
     route("/api/organizations") {
 
@@ -59,11 +65,7 @@ fun Route.organizationRoutes() {
          * hitting the unique index.
          */
         get {
-            val userId = call.userId()
-            if (userId == null) {
-                call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Invalid token"))
-                return@get
-            }
+            val userId = requireActiveAccount(memberships) ?: return@get
 
             call.respond(
                 memberships.organizationsForUser(userId).map {
@@ -79,19 +81,37 @@ fun Route.organizationRoutes() {
         }
 
         /**
+         * Validates a creation token before the client shows the create form,
+         * without spending a use.
+         *
+         * Purely advisory — a token valid here can still be exhausted, revoked
+         * or expired by the time [post] actually redeems it, so that endpoint
+         * re-checks unconditionally. This exists only so the UI can say
+         * "this link is invalid" up front instead of after the user has
+         * filled in a name and handle.
+         */
+        get("/creation-tokens/validate") {
+            val token = call.request.queryParameters["token"].orEmpty()
+            call.respond(HttpStatusCode.OK, ValidateCreationTokenResponse(valid = creationTokens.isRedeemable(token)))
+        }
+
+        /**
          * Creates an organization; the caller becomes its first `ORG_ADMIN`.
          *
-         * Self-service, with no approval step. The alternative — only an
-         * existing admin can create organizations — means the very first user
-         * of a fresh deployment can never get started, and every new salon
-         * needs the vendor's involvement.
+         * No longer self-service. Free organization creation meant anyone who
+         * registered could stand up a tenant, which is fine for a single-salon
+         * deployment but not for one meant to onboard salons deliberately —
+         * see the admin panel's organization-creation links
+         * (`AdminRoutes.kt`, `OrgCreationTokenService`). A caller with no
+         * organization who lacks a link uses `/join-requests` below instead.
+         *
+         * Rate-limited under the same bucket as login/register: the token
+         * itself makes guessing hopeless (256 bits of `SecureRandom`), but the
+         * bound costs nothing.
          */
+        rateLimit(RateLimitName(RATE_LIMIT_AUTH)) {
         post {
-            val userId = call.userId()
-            if (userId == null) {
-                call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Invalid token"))
-                return@post
-            }
+            val userId = requireActiveAccount(memberships) ?: return@post
 
             val req = call.receive<CreateOrganizationRequest>()
             val name = req.name.trim()
@@ -103,6 +123,25 @@ fun Route.organizationRoutes() {
             }
             if (errors.isNotEmpty()) {
                 call.respond(HttpStatusCode.BadRequest, ValidationErrorResponse(errors = errors))
+                return@post
+            }
+
+            // Checked after field validation (so a malformed request gets a
+            // cheap 400 without spending a use) and before the insert (so a
+            // request that turns out to be unauthorized never creates
+            // anything). A slug conflict discovered after this point still
+            // spends the use it already claimed — an accepted, rare cost
+            // rather than wrapping two separate services' writes in one
+            // cross-table transaction.
+            val redemption = creationTokens.redeem(req.creationToken.orEmpty())
+            if (redemption is OrgCreationTokenService.Redemption.Invalid) {
+                call.respond(
+                    HttpStatusCode.Forbidden,
+                    mapOf(
+                        "error" to "A valid organization-creation link is required to create a new organization.",
+                        "code" to "CREATION_TOKEN_INVALID"
+                    )
+                )
                 return@post
             }
 
@@ -149,6 +188,7 @@ fun Route.organizationRoutes() {
                 )
             )
         }
+        } // end rateLimit(RATE_LIMIT_AUTH)
 
         /**
          * Asks to join an organization by slug, or accepts a standing invitation.
@@ -168,11 +208,7 @@ fun Route.organizationRoutes() {
          * the handle exists.
          */
         post("/join-requests") {
-            val userId = call.userId()
-            if (userId == null) {
-                call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Invalid token"))
-                return@post
-            }
+            val userId = requireActiveAccount(memberships) ?: return@post
 
             val slug = call.receive<JoinOrganizationRequest>().slug.trim().lowercase()
             val org = dbQuery {
@@ -200,6 +236,20 @@ fun Route.organizationRoutes() {
                     MembershipStatus.ACTIVE
                 }
                 MembershipStatus.PENDING -> MembershipStatus.PENDING // idempotent re-request
+                // A blocked membership does not lift itself by re-requesting —
+                // that would make suspension pointless. Only an admin's
+                // explicit unsuspend action (PATCH .../members/{userId}) may
+                // restore access.
+                MembershipStatus.SUSPENDED -> {
+                    call.respond(
+                        HttpStatusCode.Forbidden,
+                        mapOf(
+                            "error" to "Your access to this organization has been suspended. Contact an administrator.",
+                            "code" to "MEMBERSHIP_SUSPENDED"
+                        )
+                    )
+                    return@post
+                }
                 null -> {
                     memberships.upsert(userId, orgId, OrgRole.ORG_USER, MembershipStatus.PENDING)
                     MembershipStatus.PENDING
@@ -306,6 +356,16 @@ fun Route.organizationRoutes() {
                     // They asked, the admin is now asking back: both sides agree,
                     // so this is an approval rather than a second invitation.
                     MembershipStatus.PENDING -> memberships.activate(targetUserId, orgId, role)
+                    // A suspension is a deliberate block; re-inviting must not
+                    // be a side-channel around it. The admin has to unsuspend
+                    // explicitly via PATCH .../members/{userId} first.
+                    MembershipStatus.SUSPENDED -> {
+                        call.respond(
+                            HttpStatusCode.Conflict,
+                            mapOf("error" to "That user is suspended in this organization. Unsuspend them first.")
+                        )
+                        return@post
+                    }
                     else -> memberships.upsert(
                         userId = targetUserId,
                         organizationId = orgId,

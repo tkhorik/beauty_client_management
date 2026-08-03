@@ -53,6 +53,14 @@ data class MembershipWithUser(
     val joinedAt: String
 )
 
+/** An account's system-wide privilege and standing, read together — see [MembershipService.accountStatus]. */
+data class AccountStatus(
+    val globalRole: GlobalRole,
+    val suspendedAt: LocalDateTime?
+) {
+    val isSuspended: Boolean get() = suspendedAt != null
+}
+
 /**
  * The single source of truth for "who belongs to what, and how".
  *
@@ -93,12 +101,61 @@ class MembershipService {
             ?.toMembership()
     }
 
-    /** The account's system-wide role. Fails closed to [GlobalRole.USER]. */
-    suspend fun globalRole(userId: String): GlobalRole = dbQuery {
+    /**
+     * The account's system-wide role and suspension state, resolved in a
+     * single query.
+     *
+     * The two are read together — not as [globalRole] plus a second lookup —
+     * because [requireOrgAccess] already pays for this exact `SELECT` on
+     * every org-scoped request to resolve [GlobalRole.SUPER_ADMIN]; folding
+     * suspension into the same row read means enforcing it costs nothing
+     * extra, which is what lets suspension take effect immediately rather
+     * than waiting for the access token to expire.
+     */
+    suspend fun accountStatus(userId: String): AccountStatus = dbQuery {
         UsersTable.select { UsersTable.id eq userId }
             .singleOrNull()
-            ?.let { GlobalRole.parse(it[UsersTable.globalRole]) }
-            ?: GlobalRole.USER
+            ?.let { AccountStatus(GlobalRole.parse(it[UsersTable.globalRole]), it[UsersTable.suspendedAt]) }
+            ?: AccountStatus(GlobalRole.USER, suspendedAt = null)
+    }
+
+    /** How many organizations this account has any row in, active or not — for the admin panel. */
+    suspend fun organizationCountForUser(userId: String): Long = dbQuery {
+        UserOrganizationsTable.select { UserOrganizationsTable.userId eq userId }.count()
+    }
+
+    /** How many `ACTIVE` members an organization has — for the admin panel's global list. */
+    suspend fun activeMemberCount(organizationId: String): Long = dbQuery {
+        UserOrganizationsTable
+            .select {
+                (UserOrganizationsTable.organizationId eq organizationId) and
+                    (UserOrganizationsTable.status eq MembershipStatus.ACTIVE.name)
+            }
+            .count()
+    }
+
+    /**
+     * Locks the account out entirely.
+     *
+     * Callers (`AdminRoutes.kt`) must also revoke every refresh-token family
+     * for [userId] — this method only flips the column. Splitting it that way
+     * mirrors how `/reset-password` orchestrates its own multi-step lockout
+     * inline rather than hiding it in one service call: the two steps have
+     * different failure semantics (a token revocation failure should not roll
+     * back the suspension) and reading them at the call site makes the whole
+     * sequence auditable in one place.
+     */
+    suspend fun suspendUser(userId: String): Boolean = dbQuery {
+        UsersTable.update({ UsersTable.id eq userId }) {
+            it[suspendedAt] = LocalDateTime.now()
+        } > 0
+    }
+
+    /** Lifts a suspension. Existing sessions stay revoked — the user signs in again. */
+    suspend fun unsuspendUser(userId: String): Boolean = dbQuery {
+        UsersTable.update({ UsersTable.id eq userId }) {
+            it[suspendedAt] = null
+        } > 0
     }
 
     /** Every organization id the user is an active member of. */
