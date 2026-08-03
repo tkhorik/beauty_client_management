@@ -21,7 +21,18 @@ data class UserDto(
      * closed — showing a nag to a verified user is a cosmetic bug, whereas
      * silently reporting an unverified account as verified defeats the feature.
      */
-    val emailVerified: Boolean = false
+    val emailVerified: Boolean = false,
+    /**
+     * `USER` or `SUPER_ADMIN`. See `auth/Roles.GlobalRole`.
+     *
+     * Exposed so clients know whether to offer the admin panel at all, without
+     * a separate round trip. Defaults to `USER` for the same reason
+     * [emailVerified] defaults to false: a construction site that forgets this
+     * field must under-grant, not over-grant, UI affordances. The server-side
+     * authorization check in `requireSuperAdmin()` is the real gate regardless
+     * — this field only controls what the client chooses to *show*.
+     */
+    val globalRole: String = "USER"
 )
 
 @Serializable
@@ -217,12 +228,20 @@ data class OrganizationDto(
     val slug: String,
     /** `ORG_ADMIN` or `ORG_USER`. */
     val role: String,
-    /** `ACTIVE`, `PENDING` or `INVITED`. Only `ACTIVE` grants access to any data. */
+    /** `ACTIVE`, `PENDING`, `INVITED` or `SUSPENDED`. Only `ACTIVE` grants access to any data. */
     val status: String,
     val createdAt: String? = null
 )
 
-/** Body for `POST /api/organizations`. */
+/**
+ * Body for `POST /api/organizations`.
+ *
+ * Organization creation is no longer self-service — see the note on
+ * `OrganizationRoutes.kt`'s `route("/api/organizations") { post { ... } }`.
+ * [creationToken] is the raw value from an admin-issued creation link; the
+ * server redeems it and rejects the request if it is missing, unknown,
+ * expired, revoked, or already at its use limit.
+ */
 @Serializable
 data class CreateOrganizationRequest(
     val name: String,
@@ -232,7 +251,9 @@ data class CreateOrganizationRequest(
      * Client-supplied because it is what other people will type to request
      * access, and an auto-generated `aura-beauty-log-2` helps nobody.
      */
-    val slug: String? = null
+    val slug: String? = null,
+    /** Raw creation-link token. See the class doc. */
+    val creationToken: String? = null
 )
 
 /** Body for `POST /api/organizations/join-requests` — asking to be let in. */
@@ -265,4 +286,98 @@ data class MemberDto(
     val role: String,
     val status: String,
     val joinedAt: String
+)
+
+// ---------------------------------------------------------------------------
+// Admin panel: global user/organization views, and organization creation links
+// ---------------------------------------------------------------------------
+
+/**
+ * One user, as listed to a `SUPER_ADMIN` in the admin panel.
+ *
+ * Distinct from [UserDto], which is what a user sees about *themselves*.
+ * Never carries a password hash or anything else a normal user response
+ * wouldn't already imply is safe — the extra fields here are visibility
+ * (organizationCount, suspendedAt), not new secrets.
+ */
+@Serializable
+data class AdminUserDto(
+    val id: String,
+    val email: String,
+    val fullName: String,
+    /** `USER` or `SUPER_ADMIN`. */
+    val globalRole: String,
+    val emailVerified: Boolean,
+    /** Null if the account is in good standing. */
+    val suspendedAt: String? = null,
+    /** How many organizations this account has any row in, active or not. */
+    val organizationCount: Int,
+    val createdAt: String
+)
+
+/** Body for `PATCH /api/admin/users/{userId}`. */
+@Serializable
+data class UpdateUserAdminRequest(
+    /** When true, suspends the account; when false, lifts an existing suspension. */
+    val suspended: Boolean
+)
+
+/** One organization, as listed to a `SUPER_ADMIN` across the whole system. */
+@Serializable
+data class AdminOrganizationDto(
+    val id: String,
+    val name: String,
+    val slug: String,
+    val createdByEmail: String? = null,
+    /** Count of `ACTIVE` memberships only — pending/invited rows aren't "members" yet. */
+    val memberCount: Int,
+    val createdAt: String
+)
+
+/**
+ * An organization-creation link, as listed to the admin who can manage it.
+ *
+ * Never carries the raw token or its hash — once issued, the raw value is
+ * shown exactly once (in [CreateOrganizationCreationTokenResponse]) and is
+ * unrecoverable after that, the same guarantee `OneTimeTokenService` gives
+ * for verification and reset links.
+ */
+@Serializable
+data class OrganizationCreationTokenDto(
+    val id: String,
+    val label: String? = null,
+    val createdByEmail: String,
+    val maxUses: Int,
+    val usesCount: Int,
+    val expiresAt: String,
+    val revokedAt: String? = null,
+    val createdAt: String
+)
+
+/** Body for `POST /api/admin/organization-creation-tokens`. */
+@Serializable
+data class CreateOrganizationCreationTokenRequest(
+    val label: String? = null,
+    val maxUses: Int,
+    val expiresInHours: Long
+)
+
+/**
+ * Response for `POST /api/admin/organization-creation-tokens`.
+ *
+ * The only place the raw [token] value is ever returned. The admin is
+ * responsible for copying it into whatever channel they hand it out through
+ * (a mailed link, a QR code) — the server cannot show it again afterward,
+ * because only its SHA-256 hash is stored.
+ */
+@Serializable
+data class CreateOrganizationCreationTokenResponse(
+    val token: String,
+    val info: OrganizationCreationTokenDto
+)
+
+/** Response for `GET /api/organizations/creation-tokens/validate`. */
+@Serializable
+data class ValidateCreationTokenResponse(
+    val valid: Boolean
 )

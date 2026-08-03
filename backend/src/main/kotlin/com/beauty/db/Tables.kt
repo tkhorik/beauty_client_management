@@ -39,6 +39,26 @@ object UsersTable : Table("users") {
      */
     val globalRole = varchar("global_role", 32).default("USER")
 
+    /**
+     * When a `SUPER_ADMIN` locked this account out entirely, or null if it is
+     * in good standing.
+     *
+     * A nullable timestamp rather than a boolean, for the same reason as
+     * [emailVerifiedAt]: "suspended since when" is worth having for free.
+     * Unlike organization removal, suspension does not delete anything — an
+     * admin can lift it — so it is a flag on the row rather than a deleted
+     * row. Checked in `MembershipService.accountStatus()`, which already
+     * selects this row for every org-scoped request, so enforcing it costs no extra
+     * query. `RefreshTokenService.revokeAllForUser()` is called the moment
+     * this is set, so a suspended user cannot mint a new access token even
+     * though their current one, if any, is not individually revocable.
+     *
+     * NOTE: `SchemaUtils.create` does not add columns to an existing table —
+     * `backend/migrations/003_admin_panel_and_org_creation_links.sql` must run
+     * against any database that already has a `users` table.
+     */
+    val suspendedAt = datetime("suspended_at").nullable()
+
     override val primaryKey = PrimaryKey(id)
 }
 
@@ -192,6 +212,56 @@ object RefreshTokensTable : Table("refresh_tokens") {
 
     /** Set when the token is spent by rotation, or explicitly revoked by logout. */
     val revokedAt = datetime("revoked_at").nullable()
+
+    override val primaryKey = PrimaryKey(id)
+}
+
+/**
+ * Admin-issued tokens that gate `POST /api/organizations`.
+ *
+ * Organization creation stopped being self-service (see `OrganizationRoutes.kt`
+ * for the join-by-slug path everyone else uses): a caller now needs one of
+ * these, unspent, to create a new tenant. Deliberately not a row in
+ * [OneTimeTokensTable] despite the similar security properties — that table's
+ * whole design assumes one owning [OneTimeTokensTable.userId] and exactly one
+ * redemption. A creation link is handed out by an admin to *whoever* has it,
+ * for a configurable number of uses, which needs a counter rather than a
+ * single `used_at` timestamp.
+ *
+ * As with the other bearer-token tables, only the SHA-256 hash is stored.
+ */
+object OrganizationCreationTokensTable : Table("organization_creation_tokens") {
+    val id = varchar("id", 64)
+
+    /** SHA-256 hex digest of the token. Never the raw value — see [RefreshTokensTable]. */
+    val tokenHash = varchar("token_hash", 64).uniqueIndex()
+
+    /** Admin-facing note only, e.g. "Q3 salon onboarding batch". Never shown to the redeemer. */
+    val label = varchar("label", 255).nullable()
+
+    val createdBy = varchar("created_by", 64).references(UsersTable.id)
+
+    /**
+     * How many times this link may be redeemed, and how many times it has
+     * been. Required rather than nullable-for-unlimited: an admin panel that
+     * can mint an infinite-use, non-expiring link is a standing backdoor, so
+     * both bounds are mandatory at creation time.
+     *
+     * Enforced by an atomic `UPDATE ... WHERE uses_count < max_uses`, the same
+     * technique [OneTimeTokensTable.usedAt] uses for single-use tokens,
+     * generalised from a boolean to a counter so concurrent redemptions of an
+     * N-use link cannot oversell it.
+     */
+    val maxUses = integer("max_uses")
+    val usesCount = integer("uses_count").default(0)
+
+    /** Required, not nullable — every link expires. */
+    val expiresAt = datetime("expires_at")
+
+    /** Set when an admin kills the link before its natural expiry. */
+    val revokedAt = datetime("revoked_at").nullable()
+
+    val createdAt = datetime("created_at")
 
     override val primaryKey = PrimaryKey(id)
 }

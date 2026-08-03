@@ -79,7 +79,10 @@ object DatabaseFactory {
      * The same applies to `clients.organization_id`, `visits.organization_id`
      * and `users.global_role`: `organizations` and `user_organizations` appear
      * here automatically on a fresh database, but the new columns on the three
-     * pre-existing tables need `002_multi_tenant_rbac.sql`.
+     * pre-existing tables need `002_multi_tenant_rbac.sql`. `users.suspended_at`
+     * needs `003_admin_panel_and_org_creation_links.sql` for the same reason;
+     * `OrganizationCreationTokensTable` itself is a brand-new table, so it
+     * appears here automatically like `OneTimeTokensTable` did originally.
      */
     private fun createSchema() = transaction {
         SchemaUtils.create(
@@ -88,6 +91,7 @@ object DatabaseFactory {
             UserOrganizationsTable,
             RefreshTokensTable,
             OneTimeTokensTable,
+            OrganizationCreationTokensTable,
             ClientsTable,
             VisitsTable,
             AttachmentsTable
