@@ -54,6 +54,7 @@ import com.beauty.app.ui.org.OrganizationScreen
 import com.beauty.app.ui.org.OrganizationViewModel
 import com.beauty.app.ui.settings.SettingsScreen
 import com.beauty.app.ui.settings.SettingsViewModel
+import com.beauty.app.ui.verification.VerificationBanner
 import com.beauty.app.ui.theme.*
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
@@ -396,6 +397,13 @@ fun BeautyAppScreen(
                     .fillMaxSize()
                     .padding(16.dp)
             ) {
+                // Renders nothing for a verified account, or when this
+                // deployment has enforcement switched off.
+                VerificationBanner(
+                    repository = repository,
+                    modifier = Modifier.padding(bottom = 12.dp)
+                )
+
                 OutlinedTextField(
                     value = searchQuery,
                     onValueChange = { searchQuery = it },

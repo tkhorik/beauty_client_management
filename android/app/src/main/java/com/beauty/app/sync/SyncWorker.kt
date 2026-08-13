@@ -10,11 +10,26 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkerParameters
 import androidx.work.WorkManager
 import com.beauty.app.AppContainer
+import com.beauty.app.data.VisitSyncOutcome
 import com.beauty.app.data.VisitSyncRepository
 
 class VisitSyncCoordinator(private val repository: VisitSyncRepository) {
     suspend fun sync(): Result = try {
-        if (repository.syncPendingVisits()) Result.success() else Result.retry()
+        when (repository.syncPendingVisits()) {
+            VisitSyncOutcome.SUCCESS -> Result.success()
+            VisitSyncOutcome.RETRY -> Result.retry()
+
+            // `failure`, not `retry`. Retrying is what WorkManager does for a
+            // problem that might fix itself — a lost connection, a server
+            // restart. This one cannot: every attempt will be refused until the
+            // user opens their inbox and clicks a link, and a backoff schedule
+            // would wake the device for hours to be told the same thing.
+            //
+            // Nothing is lost by stopping. The visits stay queued in Room, and
+            // `SyncWorker.enqueue` runs again on the next app launch — by which
+            // time the address may well be confirmed.
+            VisitSyncOutcome.BLOCKED_UNVERIFIED -> Result.failure()
+        }
     } catch (_: Exception) {
         Result.retry()
     }

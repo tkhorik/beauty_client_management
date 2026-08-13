@@ -1,11 +1,17 @@
 package com.beauty.plugins
 
+import com.beauty.auth.AccountStatus
 import com.beauty.auth.GlobalRole
 import com.beauty.auth.MembershipService
 import com.beauty.auth.OrgRole
+import com.beauty.auth.VerificationPolicy
+import com.beauty.config.AppSettings
+import com.beauty.models.VerificationRequiredResponse
 import io.ktor.http.*
 import io.ktor.server.application.*
+import io.ktor.server.request.*
 import io.ktor.server.response.*
+import io.ktor.util.*
 import io.ktor.util.pipeline.PipelineContext
 
 /**
@@ -72,15 +78,23 @@ data class OrgContext(
  *  - 403 `ADMIN_REQUIRED`: an active member, but not an admin, on an
  *    admin-only route.
  *
+ *  - 403 `EMAIL_NOT_VERIFIED`: everything checks out, but the caller has never
+ *    confirmed their address and their grace window has run out. Reads still
+ *    succeed; only writes land here.
+ *
  * @param requireAdmin gate the route to `org_admin`/`super_admin`.
  * @param allowGlobal let a super admin omit the header and operate across all
  *   organizations. Off by default so that a route which forgets to think about
  *   the unscoped case cannot accidentally get it.
+ * @param requireVerified override the email-verification gate. Null — the
+ *   default — derives it from the HTTP method, which is the important part:
+ *   see [requiresWriteAccess].
  */
 suspend fun PipelineContext<Unit, ApplicationCall>.requireOrgAccess(
     memberships: MembershipService,
     requireAdmin: Boolean = false,
-    allowGlobal: Boolean = false
+    allowGlobal: Boolean = false,
+    requireVerified: Boolean? = null
 ): OrgContext? {
     val userId = call.userId()
     if (userId == null) {
@@ -88,6 +102,8 @@ suspend fun PipelineContext<Unit, ApplicationCall>.requireOrgAccess(
         return null
     }
 
+    // One row read, serving the role check, the suspension check and the
+    // email-verification gate below.
     val account = memberships.accountStatus(userId)
     if (account.isSuspended) {
         // Checked before anything else, and from the same row read that
@@ -154,8 +170,120 @@ suspend fun PipelineContext<Unit, ApplicationCall>.requireOrgAccess(
         return null
     }
 
+    // Checked last, after membership and role. A caller who is both a
+    // non-member and unverified should be told the membership problem: it is
+    // the one that explains why they cannot see the organization at all, and
+    // fixing verification would not help them.
+    if (!passesVerificationGate(account, requireVerified)) return null
+
+    // The verification state deliberately does not travel on the context.
+    // Route bodies never need it — by the time one runs, the gate has already
+    // allowed the request — and the refusal response carries the deadline for
+    // the clients. A field here would be read by nobody and wrong for the
+    // super-admin paths above, which return before the account is consulted.
     return OrgContext(userId, requestedOrg, membership.role, isSuperAdmin = false)
 }
+
+/**
+ * Whether this request should be treated as a write for verification purposes.
+ *
+ * **Derived from the HTTP method rather than declared per route, and that is
+ * deliberate.** The obvious design — a `requireVerified = true` argument at
+ * each write call site — fails open: a route added later by someone who has
+ * never heard of this feature simply omits it and is silently exempt. There is
+ * no compiler error and no failing test for a gate nobody wrote. Deriving it
+ * from the method inverts that: a new `post`/`put`/`patch`/`delete` handler is
+ * covered the moment it calls [requireOrgAccess], and *exempting* one requires
+ * writing `requireVerified = false`, which is visible in review.
+ *
+ * GET and HEAD are reads. OPTIONS is a CORS preflight and never carries intent.
+ */
+private fun requiresWriteAccess(method: HttpMethod): Boolean =
+    method !in setOf(HttpMethod.Get, HttpMethod.Head, HttpMethod.Options)
+
+/**
+ * Applies the verification gate, answering 403 and returning false when it
+ * fails. Shared by [requireOrgAccess] and [requireWritableAccount].
+ */
+private suspend fun PipelineContext<Unit, ApplicationCall>.passesVerificationGate(
+    account: AccountStatus,
+    requireVerified: Boolean?
+): Boolean {
+    val gated = requireVerified ?: requiresWriteAccess(call.request.httpMethod)
+    if (!gated) return true
+
+    val policy = call.application.verificationPolicy()
+    if (policy.canWrite(account)) return true
+
+    call.respond(
+        HttpStatusCode.Forbidden,
+        VerificationRequiredResponse(
+            error = "Confirm your email address to make changes. " +
+                "We sent a link when you registered — request a new one from your account settings.",
+            code = EMAIL_NOT_VERIFIED,
+            // Echoed so a client can say "your window closed on the 3rd"
+            // rather than leaving the user guessing why yesterday worked.
+            verificationDeadline = policy.deadlineFor(account)?.toString()
+        )
+    )
+    return false
+}
+
+/** The error code clients match on to show the verification banner. */
+const val EMAIL_NOT_VERIFIED = "EMAIL_NOT_VERIFIED"
+
+/**
+ * [requireActiveAccount] plus the email-verification gate, for a *write* with
+ * no organization context — `POST /api/organizations` is the only one today.
+ *
+ * Kept separate from [requireActiveAccount] rather than folded into it, because
+ * the routes that use that one are reads and a join request: listing your own
+ * organizations and asking to join one both stay open to an unverified account
+ * on purpose. Only the route that mints a new tenant needs this stricter
+ * version.
+ */
+suspend fun PipelineContext<Unit, ApplicationCall>.requireWritableAccount(
+    memberships: MembershipService
+): String? {
+    val userId = call.userId()
+    if (userId == null) {
+        call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Invalid token"))
+        return null
+    }
+
+    val account = memberships.accountStatus(userId)
+
+    // Suspension is checked first: it is the more severe state and the one the
+    // caller can do nothing about on their own, so telling a suspended account
+    // to "confirm your email" would send them off to fix the wrong problem.
+    if (account.isSuspended) {
+        call.respond(
+            HttpStatusCode.Forbidden,
+            mapOf("error" to "This account has been suspended.", "code" to "ACCOUNT_SUSPENDED")
+        )
+        return null
+    }
+
+    if (!passesVerificationGate(account, requireVerified = null)) return null
+
+    return userId
+}
+
+private val VerificationPolicyKey = AttributeKey<VerificationPolicy>("VerificationPolicy")
+
+/**
+ * The policy, built once per application rather than per request.
+ *
+ * `AppSettings` re-reads and re-parses configuration on construction, and this
+ * sits on the path of every authorized request. Caching it on the application
+ * keeps that off the hot path while leaving the value a plain function of
+ * configuration — it is rebuilt on restart, which is exactly when the
+ * environment variable can change.
+ */
+fun Application.verificationPolicy(): VerificationPolicy =
+    attributes.computeIfAbsent(VerificationPolicyKey) {
+        VerificationPolicy(AppSettings(environment.config))
+    }
 
 /**
  * Resolves the caller as a `SUPER_ADMIN` in good standing, answering an error

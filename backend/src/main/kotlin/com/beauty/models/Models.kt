@@ -1,8 +1,11 @@
 package com.beauty.models
 
+import kotlinx.serialization.EncodeDefault
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonObject
 
+@OptIn(ExperimentalSerializationApi::class)
 @Serializable
 data class UserDto(
     val id: String,
@@ -12,16 +15,26 @@ data class UserDto(
     /**
      * Whether the user has confirmed control of [email].
      *
-     * Currently advisory: enforcement is "soft", so an unverified user can still
-     * use the app and the clients merely show a banner. It is exposed here
-     * rather than behind a separate endpoint so the clients learn about it from
-     * the same response that establishes the session, with no extra round trip.
+     * Exposed here rather than behind a separate endpoint so the clients learn
+     * about it from the same response that establishes the session, with no
+     * extra round trip.
      *
      * Defaults to false so that any code path that forgets to populate it fails
      * closed — showing a nag to a verified user is a cosmetic bug, whereas
      * silently reporting an unverified account as verified defeats the feature.
+     *
+     * `@EncodeDefault` is **required**, not decoration. The application's Json
+     * is configured with kotlinx's default `encodeDefaults = false`, so a value
+     * equal to the default is omitted from the payload — meaning `false` would
+     * never appear on the wire and the field could only ever say `true`. Both
+     * clients read a missing field as "verified" (deliberately, so an older
+     * backend does not nag anyone), so without this the banner would never
+     * render for the users it exists for, and they would meet the restriction
+     * as an unexplained 403.
      */
+    @EncodeDefault(EncodeDefault.Mode.ALWAYS)
     val emailVerified: Boolean = false,
+
     /**
      * `USER` or `SUPER_ADMIN`. See `auth/Roles.GlobalRole`.
      *
@@ -32,7 +45,45 @@ data class UserDto(
      * authorization check in `requireSuperAdmin()` is the real gate regardless
      * — this field only controls what the client chooses to *show*.
      */
-    val globalRole: String = "USER"
+    val globalRole: String = "USER",
+
+    /**
+     * When this account stops being able to write unless it verifies; null when
+     * already verified or when enforcement is switched off.
+     *
+     * Sent so clients can be specific — "read-only from Tuesday" rather than a
+     * vague warning, and after the deadline an accurate explanation of why the
+     * save button stopped working. Without it, a client can only discover the
+     * restriction by attempting a write and being refused, which is precisely
+     * the confusing experience this feature has to avoid.
+     *
+     * ISO-8601 local time, matching [createdAt]'s treatment: this is a
+     * server-side timestamp the client formats, never parses for logic that
+     * matters. The server remains the only authority on whether a write is
+     * allowed — a client with a skewed clock gets a slightly wrong countdown,
+     * not a bypass.
+     */
+    val verificationDeadline: String? = null
+)
+
+/**
+ * The 403 body for a write refused pending email confirmation.
+ *
+ * A declared type rather than an inline `mapOf`, because this one carries a
+ * nullable field: a heterogeneous map with a null value has no obvious
+ * serializer and would fail at runtime, in the error path, where it is least
+ * likely to be noticed.
+ *
+ * [code] is what clients branch on. The other 403s on the same routes —
+ * `NOT_A_MEMBER`, `ADMIN_REQUIRED` — are different problems with different
+ * remedies, and a client that matched on the status alone would tell a
+ * non-member to go check their email.
+ */
+@Serializable
+data class VerificationRequiredResponse(
+    val error: String,
+    val code: String,
+    val verificationDeadline: String? = null
 )
 
 @Serializable

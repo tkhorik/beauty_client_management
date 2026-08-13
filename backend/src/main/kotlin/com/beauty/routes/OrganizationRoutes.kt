@@ -13,6 +13,7 @@ import com.beauty.plugins.OrgContext
 import com.beauty.plugins.RATE_LIMIT_AUTH
 import com.beauty.plugins.requireActiveAccount
 import com.beauty.plugins.requireOrgAccess
+import com.beauty.plugins.requireWritableAccount
 import com.beauty.validation.Validation
 import io.ktor.http.*
 import io.ktor.server.application.*
@@ -108,10 +109,19 @@ fun Route.organizationRoutes() {
          * Rate-limited under the same bucket as login/register: the token
          * itself makes guessing hopeless (256 bits of `SecureRandom`), but the
          * bound costs nothing.
+         *
+         * Also gated on email verification, unlike `/join-requests` below.
+         * A creation link is issued to a person the operator decided to onboard,
+         * so requiring them to confirm the address it was sent to costs nothing
+         * legitimate — and the grace window means a new salon acting on a fresh
+         * link is never blocked in practice.
          */
         rateLimit(RateLimitName(RATE_LIMIT_AUTH)) {
         post {
-            val userId = requireActiveAccount(memberships) ?: return@post
+            // requireWritableAccount = requireActiveAccount (suspension) plus
+            // the verification gate. Joining below deliberately uses the looser
+            // one.
+            val userId = requireWritableAccount(memberships) ?: return@post
 
             val req = call.receive<CreateOrganizationRequest>()
             val name = req.name.trim()
@@ -206,6 +216,16 @@ fun Route.organizationRoutes() {
          * strict sense, but slugs are chosen to be shared out loud and there is
          * no way to offer "type your salon's handle" without confirming whether
          * the handle exists.
+         *
+         * **Deliberately open to unverified accounts**, and the one write-shaped
+         * endpoint that is. Joining grants nothing by itself — a `PENDING` row
+         * is inert until an admin approves it, and an `INVITED` one means an
+         * admin already vouched for this person. Blocking it would strand a new
+         * hire outside the organization they were invited to and give them
+         * nothing to look at, which is a worse first impression than an
+         * unconfirmed address warrants. They land inside the organization in
+         * read-only mode and stay there until they verify, which is exactly the
+         * intended shape of the restriction.
          */
         post("/join-requests") {
             val userId = requireActiveAccount(memberships) ?: return@post

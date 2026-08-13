@@ -56,9 +56,28 @@ data class MembershipWithUser(
 /** An account's system-wide privilege and standing, read together — see [MembershipService.accountStatus]. */
 data class AccountStatus(
     val globalRole: GlobalRole,
-    val suspendedAt: LocalDateTime?
+    val suspendedAt: LocalDateTime?,
+    /** Null when the address has never been confirmed. */
+    val emailVerifiedAt: LocalDateTime?,
+    /** The anchor for the email-verification grace window. */
+    val createdAt: LocalDateTime
 ) {
     val isSuspended: Boolean get() = suspendedAt != null
+    val emailVerified: Boolean get() = emailVerifiedAt != null
+
+    companion object {
+        /**
+         * The status of an account that does not exist.
+         *
+         * Unprivileged and unverified, with a creation time far in the past so
+         * no grace window can be derived from it. A token naming a deleted user
+         * must be able to do strictly less than one naming a real user, never
+         * more. Deliberately *not* suspended: a missing row is refused by the
+         * membership lookup anyway, and reporting it as suspended would show
+         * the wrong reason in the response.
+         */
+        val MISSING = AccountStatus(GlobalRole.USER, null, null, LocalDateTime.MIN)
+    }
 }
 
 /**
@@ -102,21 +121,31 @@ class MembershipService {
     }
 
     /**
-     * The account's system-wide role and suspension state, resolved in a
-     * single query.
+     * Every account-level fact an authorization decision needs, resolved in a
+     * single query: role, suspension, and email verification.
      *
-     * The two are read together — not as [globalRole] plus a second lookup —
-     * because [requireOrgAccess] already pays for this exact `SELECT` on
-     * every org-scoped request to resolve [GlobalRole.SUPER_ADMIN]; folding
-     * suspension into the same row read means enforcing it costs nothing
-     * extra, which is what lets suspension take effect immediately rather
-     * than waiting for the access token to expire.
+     * All three ride on one `SELECT` because `requireOrgAccess` already pays
+     * for exactly this row read on every org-scoped request to resolve
+     * [GlobalRole.SUPER_ADMIN]. Folding suspension and verification into it
+     * means enforcing either costs nothing extra — which is what lets both
+     * take effect immediately rather than waiting for an access token to
+     * expire. A separate `isEmailVerified(userId)` or `isSuspended(userId)`
+     * would double the per-request round trips on the hottest path in the API.
+     *
+     * A missing row yields [AccountStatus.MISSING], which grants nothing.
      */
     suspend fun accountStatus(userId: String): AccountStatus = dbQuery {
         UsersTable.select { UsersTable.id eq userId }
             .singleOrNull()
-            ?.let { AccountStatus(GlobalRole.parse(it[UsersTable.globalRole]), it[UsersTable.suspendedAt]) }
-            ?: AccountStatus(GlobalRole.USER, suspendedAt = null)
+            ?.let {
+                AccountStatus(
+                    globalRole = GlobalRole.parse(it[UsersTable.globalRole]),
+                    suspendedAt = it[UsersTable.suspendedAt],
+                    emailVerifiedAt = it[UsersTable.emailVerifiedAt],
+                    createdAt = it[UsersTable.createdAt]
+                )
+            }
+            ?: AccountStatus.MISSING
     }
 
     /** How many organizations this account has any row in, active or not — for the admin panel. */
