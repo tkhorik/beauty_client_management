@@ -14,6 +14,7 @@ import com.beauty.app.data.api.OrganizationDto
 import com.beauty.app.data.api.UpdateClientRequest
 import com.beauty.app.data.api.UpdateProfileRequest
 import com.beauty.app.data.api.UserDto
+import com.beauty.app.data.api.isEmailNotVerified
 import com.beauty.app.data.local.ClientDao
 import com.beauty.app.data.local.ClientEntity
 import com.beauty.app.data.local.VisitDao
@@ -23,8 +24,33 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import java.util.UUID
 
+/**
+ * What happened to the offline queue on one sync attempt.
+ *
+ * Three outcomes rather than a boolean, because "did not upload" hides two
+ * situations that need opposite handling. A network failure should be retried
+ * with backoff; a refusal for want of a confirmed email address will keep being
+ * refused until the user clicks a link in their inbox, and retrying it on a
+ * WorkManager backoff schedule burns battery for hours to achieve nothing.
+ */
+enum class VisitSyncOutcome {
+    /** Everything queued was accepted. */
+    SUCCESS,
+
+    /** At least one upload failed for a reason that may resolve on its own. */
+    RETRY,
+
+    /**
+     * The backend refused because the account's address is unconfirmed.
+     *
+     * The visits stay queued and unsynced — they are not dropped and not
+     * marked uploaded. They go up on the next sync after the user verifies.
+     */
+    BLOCKED_UNVERIFIED
+}
+
 interface VisitSyncRepository {
-    suspend fun syncPendingVisits(): Boolean
+    suspend fun syncPendingVisits(): VisitSyncOutcome
 }
 
 class BeautyRepository(
@@ -109,6 +135,15 @@ class BeautyRepository(
     /** The signed-in user's own profile, for populating the Settings screen. */
     suspend fun getCurrentUser(): UserDto = api.getCurrentUser()
 
+    /**
+     * Requests a fresh verification link.
+     *
+     * Wrapped in [Result] rather than throwing: the caller is a banner, and a
+     * failure to send is worth a line of text, never a crash on a screen the
+     * user opened to do something else.
+     */
+    suspend fun resendVerificationEmail(): Result<Unit> = runCatching { api.resendVerificationEmail() }
+
     suspend fun updateProfile(fullName: String): UserDto =
         api.updateProfile(UpdateProfileRequest(fullName))
 
@@ -116,9 +151,17 @@ class BeautyRepository(
     suspend fun changePassword(currentPassword: String, newPassword: String): AuthResponse =
         api.changePassword(ChangePasswordRequest(currentPassword, newPassword))
 
-    override suspend fun syncPendingVisits(): Boolean {
+    override suspend fun syncPendingVisits(): VisitSyncOutcome {
         var allSucceeded = true
+        var blocked = false
+
         visitDao.getUnsyncedVisits().forEach { visit ->
+            // Once the address is known to be unconfirmed, stop trying. Every
+            // remaining visit would be refused for the same reason, and each
+            // attempt is a round trip that also spends the caller's rate-limit
+            // budget on a certain failure.
+            if (blocked) return@forEach
+
             try {
                 // The organization comes from the queued row, not from whatever
                 // is currently selected. Uploading a treatment record to the
@@ -128,10 +171,27 @@ class BeautyRepository(
                 visitDao.markVisitSynced(visit.id, created.id)
             } catch (error: Exception) {
                 allSucceeded = false
-                visitDao.markVisitSyncFailed(visit.id, error.message ?: "Visit upload failed")
+                if (error.isEmailNotVerified()) {
+                    blocked = true
+                    // Recorded against the row so the visit list can explain
+                    // itself. The row stays unsynced, which is what keeps the
+                    // record safe: it is still on the device and will upload
+                    // once the address is confirmed.
+                    visitDao.markVisitSyncFailed(
+                        visit.id,
+                        "Waiting for email confirmation before this visit can be uploaded."
+                    )
+                } else {
+                    visitDao.markVisitSyncFailed(visit.id, error.message ?: "Visit upload failed")
+                }
             }
         }
-        return allSucceeded
+
+        return when {
+            blocked -> VisitSyncOutcome.BLOCKED_UNVERIFIED
+            allSucceeded -> VisitSyncOutcome.SUCCESS
+            else -> VisitSyncOutcome.RETRY
+        }
     }
 }
 

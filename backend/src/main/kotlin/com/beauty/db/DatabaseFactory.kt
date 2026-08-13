@@ -12,11 +12,32 @@ import org.slf4j.LoggerFactory
 object DatabaseFactory {
     private val log = LoggerFactory.getLogger(DatabaseFactory::class.java)
 
+    /**
+     * The connection every query runs against, remembered explicitly.
+     *
+     * Exposed otherwise resolves the database per call from a thread-local
+     * `TransactionManager`, falling back to "the most recently connected one".
+     * A server process connects exactly once, so that is invisible in
+     * production — but the test suite stands up a fresh in-memory database per
+     * `testApplication`, and those H2 instances outlive their test
+     * (`DB_CLOSE_DELAY=-1`). A request handler resuming on a pooled dispatcher
+     * thread could then inherit a stale manager and run its query, perfectly
+     * successfully, against a *previous* test's database — which is why a test
+     * would occasionally fail to find a user it had just registered.
+     *
+     * Naming the database on every transaction removes the ambiguity: queries
+     * go where this process connected, never where a leftover thread-local
+     * points. `@Volatile` because the app that writes it and the threads that
+     * read it are not the same.
+     */
+    @Volatile
+    private var database: Database? = null
+
     fun init(config: ApplicationConfig) = init(AppSettings(config))
 
     fun init(settings: AppSettings) {
         try {
-            Database.connect(hikariDataSource(settings))
+            database = Database.connect(hikariDataSource(settings))
             createSchema()
             log.info("Database connected: {}", settings.dbUrl)
         } catch (e: Exception) {
@@ -35,7 +56,7 @@ object DatabaseFactory {
                 "Primary database unreachable ({}). Falling back to IN-MEMORY H2 — all data is lost on restart.",
                 e.message
             )
-            Database.connect("jdbc:h2:mem:beautydb;DB_CLOSE_DELAY=-1", "org.h2.Driver")
+            database = Database.connect("jdbc:h2:mem:beautydb;DB_CLOSE_DELAY=-1", "org.h2.Driver")
             createSchema()
         }
 
@@ -84,7 +105,7 @@ object DatabaseFactory {
      * `OrganizationCreationTokensTable` itself is a brand-new table, so it
      * appears here automatically like `OneTimeTokensTable` did originally.
      */
-    private fun createSchema() = transaction {
+    private fun createSchema() = transaction(database) {
         SchemaUtils.create(
             UsersTable,
             OrganizationsTable,
@@ -98,6 +119,15 @@ object DatabaseFactory {
         )
     }
 
+    /**
+     * Runs [block] in a suspended transaction against [database].
+     *
+     * The explicit `db` argument is the point — see the field's own note. A
+     * null [database] (nothing has called [init]) falls back to Exposed's
+     * default resolution, which is the pre-existing behaviour and still throws
+     * a clear "no transaction manager" error rather than silently doing
+     * something else.
+     */
     suspend fun <T> dbQuery(block: suspend () -> T): T =
-        org.jetbrains.exposed.sql.transactions.experimental.newSuspendedTransaction { block() }
+        org.jetbrains.exposed.sql.transactions.experimental.newSuspendedTransaction(db = database) { block() }
 }

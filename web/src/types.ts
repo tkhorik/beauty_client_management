@@ -50,6 +50,21 @@ export interface UserProfile {
   fullName: string;
   createdAt: string;
   /**
+   * Whether the user has confirmed control of their address.
+   *
+   * Optional because the field arrives from the backend and an older or
+   * unreachable one may not send it. Treat `undefined` as "assume verified":
+   * the server is the authority on whether a write is allowed, so a missing
+   * field should mean "show no banner", never "block the UI on a guess".
+   */
+  emailVerified?: boolean;
+  /**
+   * ISO timestamp after which writes are refused unless the address is
+   * confirmed. Null/absent when already verified or when the deployment has
+   * enforcement switched off.
+   */
+  verificationDeadline?: string | null;
+  /**
    * Defaults to `'USER'` when absent rather than being made optional and left
    * undefined: code that checks `user.globalRole === 'SUPER_ADMIN'` to decide
    * whether to render the admin panel entry point must fail closed on a

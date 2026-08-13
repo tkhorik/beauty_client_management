@@ -92,6 +92,14 @@ services:
       MAIL_SSL_ON_CONNECT: ${MAIL_SSL_ON_CONNECT:-false}
       VERIFICATION_TOKEN_HOURS: ${VERIFICATION_TOKEN_HOURS:-24}
       RESET_TOKEN_MINUTES: ${RESET_TOKEN_MINUTES:-60}
+
+      # Enforcement of email verification. Empty (the default) means OFF:
+      # unverified accounts are unrestricted. Set to an ISO timestamp to start
+      # enforcing, after which unverified accounts go read-only once their
+      # grace window closes. Clearing it again is the rollback — see
+      # .env.example for the full ordering, which matters.
+      EMAIL_VERIFICATION_ENFORCED_FROM: ${EMAIL_VERIFICATION_ENFORCED_FROM:-}
+      VERIFICATION_GRACE_DAYS: ${VERIFICATION_GRACE_DAYS:-7}
     volumes:
       # Uploaded photos live in a named volume, so rebuilding or replacing the
       # container never deletes them.

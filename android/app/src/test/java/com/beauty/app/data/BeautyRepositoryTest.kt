@@ -9,7 +9,6 @@ import com.beauty.app.data.local.VisitEntity
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.JsonObject
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.mockito.kotlin.any
@@ -78,9 +77,9 @@ class BeautyRepositoryTest {
         whenever(visitDao.getUnsyncedVisits()).thenReturn(listOf(visit))
         val api = visitApi { VisitDto("remote-1") }
 
-        val succeeded = BeautyRepository(api, clientDao, visitDao).syncPendingVisits()
+        val outcome = BeautyRepository(api, clientDao, visitDao).syncPendingVisits()
 
-        assertTrue(succeeded)
+        assertEquals(VisitSyncOutcome.SUCCESS, outcome)
         verify(visitDao).markVisitSynced("local-1", "remote-1")
     }
 
@@ -111,9 +110,9 @@ class BeautyRepositoryTest {
         whenever(visitDao.getUnsyncedVisits()).thenReturn(listOf(visit))
         val api = failingApi()
 
-        val succeeded = BeautyRepository(api, clientDao, visitDao).syncPendingVisits()
+        val outcome = BeautyRepository(api, clientDao, visitDao).syncPendingVisits()
 
-        assertFalse(succeeded)
+        assertEquals(VisitSyncOutcome.RETRY, outcome)
         verify(visitDao).markVisitSyncFailed(eq("local-1"), any())
         org.mockito.kotlin.verify(visitDao, org.mockito.kotlin.never()).markVisitSynced(any(), any())
     }
@@ -123,7 +122,10 @@ class BeautyRepositoryTest {
         whenever(visitDao.getUnsyncedVisits()).thenReturn(emptyList())
         val api = visitApi { error("API must not be called") }
 
-        assertTrue(BeautyRepository(api, clientDao, visitDao).syncPendingVisits())
+        assertEquals(
+            VisitSyncOutcome.SUCCESS,
+            BeautyRepository(api, clientDao, visitDao).syncPendingVisits()
+        )
     }
 
     private fun pendingVisit(orgId: String = ORG_A) = VisitEntity(

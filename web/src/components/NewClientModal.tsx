@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { api } from '../services/api';
+import { api, writeErrorMessage } from '../services/api';
 import { X, Plus, Trash2, UserPlus } from 'lucide-react';
 
 interface NewClientModalProps {
@@ -71,7 +71,7 @@ export const NewClientModal: React.FC<NewClientModalProps> = ({ onClose, onSucce
       onSuccess();
       onClose();
     } catch (err) {
-      alert('Failed to create client profile');
+      alert(writeErrorMessage(err, 'Failed to create client profile'));
     } finally {
       setIsSubmitting(false);
     }

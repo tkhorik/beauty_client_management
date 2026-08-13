@@ -2,6 +2,9 @@ package com.beauty.app.data.api
 
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
+import io.ktor.client.plugins.ResponseException
+import io.ktor.client.statement.bodyAsText
+import io.ktor.http.HttpStatusCode
 import io.ktor.client.request.get
 import io.ktor.client.request.patch
 import io.ktor.client.request.post
@@ -80,7 +83,16 @@ data class UserDto(
     val id: String,
     val email: String,
     val fullName: String,
-    val createdAt: String
+    val createdAt: String,
+    /**
+     * Whether the address has been confirmed. Defaults to true, which is the
+     * safe direction for a *client*: a backend that does not send the field
+     * should produce no banner rather than nag every user of an older server.
+     * The server, not this flag, decides whether a write is accepted.
+     */
+    val emailVerified: Boolean = true,
+    /** ISO timestamp after which unverified accounts become read-only. */
+    val verificationDeadline: String? = null
 )
 
 @Serializable
@@ -177,6 +189,28 @@ data class MemberDto(
     val joinedAt: String
 )
 
+/** The backend's error code for a write refused pending email confirmation. */
+const val EMAIL_NOT_VERIFIED = "EMAIL_NOT_VERIFIED"
+
+/**
+ * Whether this failure is the backend refusing a write because the account's
+ * address is unconfirmed.
+ *
+ * Matched on the error *code* in the body rather than on the 403 alone: the
+ * same status also means `NOT_A_MEMBER` and `ADMIN_REQUIRED`, and those are
+ * genuinely different situations — one is fixed by clicking a link in an
+ * email, the others are not fixable by the user at all.
+ *
+ * Returns false for anything it cannot read. Guessing "probably verification"
+ * from an unparseable body would suppress retries for failures that deserve
+ * them, which is a worse error than showing the wrong message once.
+ */
+suspend fun Throwable.isEmailNotVerified(): Boolean {
+    val response = (this as? ResponseException)?.response ?: return false
+    if (response.status != HttpStatusCode.Forbidden) return false
+    return runCatching { response.bodyAsText().contains(EMAIL_NOT_VERIFIED) }.getOrDefault(false)
+}
+
 // ──────────────────────────────────────────────
 // Interface
 // ──────────────────────────────────────────────
@@ -245,6 +279,17 @@ interface BeautyApi {
      * re-reads membership every time — so there is no token to invalidate here.
      */
     suspend fun removeMember(orgId: String, userId: String)
+
+    /**
+     * Asks the backend to mail a fresh verification link to the signed-in
+     * user's own address.
+     *
+     * Takes no parameters: the address comes from the access token. An
+     * "resend to this address" endpoint would let any caller make the server
+     * mail arbitrary strangers, so there is nothing to pass and nothing to
+     * return — the endpoint answers 204 whether or not it sent anything.
+     */
+    suspend fun resendVerificationEmail()
 
     /** The signed-in user's own profile. The JWT carries id and email only, not the display name. */
     suspend fun getCurrentUser(): UserDto
@@ -347,6 +392,10 @@ class KtorBeautyApi(private val client: HttpClient) : BeautyApi {
         client.delete("api/organizations/$orgId/members/$userId") {
             header(ORG_HEADER, orgId)
         }
+    }
+
+    override suspend fun resendVerificationEmail() {
+        client.post("api/auth/resend-verification")
     }
 
     override suspend fun getCurrentUser(): UserDto =
