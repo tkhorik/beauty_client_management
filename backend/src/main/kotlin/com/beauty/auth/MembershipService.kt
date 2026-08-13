@@ -54,6 +54,35 @@ data class MembershipWithUser(
 )
 
 /**
+ * The account-level facts one request needs, read from the `users` row.
+ *
+ * Bundled into a single type rather than fetched piecemeal because every one
+ * of these comes from the same row, and the row is read on every authorized
+ * request. See [MembershipService.accountState].
+ *
+ * @property emailVerifiedAt null when the address has never been confirmed.
+ * @property createdAt the anchor for the verification grace window.
+ */
+data class AccountState(
+    val globalRole: GlobalRole,
+    val emailVerifiedAt: LocalDateTime?,
+    val createdAt: LocalDateTime
+) {
+    val emailVerified: Boolean get() = emailVerifiedAt != null
+
+    companion object {
+        /**
+         * The state of an account that does not exist.
+         *
+         * Unverified and unprivileged, with a creation time far in the past so
+         * that no grace window can be derived from it. A token for a deleted
+         * user should be able to do strictly less than a real one, never more.
+         */
+        val MISSING = AccountState(GlobalRole.USER, null, LocalDateTime.MIN)
+    }
+}
+
+/**
  * The single source of truth for "who belongs to what, and how".
  *
  * Every authorization decision in the API funnels through [activeMembership] or
@@ -94,11 +123,33 @@ class MembershipService {
     }
 
     /** The account's system-wide role. Fails closed to [GlobalRole.USER]. */
-    suspend fun globalRole(userId: String): GlobalRole = dbQuery {
+    suspend fun globalRole(userId: String): GlobalRole = accountState(userId).globalRole
+
+    /**
+     * The whole `users` row an authorization decision needs, in one read.
+     *
+     * This exists so that enforcing email verification costs **no extra
+     * query**. Resolving the global role already reads this row on every
+     * request; the verification timestamps ride along on the read that was
+     * happening anyway. A separate `isEmailVerified(userId)` helper would have
+     * been tidier to write and would have doubled the per-request database
+     * round trips on the hottest path in the API.
+     *
+     * A missing row yields a state that grants nothing and is treated as
+     * unverified — a token naming a deleted account must not end up with more
+     * privilege than one naming a real unverified user.
+     */
+    suspend fun accountState(userId: String): AccountState = dbQuery {
         UsersTable.select { UsersTable.id eq userId }
             .singleOrNull()
-            ?.let { GlobalRole.parse(it[UsersTable.globalRole]) }
-            ?: GlobalRole.USER
+            ?.let {
+                AccountState(
+                    globalRole = GlobalRole.parse(it[UsersTable.globalRole]),
+                    emailVerifiedAt = it[UsersTable.emailVerifiedAt],
+                    createdAt = it[UsersTable.createdAt]
+                )
+            }
+            ?: AccountState.MISSING
     }
 
     /** Every organization id the user is an active member of. */

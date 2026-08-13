@@ -13,6 +13,7 @@ import { NewClientModal } from './components/NewClientModal';
 import { NewVisitModal } from './components/NewVisitModal';
 import { PhotoCompareModal } from './components/PhotoCompareModal';
 import { SettingsModal } from './components/SettingsModal';
+import { VerificationBanner } from './components/VerificationBanner';
 import { Users, Sparkles } from 'lucide-react';
 
 export function App() {
@@ -53,7 +54,19 @@ function OrganizationGate() {
   // is not the same as "has no organization", and flashing the onboarding
   // screen at someone who has three salons would be alarming.
   if (loading) return null;
-  if (!current) return <OrganizationOnboarding />;
+
+  // The banner wraps the onboarding screen too, not just the app proper.
+  // Creating an organization is one of the actions the restriction blocks, so
+  // an unverified user can land here, hit a 403 on the only button available,
+  // and have no idea why unless the explanation is on this screen as well.
+  if (!current) {
+    return (
+      <div style={{ padding: '24px 32px', maxWidth: '1400px', margin: '0 auto' }}>
+        <VerificationBanner />
+        <OrganizationOnboarding />
+      </div>
+    );
+  }
 
   // Keyed on the organization id so switching salons remounts the whole app.
   // Without the key, React keeps the previous organization's clients, selected
@@ -127,6 +140,9 @@ function AuthenticatedApp() {
         onOpenMembers={() => setIsMembersOpen(true)}
         totalClients={clients.length}
       />
+
+      {/* Renders nothing at all for a verified account. */}
+      <VerificationBanner />
 
       {/* Main Grid Content */}
       <main>

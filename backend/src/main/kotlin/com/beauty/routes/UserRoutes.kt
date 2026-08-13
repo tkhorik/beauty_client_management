@@ -1,6 +1,7 @@
 package com.beauty.routes
 
 import com.beauty.auth.RefreshTokenService
+import com.beauty.auth.VerificationPolicy
 import com.beauty.config.AppSettings
 import com.beauty.db.DatabaseFactory.dbQuery
 import com.beauty.db.UsersTable
@@ -26,6 +27,14 @@ import org.mindrot.jbcrypt.BCrypt
  * Mounted inside `authenticate("auth-jwt")` in `Routing.kt` — every route here
  * acts on "whoever this access token belongs to" (`call.userId()`), never on
  * an id supplied by the client, so one user can never edit another's profile.
+ *
+ * **Deliberately exempt from the email-verification write gate**, even though
+ * two of these routes are writes. They resolve the caller with `call.userId()`
+ * rather than `requireOrgAccess`, so the method-derived gate never sees them —
+ * which is the intended outcome, not an oversight. Changing a password is the
+ * action a user takes when they think their account is compromised, and a
+ * person whose confirmation mail bounced would have no way to perform it. The
+ * same reasoning covers the display name: it touches no organization's data.
  */
 fun Route.userRoutes() {
     val settings = AppSettings(application.environment.config)
@@ -35,9 +44,11 @@ fun Route.userRoutes() {
     val accessTokenMinutes = settings.accessTokenMinutes
     val refreshTokens = RefreshTokenService(settings.refreshTokenDays)
 
+    val verification = VerificationPolicy(settings)
+
     // Delegates to the shared mapper in AuthRoutes.kt rather than repeating the
     // field list, so `emailVerified` cannot silently default to false here.
-    fun userRowToDto(row: org.jetbrains.exposed.sql.ResultRow) = userDto(row)
+    fun userRowToDto(row: org.jetbrains.exposed.sql.ResultRow) = userDto(row, verification)
 
     route("/api/users/me") {
         /** Lets the client (re)hydrate the profile it doesn't otherwise have — the JWT carries only id and email, not the display name. */

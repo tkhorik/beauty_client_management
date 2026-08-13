@@ -10,6 +10,7 @@ import com.beauty.models.*
 import com.beauty.plugins.ORG_HEADER
 import com.beauty.plugins.OrgContext
 import com.beauty.plugins.requireOrgAccess
+import com.beauty.plugins.requireWritableAccount
 import com.beauty.plugins.userId
 import com.beauty.validation.Validation
 import io.ktor.http.*
@@ -85,6 +86,12 @@ fun Route.organizationRoutes() {
          * existing admin can create organizations — means the very first user
          * of a fresh deployment can never get started, and every new salon
          * needs the vendor's involvement.
+         *
+         * Gated on email verification, unlike joining below. Creating an
+         * organization mints a new tenant and makes the caller its admin, which
+         * is the one thing an unconfirmed address should not be able to do in
+         * bulk. The grace window means a genuine new salon is unaffected: they
+         * have days to click the link, and the mail is already in their inbox.
          */
         post {
             val userId = call.userId()
@@ -92,6 +99,7 @@ fun Route.organizationRoutes() {
                 call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Invalid token"))
                 return@post
             }
+            if (requireWritableAccount(memberships) == null) return@post
 
             val req = call.receive<CreateOrganizationRequest>()
             val name = req.name.trim()
@@ -166,6 +174,16 @@ fun Route.organizationRoutes() {
          * strict sense, but slugs are chosen to be shared out loud and there is
          * no way to offer "type your salon's handle" without confirming whether
          * the handle exists.
+         *
+         * **Deliberately open to unverified accounts**, and the one write-shaped
+         * endpoint that is. Joining grants nothing by itself — a `PENDING` row
+         * is inert until an admin approves it, and an `INVITED` one means an
+         * admin already vouched for this person. Blocking it would strand a new
+         * hire outside the organization they were invited to and give them
+         * nothing to look at, which is a worse first impression than an
+         * unconfirmed address warrants. They land inside the organization in
+         * read-only mode and stay there until they verify, which is exactly the
+         * intended shape of the restriction.
          */
         post("/join-requests") {
             val userId = call.userId()
