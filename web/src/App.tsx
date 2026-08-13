@@ -6,6 +6,7 @@ import { useOrg } from './auth/OrgContext';
 import { LoginPage } from './components/LoginPage';
 import { OrganizationOnboarding } from './components/OrganizationOnboarding';
 import { MembersModal } from './components/MembersModal';
+import { AdminPanel } from './components/AdminPanel';
 import { Header } from './components/Header';
 import { ClientCard } from './components/ClientCard';
 import { ClientDetailModal } from './components/ClientDetailModal';
@@ -18,6 +19,7 @@ import { Users, Sparkles } from 'lucide-react';
 
 export function App() {
   const { token, initialising, logout } = useAuth();
+  const [isAdminPanelOpen, setIsAdminPanelOpen] = useState(false);
 
   // Listen for 401 responses emitted by authFetch and force logout.
   // authFetch only emits this after a refresh attempt has already failed, so
@@ -36,7 +38,22 @@ export function App() {
   // Show login page when unauthenticated
   if (!token) return <LoginPage />;
 
-  return <OrganizationGate />;
+  return (
+    <>
+      {/*
+        Rendered as a sibling of the organization-scoped tree, not nested
+        inside it: a SUPER_ADMIN may belong to zero organizations (a freshly
+        bootstrapped one certainly does), and the admin panel is the only way
+        such an account can ever issue its first organization-creation link.
+        Nesting this inside AuthenticatedApp would make it unreachable exactly
+        when it is needed most. The entry point is offered from both
+        OrganizationGate's onboarding screen and, once an organization exists,
+        from the header — see `onOpenAdmin` below.
+      */}
+      <OrganizationGate onOpenAdmin={() => setIsAdminPanelOpen(true)} />
+      {isAdminPanelOpen && <AdminPanel onClose={() => setIsAdminPanelOpen(false)} />}
+    </>
+  );
 }
 
 /**
@@ -47,7 +64,7 @@ export function App() {
  * `MISSING_ORGANIZATION`. Rather than let the user watch an empty grid fail to
  * load, send them somewhere they can actually do something about it.
  */
-function OrganizationGate() {
+function OrganizationGate({ onOpenAdmin }: { onOpenAdmin: () => void }) {
   const { current, loading } = useOrg();
 
   // Same reasoning as `initialising` above: a brief null while the list loads
@@ -63,7 +80,7 @@ function OrganizationGate() {
     return (
       <div style={{ padding: '24px 32px', maxWidth: '1400px', margin: '0 auto' }}>
         <VerificationBanner />
-        <OrganizationOnboarding />
+        <OrganizationOnboarding onOpenAdmin={onOpenAdmin} />
       </div>
     );
   }
@@ -73,10 +90,10 @@ function OrganizationGate() {
   // client and open modals mounted while the new data loads — showing one
   // tenant's records under another's name, which is the exact confusion this
   // feature exists to prevent.
-  return <AuthenticatedApp key={current.id} />;
+  return <AuthenticatedApp key={current.id} onOpenAdmin={onOpenAdmin} />;
 }
 
-function AuthenticatedApp() {
+function AuthenticatedApp({ onOpenAdmin }: { onOpenAdmin: () => void }) {
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -138,6 +155,7 @@ function AuthenticatedApp() {
         onOpenNewVisit={() => handleOpenNewVisit(undefined)}
         onOpenSettings={() => setIsSettingsOpen(true)}
         onOpenMembers={() => setIsMembersOpen(true)}
+        onOpenAdmin={onOpenAdmin}
         totalClients={clients.length}
       />
 

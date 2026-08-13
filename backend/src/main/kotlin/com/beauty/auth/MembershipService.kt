@@ -53,32 +53,30 @@ data class MembershipWithUser(
     val joinedAt: String
 )
 
-/**
- * The account-level facts one request needs, read from the `users` row.
- *
- * Bundled into a single type rather than fetched piecemeal because every one
- * of these comes from the same row, and the row is read on every authorized
- * request. See [MembershipService.accountState].
- *
- * @property emailVerifiedAt null when the address has never been confirmed.
- * @property createdAt the anchor for the verification grace window.
- */
-data class AccountState(
+/** An account's system-wide privilege and standing, read together — see [MembershipService.accountStatus]. */
+data class AccountStatus(
     val globalRole: GlobalRole,
+    val suspendedAt: LocalDateTime?,
+    /** Null when the address has never been confirmed. */
     val emailVerifiedAt: LocalDateTime?,
+    /** The anchor for the email-verification grace window. */
     val createdAt: LocalDateTime
 ) {
+    val isSuspended: Boolean get() = suspendedAt != null
     val emailVerified: Boolean get() = emailVerifiedAt != null
 
     companion object {
         /**
-         * The state of an account that does not exist.
+         * The status of an account that does not exist.
          *
-         * Unverified and unprivileged, with a creation time far in the past so
-         * that no grace window can be derived from it. A token for a deleted
-         * user should be able to do strictly less than a real one, never more.
+         * Unprivileged and unverified, with a creation time far in the past so
+         * no grace window can be derived from it. A token naming a deleted user
+         * must be able to do strictly less than one naming a real user, never
+         * more. Deliberately *not* suspended: a missing row is refused by the
+         * membership lookup anyway, and reporting it as suspended would show
+         * the wrong reason in the response.
          */
-        val MISSING = AccountState(GlobalRole.USER, null, LocalDateTime.MIN)
+        val MISSING = AccountStatus(GlobalRole.USER, null, null, LocalDateTime.MIN)
     }
 }
 
@@ -122,34 +120,71 @@ class MembershipService {
             ?.toMembership()
     }
 
-    /** The account's system-wide role. Fails closed to [GlobalRole.USER]. */
-    suspend fun globalRole(userId: String): GlobalRole = accountState(userId).globalRole
-
     /**
-     * The whole `users` row an authorization decision needs, in one read.
+     * Every account-level fact an authorization decision needs, resolved in a
+     * single query: role, suspension, and email verification.
      *
-     * This exists so that enforcing email verification costs **no extra
-     * query**. Resolving the global role already reads this row on every
-     * request; the verification timestamps ride along on the read that was
-     * happening anyway. A separate `isEmailVerified(userId)` helper would have
-     * been tidier to write and would have doubled the per-request database
-     * round trips on the hottest path in the API.
+     * All three ride on one `SELECT` because `requireOrgAccess` already pays
+     * for exactly this row read on every org-scoped request to resolve
+     * [GlobalRole.SUPER_ADMIN]. Folding suspension and verification into it
+     * means enforcing either costs nothing extra — which is what lets both
+     * take effect immediately rather than waiting for an access token to
+     * expire. A separate `isEmailVerified(userId)` or `isSuspended(userId)`
+     * would double the per-request round trips on the hottest path in the API.
      *
-     * A missing row yields a state that grants nothing and is treated as
-     * unverified — a token naming a deleted account must not end up with more
-     * privilege than one naming a real unverified user.
+     * A missing row yields [AccountStatus.MISSING], which grants nothing.
      */
-    suspend fun accountState(userId: String): AccountState = dbQuery {
+    suspend fun accountStatus(userId: String): AccountStatus = dbQuery {
         UsersTable.select { UsersTable.id eq userId }
             .singleOrNull()
             ?.let {
-                AccountState(
+                AccountStatus(
                     globalRole = GlobalRole.parse(it[UsersTable.globalRole]),
+                    suspendedAt = it[UsersTable.suspendedAt],
                     emailVerifiedAt = it[UsersTable.emailVerifiedAt],
                     createdAt = it[UsersTable.createdAt]
                 )
             }
-            ?: AccountState.MISSING
+            ?: AccountStatus.MISSING
+    }
+
+    /** How many organizations this account has any row in, active or not — for the admin panel. */
+    suspend fun organizationCountForUser(userId: String): Long = dbQuery {
+        UserOrganizationsTable.select { UserOrganizationsTable.userId eq userId }.count()
+    }
+
+    /** How many `ACTIVE` members an organization has — for the admin panel's global list. */
+    suspend fun activeMemberCount(organizationId: String): Long = dbQuery {
+        UserOrganizationsTable
+            .select {
+                (UserOrganizationsTable.organizationId eq organizationId) and
+                    (UserOrganizationsTable.status eq MembershipStatus.ACTIVE.name)
+            }
+            .count()
+    }
+
+    /**
+     * Locks the account out entirely.
+     *
+     * Callers (`AdminRoutes.kt`) must also revoke every refresh-token family
+     * for [userId] — this method only flips the column. Splitting it that way
+     * mirrors how `/reset-password` orchestrates its own multi-step lockout
+     * inline rather than hiding it in one service call: the two steps have
+     * different failure semantics (a token revocation failure should not roll
+     * back the suspension) and reading them at the call site makes the whole
+     * sequence auditable in one place.
+     */
+    suspend fun suspendUser(userId: String): Boolean = dbQuery {
+        UsersTable.update({ UsersTable.id eq userId }) {
+            it[suspendedAt] = LocalDateTime.now()
+        } > 0
+    }
+
+    /** Lifts a suspension. Existing sessions stay revoked — the user signs in again. */
+    suspend fun unsuspendUser(userId: String): Boolean = dbQuery {
+        UsersTable.update({ UsersTable.id eq userId }) {
+            it[suspendedAt] = null
+        } > 0
     }
 
     /** Every organization id the user is an active member of. */

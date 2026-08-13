@@ -7,7 +7,6 @@ import com.beauty.db.DatabaseFactory.dbQuery
 import com.beauty.db.UsersTable
 import com.beauty.models.ChangePasswordRequest
 import com.beauty.models.UpdateProfileRequest
-import com.beauty.models.UserDto
 import com.beauty.models.ValidationErrorResponse
 import com.beauty.plugins.userId
 import com.beauty.validation.Validation

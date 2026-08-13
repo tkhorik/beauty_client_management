@@ -8,6 +8,10 @@ import type {
   Organization,
   OrgMember,
   OrgRole,
+  AdminUser,
+  AdminOrganization,
+  OrganizationCreationLink,
+  CreateCreationLinkResult,
 } from '../types';
 import { getToken, clearToken } from '../auth/tokenStore';
 import { getActiveOrgId } from '../auth/orgStore';
@@ -620,13 +624,37 @@ class ApiService {
     return this.orgJson<Organization[]>('/organizations');
   }
 
-  /** Creates an organization; the caller becomes its first administrator. */
-  async createOrganization(name: string, slug?: string): Promise<Organization> {
+  /**
+   * Creates an organization; the caller becomes its first administrator.
+   *
+   * `creationToken` is the raw value from an admin-issued creation link —
+   * organization creation stopped being self-service, and the server rejects
+   * the request without one. `JSON.stringify` drops `slug` entirely when it
+   * is `undefined`, matching the backend's "derive from name" default.
+   */
+  async createOrganization(name: string, slug: string | undefined, creationToken: string): Promise<Organization> {
     return this.orgJson<Organization>('/organizations', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(slug ? { name, slug } : { name }),
+      body: JSON.stringify({ name, slug, creationToken }),
     });
+  }
+
+  /**
+   * Checks whether a creation-link token is currently valid, without
+   * spending a use.
+   *
+   * Purely advisory, same as the backend endpoint it calls: a token valid
+   * here can still be exhausted, revoked, or expired by the time
+   * `createOrganization` actually redeems it. This exists only so the
+   * onboarding screen can say "this link is invalid" before the user fills
+   * in a name and handle.
+   */
+  async validateCreationToken(token: string): Promise<boolean> {
+    const result = await this.orgJson<{ valid: boolean }>(
+      `/organizations/creation-tokens/validate?token=${encodeURIComponent(token)}`
+    );
+    return result.valid;
   }
 
   /**
@@ -688,6 +716,63 @@ class ApiService {
       method: 'DELETE',
       headers: { [ORG_HEADER]: orgId },
     });
+  }
+
+  // -- Admin panel -------------------------------------------------------
+  //
+  // Global, cross-organization views for a SUPER_ADMIN. No localStorage
+  // fallback here either, for the same reason as the organization endpoints
+  // above — this is authorization surface, and there is no honest offline
+  // stand-in for "every user in the system". `orgJson` is reused as the
+  // request helper even though nothing here is organization-scoped; it is
+  // just "authenticated fetch that throws ApiError on failure", which is
+  // exactly what these calls need too.
+
+  async getAdminUsers(): Promise<AdminUser[]> {
+    return this.orgJson<AdminUser[]>('/admin/users');
+  }
+
+  /**
+   * Suspends or lifts a suspension. Suspending also revokes every
+   * refresh-token family server-side, so the account cannot mint a new
+   * access token — there is nothing further for the client to do about an
+   * existing session.
+   */
+  async setUserSuspended(userId: string, suspended: boolean): Promise<void> {
+    await this.orgJson(`/admin/users/${userId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ suspended }),
+    });
+  }
+
+  async getAdminOrganizations(): Promise<AdminOrganization[]> {
+    return this.orgJson<AdminOrganization[]>('/admin/organizations');
+  }
+
+  async getCreationLinks(): Promise<OrganizationCreationLink[]> {
+    return this.orgJson<OrganizationCreationLink[]>('/admin/organization-creation-tokens');
+  }
+
+  /**
+   * Issues a new organization-creation link. The raw token in the result is
+   * shown exactly once — the server stores only its hash and cannot recover
+   * it afterward, the same guarantee password-reset links have.
+   */
+  async createCreationLink(
+    label: string | undefined,
+    maxUses: number,
+    expiresInHours: number
+  ): Promise<CreateCreationLinkResult> {
+    return this.orgJson<CreateCreationLinkResult>('/admin/organization-creation-tokens', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ label, maxUses, expiresInHours }),
+    });
+  }
+
+  async revokeCreationLink(id: string): Promise<void> {
+    await this.orgJson(`/admin/organization-creation-tokens/${id}`, { method: 'DELETE' });
   }
 }
 

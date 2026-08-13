@@ -1,5 +1,5 @@
 import React from 'react';
-import { Search, Plus, Sparkles, Filter, Settings, Users } from 'lucide-react';
+import { Search, Plus, Sparkles, Filter, Settings, Users, ShieldCheck } from 'lucide-react';
 import { useAuth } from '../auth/AuthContext';
 import { useOrg } from '../auth/OrgContext';
 
@@ -12,6 +12,7 @@ interface HeaderProps {
   onOpenNewVisit: () => void;
   onOpenSettings: () => void;
   onOpenMembers: () => void;
+  onOpenAdmin: () => void;
   totalClients: number;
 }
 
@@ -24,6 +25,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenNewVisit,
   onOpenSettings,
   onOpenMembers,
+  onOpenAdmin,
   totalClients
 }) => {
   const { user } = useAuth();
@@ -95,6 +97,23 @@ export const Header: React.FC<HeaderProps> = ({
               style={{ padding: '10px', display: 'flex' }}
             >
               <Users size={18} />
+            </button>
+          )}
+
+          {/*
+            System-wide, not organization-scoped — visible regardless of which
+            organization is currently active. The backend's requireSuperAdmin()
+            guard is the real gate; this is just where the entry point lives.
+          */}
+          {user?.globalRole === 'SUPER_ADMIN' && !offline && (
+            <button
+              className="btn-secondary"
+              onClick={onOpenAdmin}
+              title="Admin panel"
+              aria-label="Admin panel"
+              style={{ padding: '10px', display: 'flex' }}
+            >
+              <ShieldCheck size={18} />
             </button>
           )}
 

@@ -45,7 +45,7 @@ class VerificationPolicy(
      * Exposed to clients so they can count down honestly ("3 days left")
      * instead of nagging with an unspecified threat.
      */
-    fun deadlineFor(account: AccountState): LocalDateTime? {
+    fun deadlineFor(account: AccountStatus): LocalDateTime? {
         val from = enforcedFrom ?: return null
         if (account.emailVerified) return null
         return maxOf(account.createdAt, from).plusDays(graceDays)
@@ -60,7 +60,7 @@ class VerificationPolicy(
      * of administering the system by an unread confirmation mail has no way
      * back in, since the routes that could fix it are the ones being blocked.
      */
-    fun canWrite(account: AccountState, now: LocalDateTime = LocalDateTime.now()): Boolean {
+    fun canWrite(account: AccountStatus, now: LocalDateTime = LocalDateTime.now()): Boolean {
         if (account.globalRole == GlobalRole.SUPER_ADMIN) return true
         val deadline = deadlineFor(account) ?: return true
         return now.isBefore(deadline)

@@ -1,6 +1,6 @@
 package com.beauty.plugins
 
-import com.beauty.auth.AccountState
+import com.beauty.auth.AccountStatus
 import com.beauty.auth.GlobalRole
 import com.beauty.auth.MembershipService
 import com.beauty.auth.OrgRole
@@ -102,8 +102,23 @@ suspend fun PipelineContext<Unit, ApplicationCall>.requireOrgAccess(
         return null
     }
 
-    // One row read, serving both the role check and the verification check.
-    val account = memberships.accountState(userId)
+    // One row read, serving the role check, the suspension check and the
+    // email-verification gate below.
+    val account = memberships.accountStatus(userId)
+    if (account.isSuspended) {
+        // Checked before anything else, and from the same row read that
+        // resolves SUPER_ADMIN below — a suspended super admin must not fall
+        // through to unscoped access. Existing refresh-token families are
+        // revoked by the admin route that set this, so the token behind this
+        // request is the last one that will ever work; it stops working the
+        // moment it expires.
+        call.respond(
+            HttpStatusCode.Forbidden,
+            mapOf("error" to "This account has been suspended.", "code" to "ACCOUNT_SUSPENDED")
+        )
+        return null
+    }
+
     val isSuperAdmin = account.globalRole == GlobalRole.SUPER_ADMIN
     val requestedOrg = call.request.headers[ORG_HEADER]?.trim()?.takeIf { it.isNotEmpty() }
 
@@ -191,7 +206,7 @@ private fun requiresWriteAccess(method: HttpMethod): Boolean =
  * fails. Shared by [requireOrgAccess] and [requireWritableAccount].
  */
 private suspend fun PipelineContext<Unit, ApplicationCall>.passesVerificationGate(
-    account: AccountState,
+    account: AccountStatus,
     requireVerified: Boolean?
 ): Boolean {
     val gated = requireVerified ?: requiresWriteAccess(call.request.httpMethod)
@@ -218,22 +233,40 @@ private suspend fun PipelineContext<Unit, ApplicationCall>.passesVerificationGat
 const val EMAIL_NOT_VERIFIED = "EMAIL_NOT_VERIFIED"
 
 /**
- * The verification gate for routes that have no organization context —
- * `POST /api/organizations` is the only one today.
+ * [requireActiveAccount] plus the email-verification gate, for a *write* with
+ * no organization context — `POST /api/organizations` is the only one today.
  *
- * Returns the resolved [AccountState] on success, or null after answering.
- * Routes that deliberately stay open to unverified users (joining or accepting
- * an invitation to an organization) simply do not call this.
+ * Kept separate from [requireActiveAccount] rather than folded into it, because
+ * the routes that use that one are reads and a join request: listing your own
+ * organizations and asking to join one both stay open to an unverified account
+ * on purpose. Only the route that mints a new tenant needs this stricter
+ * version.
  */
 suspend fun PipelineContext<Unit, ApplicationCall>.requireWritableAccount(
     memberships: MembershipService
-): AccountState? {
-    val userId = call.userId() ?: run {
+): String? {
+    val userId = call.userId()
+    if (userId == null) {
         call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Invalid token"))
         return null
     }
-    val account = memberships.accountState(userId)
-    return if (passesVerificationGate(account, requireVerified = null)) account else null
+
+    val account = memberships.accountStatus(userId)
+
+    // Suspension is checked first: it is the more severe state and the one the
+    // caller can do nothing about on their own, so telling a suspended account
+    // to "confirm your email" would send them off to fix the wrong problem.
+    if (account.isSuspended) {
+        call.respond(
+            HttpStatusCode.Forbidden,
+            mapOf("error" to "This account has been suspended.", "code" to "ACCOUNT_SUSPENDED")
+        )
+        return null
+    }
+
+    if (!passesVerificationGate(account, requireVerified = null)) return null
+
+    return userId
 }
 
 private val VerificationPolicyKey = AttributeKey<VerificationPolicy>("VerificationPolicy")
@@ -251,3 +284,79 @@ fun Application.verificationPolicy(): VerificationPolicy =
     attributes.computeIfAbsent(VerificationPolicyKey) {
         VerificationPolicy(AppSettings(environment.config))
     }
+
+/**
+ * Resolves the caller as a `SUPER_ADMIN` in good standing, answering an error
+ * and returning null otherwise.
+ *
+ * The admin panel's own guard — deliberately simpler than [requireOrgAccess]:
+ * there is no organization to scope, just "is this account a super admin".
+ * Suspension is checked here too, for the same reason it is checked in
+ * [requireOrgAccess]: a suspended account, even a `SUPER_ADMIN` one, must lose
+ * access on its very next request rather than whenever its token expires.
+ */
+suspend fun PipelineContext<Unit, ApplicationCall>.requireSuperAdmin(
+    memberships: MembershipService
+): String? {
+    val userId = call.userId()
+    if (userId == null) {
+        call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Invalid token"))
+        return null
+    }
+
+    val account = memberships.accountStatus(userId)
+    if (account.isSuspended) {
+        call.respond(
+            HttpStatusCode.Forbidden,
+            mapOf("error" to "This account has been suspended.", "code" to "ACCOUNT_SUSPENDED")
+        )
+        return null
+    }
+
+    if (account.globalRole != GlobalRole.SUPER_ADMIN) {
+        call.respond(
+            HttpStatusCode.Forbidden,
+            mapOf(
+                "error" to "This action requires a super administrator.",
+                "code" to "SUPER_ADMIN_REQUIRED"
+            )
+        )
+        return null
+    }
+
+    return userId
+}
+
+/**
+ * Resolves the caller as an authenticated account in good standing — no
+ * organization scoping at all, unlike [requireOrgAccess].
+ *
+ * For the "no orgId" routes in `OrganizationRoutes.kt` — listing the
+ * caller's own organizations, requesting to join one, creating one — which
+ * use `call.userId()` directly rather than [requireOrgAccess] specifically so
+ * a brand-new account with no organization yet is never locked out of
+ * getting one (see that file's class doc). That reasoning has nothing to do
+ * with suspension, though, and a suspended account creating a *new*
+ * organization or requesting to join one defeats the point of suspending
+ * them. This is the same DB read [requireOrgAccess] and [requireSuperAdmin]
+ * already do, applied without the organization-scoping logic those two add.
+ */
+suspend fun PipelineContext<Unit, ApplicationCall>.requireActiveAccount(
+    memberships: MembershipService
+): String? {
+    val userId = call.userId()
+    if (userId == null) {
+        call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Invalid token"))
+        return null
+    }
+
+    if (memberships.accountStatus(userId).isSuspended) {
+        call.respond(
+            HttpStatusCode.Forbidden,
+            mapOf("error" to "This account has been suspended.", "code" to "ACCOUNT_SUSPENDED")
+        )
+        return null
+    }
+
+    return userId
+}

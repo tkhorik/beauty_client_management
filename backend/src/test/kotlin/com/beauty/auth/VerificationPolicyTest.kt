@@ -28,7 +28,14 @@ class VerificationPolicyTest {
         createdAt: LocalDateTime,
         verifiedAt: LocalDateTime? = null,
         role: GlobalRole = GlobalRole.USER
-    ) = AccountState(role, verifiedAt, createdAt)
+    ) = AccountStatus(
+        globalRole = role,
+        // Suspension is a separate gate with its own tests in AdminRoutesTest;
+        // this policy is only ever asked about verification.
+        suspendedAt = null,
+        emailVerifiedAt = verifiedAt,
+        createdAt = createdAt
+    )
 
     @Test
     fun `enforcement off means everyone can always write`() {

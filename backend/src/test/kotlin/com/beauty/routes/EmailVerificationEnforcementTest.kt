@@ -1,5 +1,6 @@
 package com.beauty.routes
 
+import com.beauty.auth.OrgCreationTokenService
 import com.beauty.db.DatabaseFactory.dbQuery
 import com.beauty.db.UsersTable
 import com.beauty.module
@@ -100,11 +101,32 @@ class EmailVerificationEnforcementTest {
         }
     }
 
+    /**
+     * Mints an organization-creation token, mirroring `OrganizationIsolationTest`.
+     *
+     * Organization creation stopped being self-service when the admin panel
+     * landed, so every test that needs an organization has to issue one of
+     * these first. Called through the service rather than the admin API
+     * because the super-admin flow is not what these tests are about.
+     */
+    private suspend fun ApplicationTestBuilder.mintCreationToken(issuerToken: String): String {
+        val me = client.get("/api/users/me") { bearerAuth(issuerToken) }
+        val issuerId = Json.parseToJsonElement(me.bodyAsText()).jsonObject["id"]!!.jsonPrimitive.content
+        val (_, rawToken) = OrgCreationTokenService().issue(
+            createdBy = issuerId,
+            label = null,
+            maxUses = 1,
+            expiresAt = LocalDateTime.now().plusDays(1)
+        )
+        return rawToken
+    }
+
     private suspend fun ApplicationTestBuilder.createOrg(token: String, slug: String): String {
+        val creationToken = mintCreationToken(token)
         val response = client.post("/api/organizations") {
             bearerAuth(token)
             contentType(ContentType.Application.Json)
-            setBody("""{"name":"$slug","slug":"$slug"}""")
+            setBody("""{"name":"$slug","slug":"$slug","creationToken":"$creationToken"}""")
         }
         assertEquals(HttpStatusCode.Created, response.status, "createOrg failed: ${response.bodyAsText()}")
         return Json.parseToJsonElement(response.bodyAsText()).jsonObject["id"]!!.jsonPrimitive.content
@@ -264,14 +286,19 @@ class EmailVerificationEnforcementTest {
     }
 
     @Test
-    fun `a restricted user cannot create a new organization`() = testApplication {
+    fun `a restricted user cannot create a new organization, even with a valid link`() = testApplication {
         startApp()
 
+        // A *valid* creation token, so the refusal can only be the verification
+        // gate. Without this the test would pass on `CREATION_TOKEN_INVALID`
+        // and prove nothing about email verification at all.
         val token = register("alice@example.com")
+        val creationToken = mintCreationToken(token)
+
         val response = client.post("/api/organizations") {
             bearerAuth(token)
             contentType(ContentType.Application.Json)
-            setBody("""{"name":"Spam Salon","slug":"spam-salon"}""")
+            setBody("""{"name":"Spam Salon","slug":"spam-salon","creationToken":"$creationToken"}""")
         }
 
         assertEquals(HttpStatusCode.Forbidden, response.status)

@@ -1,11 +1,8 @@
 -- ---------------------------------------------------------------------------
 -- 004 — Re-verify every account, ahead of enforcing email verification
 --
--- Numbered 004 rather than 003 deliberately: `003_admin_panel_and_org_creation_links.sql`
--- is described in CLAUDE.md and belongs to work that is not in this tree. Taking
--- 003 here would collide with it at merge time, and two files claiming the same
--- number is exactly how one of them ends up silently skipped on the VPS. The gap
--- is intentional; do not renumber this file to close it.
+-- Runs after `003_admin_panel_and_org_creation_links.sql`. Both must be applied,
+-- in order, before the backend that expects them is deployed.
 --
 -- Run this ONCE against the production database BEFORE deploying the backend
 -- that enforces verification — but see the ordering note at the bottom, because
