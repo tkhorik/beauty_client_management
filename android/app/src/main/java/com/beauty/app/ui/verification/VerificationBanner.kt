@@ -204,11 +204,13 @@ fun VerificationBanner(
  * enforce, so reading a value we cannot parse as "plenty of time" would promise
  * the user days they do not have.
  */
-private fun daysUntil(deadline: String): Long = try {
-    val parser = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.US)
-    val parsed = parser.parse(deadline.take(19)) ?: return 0L
+private fun daysUntil(deadline: String): Long {
+    val parsed = try {
+        SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.US).parse(deadline.take(19))
+    } catch (_: ParseException) {
+        null
+    } ?: return 0L
+
     val remaining = parsed.time - System.currentTimeMillis()
-    if (remaining <= 0L) 0L else remaining / 86_400_000L + 1L
-} catch (_: ParseException) {
-    0L
+    return if (remaining <= 0L) 0L else remaining / 86_400_000L + 1L
 }
