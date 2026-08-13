@@ -4,6 +4,7 @@ import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.client.plugins.expectSuccess
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
@@ -54,5 +55,43 @@ class KtorBeautyApiTest {
         KtorBeautyApi(client).getClients("org-b")
 
         assertEquals("org-b", seenHeader)
+    }
+
+    /**
+     * The sync worker's decision to stop retrying rests entirely on this
+     * classification. Getting it wrong in one direction retries a refusal
+     * forever; in the other, it abandons the offline queue over a transient
+     * server error.
+     */
+    @Test
+    fun `an unverified-email refusal is told apart from other 403s`() = runTest {
+        assertEquals(true, forbiddenWith("""{"error":"Confirm your email","code":"EMAIL_NOT_VERIFIED"}"""))
+        assertEquals(false, forbiddenWith("""{"error":"Not a member","code":"NOT_A_MEMBER"}"""))
+        assertEquals(false, forbiddenWith("""{"error":"Admin required","code":"ADMIN_REQUIRED"}"""))
+    }
+
+    /** Runs a request that fails with 403 and [body], and classifies the error. */
+    private suspend fun forbiddenWith(body: String): Boolean {
+        val engine = MockEngine {
+            respond(
+                body,
+                HttpStatusCode.Forbidden,
+                headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString())
+            )
+        }
+        val client = HttpClient(engine) {
+            expectSuccess = true
+            install(ContentNegotiation) { json(Json { ignoreUnknownKeys = true }) }
+        }
+
+        return try {
+            KtorBeautyApi(client).createVisit(
+                "org-a",
+                CreateVisitRequest("c1", "2026-08-13T10:00:00", 60, "notes", "COMPLETED")
+            )
+            false
+        } catch (error: Exception) {
+            error.isEmailNotVerified()
+        }
     }
 }

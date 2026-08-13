@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import type { Client, Visit, Attachment } from '../types';
 import { X, Calendar, Clock, Plus, Trash2, Edit3, Edit2, Camera, FileText, Sliders } from 'lucide-react';
-import { api } from '../services/api';
+import { api, writeErrorMessage } from '../services/api';
 import { EditClientModal } from './EditClientModal';
 
 interface ClientDetailModalProps {
@@ -50,7 +50,7 @@ export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
       setIsEditingFields(false);
       onRefresh();
     } catch (err) {
-      alert('Failed to save custom fields');
+      alert(writeErrorMessage(err, 'Failed to save custom fields'));
     } finally {
       setIsSaving(false);
     }
@@ -58,7 +58,16 @@ export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
 
   const handleDeleteClient = async () => {
     if (confirm(`Are you sure you want to delete ${client.name} and all visit logs?`)) {
-      await api.deleteClient(client.id);
+      try {
+        await api.deleteClient(client.id);
+      } catch (err) {
+        // Previously unguarded, which was survivable only while every failure
+        // fell back to localStorage and "succeeded". A refused delete now
+        // throws, and without this the modal would close as if the record were
+        // gone while the server still has it.
+        alert(writeErrorMessage(err, 'Failed to delete this client.'));
+        return;
+      }
       onRefresh();
       onClose();
     }

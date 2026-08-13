@@ -46,6 +46,21 @@ export interface UserProfile {
   email: string;
   fullName: string;
   createdAt: string;
+  /**
+   * Whether the user has confirmed control of their address.
+   *
+   * Optional because the field arrives from the backend and an older or
+   * unreachable one may not send it. Treat `undefined` as "assume verified":
+   * the server is the authority on whether a write is allowed, so a missing
+   * field should mean "show no banner", never "block the UI on a guess".
+   */
+  emailVerified?: boolean;
+  /**
+   * ISO timestamp after which writes are refused unless the address is
+   * confirmed. Null/absent when already verified or when the deployment has
+   * enforcement switched off.
+   */
+  verificationDeadline?: string | null;
 }
 
 /** A user's capability within one organization. Mirrors `auth/Roles.OrgRole` on the backend. */

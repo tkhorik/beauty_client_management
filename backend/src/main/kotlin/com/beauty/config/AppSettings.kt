@@ -90,6 +90,38 @@ class AppSettings(private val config: ApplicationConfig) {
      */
     val resetTokenMinutes: Long = str("mail.resetTokenMinutes", "60").toLongOrNull() ?: 60L
 
+    /**
+     * When enforcement of email verification begins, or null for "never".
+     *
+     * Null is the off switch, and it is off by default: an unverified account
+     * behaves exactly as it did before this feature existed. That matters
+     * operationally — if enforcement causes trouble in production, clearing
+     * `EMAIL_VERIFICATION_ENFORCED_FROM` and restarting restores the previous
+     * behaviour without a redeploy, a rollback, or a migration.
+     *
+     * An unparseable value is treated as null rather than throwing. This is a
+     * *restriction* on users, and the safe direction for a typo is to not
+     * apply it: a malformed timestamp that locked the entire user base out of
+     * writing would be a far worse outcome than one that quietly does nothing
+     * and shows up in the startup log.
+     */
+    val verificationEnforcedFrom: java.time.LocalDateTime? =
+        str("mail.verificationEnforcedFrom", "").takeIf { it.isNotBlank() }?.let { raw ->
+            runCatching { java.time.LocalDateTime.parse(raw) }.getOrNull()
+        }
+
+    /**
+     * Days of unrestricted access before an unverified account becomes
+     * read-only, counted from [verificationEnforcedFrom] or the account's
+     * creation, whichever is later.
+     *
+     * Coerced to at least zero: a negative window is meaningless, and reading
+     * it literally would push the deadline into the past — enforcing
+     * *retroactively* on an account that was told it had a week.
+     */
+    val verificationGraceDays: Long =
+        (str("mail.verificationGraceDays", "7").toLongOrNull() ?: 7L).coerceAtLeast(0L)
+
     val jwtSecret: String = str("jwt.secret", INSECURE_DEV_SECRET)
     val jwtIssuer: String = str("jwt.issuer", "aura-beauty-log")
     val jwtAudience: String = str("jwt.audience", "aura-beauty-log-users")

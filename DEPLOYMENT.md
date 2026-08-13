@@ -343,6 +343,7 @@ Current migrations, in order:
 |---|---|---|
 | `001_email_verification.sql` | `users.email_verified_at`, backfills existing accounts as verified | No |
 | `002_multi_tenant_rbac.sql` | `organizations`, `user_organizations`, `users.global_role`, `organization_id`/`created_by` on `clients` and `visits` | **Yes** |
+| `004_email_verification_enforcement.sql` | No schema change. Clears `email_verified_at` for every account so all users must re-verify, and retires outstanding verification tokens | Data only — see below |
 
 `002` is destructive by design: `organization_id` is `NOT NULL` with no backfill,
 because there is no correct organization to guess for a pre-existing row, so it
@@ -350,6 +351,29 @@ because there is no correct organization to guess for a pre-existing row, so it
 trade for this cutover. If you are reading this with data you care about, do not
 run it as-is — take a `pg_dump` first, then rewrite it to create one
 organization, `UPDATE` the rows to point at it, and add the constraint last.
+
+There is no `003` in this tree — the number belongs to admin-panel work that
+lives elsewhere. The gap is intentional; do not renumber `004` to close it.
+
+`004` changes no schema but is **not safe to re-run**: it clears every
+verification stamp, so a second run also clears everyone who has verified since
+the first. It deletes nothing else and locks nobody out on its own —
+verification is enforced only when `EMAIL_VERIFICATION_ENFORCED_FROM` is set.
+Run it in this order, and do not compress the steps:
+
+1. Run the migration.
+2. Deploy the backend with `EMAIL_VERIFICATION_ENFORCED_FROM` **unset**. The API
+   starts reporting `emailVerified: false`; nothing is restricted.
+3. Ship the web and Android clients. Their banner is the **only** thing that
+   tells users they must re-verify — the migration sends no mail and there is no
+   bulk mailer in this repo.
+4. Set `EMAIL_VERIFICATION_ENFORCED_FROM` to a timestamp and restart. Every
+   account gets `VERIFICATION_GRACE_DAYS` from that moment, not from its
+   creation date, so nobody is restricted the instant you flip it.
+
+To back out: unset the variable and restart. That restores unrestricted access
+immediately. The cleared timestamps cannot be restored — take a `pg_dump` before
+step 1 if that matters.
 
 After `002`, existing users belong to no organization and see the onboarding
 screen. They create one or ask to join by handle; there is no automatic

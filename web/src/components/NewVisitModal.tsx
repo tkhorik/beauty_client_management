@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import type { Client, Visit } from '../types';
-import { api } from '../services/api';
+import { api, writeErrorMessage } from '../services/api';
 import { compressImage } from '../utils/imageCompressor';
 import { X, Calendar, Camera } from 'lucide-react';
 
@@ -74,7 +74,7 @@ export const NewVisitModal: React.FC<NewVisitModalProps> = ({
       onSuccess();
       onClose();
     } catch (err) {
-      alert('Failed to log visit record');
+      alert(writeErrorMessage(err, 'Failed to log visit record'));
     } finally {
       setIsSubmitting(false);
     }

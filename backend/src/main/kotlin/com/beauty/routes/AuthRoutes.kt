@@ -1,8 +1,11 @@
 package com.beauty.routes
 
+import com.beauty.auth.AccountState
+import com.beauty.auth.GlobalRole
 import com.beauty.auth.OneTimeTokenService
 import com.beauty.auth.RefreshTokenService
 import com.beauty.auth.TokenPurpose
+import com.beauty.auth.VerificationPolicy
 import com.beauty.config.AppSettings
 import com.beauty.db.DatabaseFactory.dbQuery
 import com.beauty.db.UsersTable
@@ -143,13 +146,28 @@ internal fun ApplicationCall.clearRefreshCookie() {
  * default of `false` on the field means a missed one is a *silent* wrong
  * answer, not a compile error. One definition removes that failure mode.
  */
-internal fun userDto(row: org.jetbrains.exposed.sql.ResultRow) = UserDto(
-    id = row[UsersTable.id],
-    email = row[UsersTable.email],
-    fullName = row[UsersTable.fullName],
-    createdAt = row[UsersTable.createdAt].toString(),
-    emailVerified = row[UsersTable.emailVerifiedAt] != null
-)
+internal fun userDto(
+    row: org.jetbrains.exposed.sql.ResultRow,
+    policy: VerificationPolicy? = null
+): UserDto {
+    val account = AccountState(
+        globalRole = GlobalRole.parse(row[UsersTable.globalRole]),
+        emailVerifiedAt = row[UsersTable.emailVerifiedAt],
+        createdAt = row[UsersTable.createdAt]
+    )
+    return UserDto(
+        id = row[UsersTable.id],
+        email = row[UsersTable.email],
+        fullName = row[UsersTable.fullName],
+        createdAt = row[UsersTable.createdAt].toString(),
+        emailVerified = account.emailVerified,
+        // Null when no policy is supplied. That is the honest answer rather
+        // than a guess: a caller with no policy in hand cannot know whether
+        // enforcement is on, and inventing a deadline would have clients
+        // counting down to a restriction that may not exist.
+        verificationDeadline = policy?.deadlineFor(account)?.toString()
+    )
+}
 
 /**
  * Mints a fresh access + refresh token pair and responds with it.
@@ -199,6 +217,7 @@ fun Route.authRoutes() {
     val oneTimeTokens = OneTimeTokenService()
     // `application` is the scope the SMTP sends run in — see AccountMailer.
     val accountMailer = AccountMailer(settings, oneTimeTokens, MailSender.from(settings), application)
+    val verification = VerificationPolicy(settings)
 
     /** Reads the refresh token from the cookie, falling back to the request body. */
     suspend fun ApplicationCall.readRefreshToken(): String? {
@@ -273,9 +292,10 @@ fun Route.authRoutes() {
             }
 
             // Mail is sent after the row is committed, and its outcome is not
-            // checked. Enforcement is soft — the account works whether or not
-            // the address is confirmed — so a bounced or slow SMTP server must
-            // not fail the registration. `MailSender.send` swallows its own
+            // checked. The account is created and signed in either way: a
+            // bounced or slow SMTP server must not fail a registration that
+            // has already succeeded, and the new user has a grace window plus
+            // /resend-verification to recover with. `MailSender.send` swallows its own
             // errors for the same reason, and AccountMailer hands the SMTP call
             // off to the application scope so a slow server does not hold the
             // new user on a spinner.
@@ -289,7 +309,20 @@ fun Route.authRoutes() {
                 // emailVerified is explicitly false rather than left to the
                 // default: the account was created one line ago and the
                 // confirmation mail is still in flight.
-                UserDto(id, email, fullName, createdAt.toString(), emailVerified = false)
+                UserDto(
+                    id,
+                    email,
+                    fullName,
+                    createdAt.toString(),
+                    emailVerified = false,
+                    // Told to them up front, in the same response that signs
+                    // them in. A user who learns about the deadline on day one
+                    // can act on it; one who first meets it as a refused save
+                    // on day eight has been ambushed.
+                    verificationDeadline = verification.deadlineFor(
+                        AccountState(GlobalRole.USER, emailVerifiedAt = null, createdAt = createdAt)
+                    )?.toString()
+                )
             )
         }
 
@@ -317,7 +350,7 @@ fun Route.authRoutes() {
 
             call.respondWithSession(
                 HttpStatusCode.OK,
-                userDto(row)
+                userDto(row, verification)
             )
         }
         } // end rateLimit(RATE_LIMIT_AUTH)
@@ -371,7 +404,12 @@ fun Route.authRoutes() {
                             token = accessToken,
                             refreshToken = call.deliverRefreshToken(result.token, settings),
                             expiresInSeconds = accessTokenMinutes * 60,
-                            user = userDto(row)
+                            // Recomputed on every refresh — every 15 minutes,
+                            // in practice. That is what makes the restriction
+                            // lift promptly: a user who clicks the link in
+                            // another tab sees the banner clear on the next
+                            // token rotation without signing out and back in.
+                            user = userDto(row, verification)
                         )
                     )
                 }

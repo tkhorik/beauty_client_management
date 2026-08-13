@@ -39,6 +39,46 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * The backend refused a write because the account's address is unconfirmed.
+ *
+ * A distinct type, not just an `ApiError` with a 403, because of how the rest
+ * of this class handles failure: every data method falls back to localStorage
+ * when the backend call throws. That fallback exists for offline/demo mode and
+ * is correct for a network failure — but applying it here would write the
+ * record into localStorage and hand the UI a success, telling the user their
+ * client was saved when the server just refused it. A refusal is not an outage.
+ * Every fallback path below rethrows this rather than swallowing it.
+ */
+export class EmailNotVerifiedError extends ApiError {
+  /** When the grace window closed, if the server said. */
+  deadline: string | null;
+
+  constructor(body: { error?: string; verificationDeadline?: string | null }) {
+    super(403, body);
+    this.name = 'EmailNotVerifiedError';
+    this.deadline = body.verificationDeadline ?? null;
+  }
+}
+
+/** Fired when any request is refused for want of a confirmed address. */
+export const EMAIL_UNVERIFIED_EVENT = 'beauty:email-unverified';
+
+/**
+ * A message to show the user when a save fails.
+ *
+ * Exists so the write dialogs do not all answer "Failed to create client
+ * profile" to a refusal that has a specific, actionable cause. A user told only
+ * that something failed will retry it, get the same result, and conclude the
+ * app is broken — when the fix is a link sitting in their inbox.
+ */
+export function writeErrorMessage(err: unknown, fallback: string): string {
+  if (err instanceof EmailNotVerifiedError) {
+    return 'Your changes were not saved. Confirm your email address first — see the banner at the top of the page for a fresh link.';
+  }
+  return fallback;
+}
+
 // Initial Mock Data for instant demonstration & fallback
 const INITIAL_MOCK_CLIENTS: Client[] = [
   {
@@ -191,6 +231,7 @@ class ApiService {
     };
 
     let res = await send(getToken());
+    if (res.status === 403) return await this.rejectIfUnverified(res);
     if (res.status !== 401) return res;
 
     // Concurrent 401s all await the same refresh — see the note on
@@ -199,12 +240,51 @@ class ApiService {
     const refreshed = await refreshAccessToken();
     if (refreshed) {
       res = await send(refreshed.token);
+      if (res.status === 403) return await this.rejectIfUnverified(res);
       if (res.status !== 401) return res;
     }
 
     clearToken();
     window.dispatchEvent(new Event('beauty:unauthorized'));
     return res;
+  }
+
+  /**
+   * Turns a 403 `EMAIL_NOT_VERIFIED` into a thrown [EmailNotVerifiedError],
+   * and passes every other 403 through untouched.
+   *
+   * Deliberately kept apart from the 401 path above. A 401 means the session is
+   * over and ends with `beauty:unauthorized`, which logs the user out; routing
+   * this through the same branch would sign out a perfectly valid session over
+   * an unread confirmation email — a far more confusing outcome than the
+   * restriction itself.
+   *
+   * The response is cloned before reading, because the caller may still want to
+   * read the body of a 403 this method decides not to claim (`NOT_A_MEMBER`,
+   * `ADMIN_REQUIRED`), and a body can only be consumed once.
+   */
+  private async rejectIfUnverified(res: Response): Promise<Response> {
+    const body = await res.clone().json().catch(() => ({} as Record<string, unknown>));
+    if (body?.code !== 'EMAIL_NOT_VERIFIED') return res;
+
+    window.dispatchEvent(
+      new CustomEvent(EMAIL_UNVERIFIED_EVENT, {
+        detail: { deadline: body.verificationDeadline ?? null },
+      })
+    );
+    throw new EmailNotVerifiedError(body);
+  }
+
+  /**
+   * Rethrows a verification refusal instead of letting it fall through to the
+   * localStorage path.
+   *
+   * Called from the `catch` of every method that has a fallback. Without it,
+   * the app would report a save that never happened — see the note on
+   * [EmailNotVerifiedError].
+   */
+  private rethrowIfBlocked(err: unknown): void {
+    if (err instanceof EmailNotVerifiedError) throw err;
   }
 
   private getLocalClients(): Client[] {
@@ -241,7 +321,9 @@ class ApiService {
       const res = await this.authFetch(url.toString());
       if (res.ok) return await res.json();
     } catch (err) {
-      // Backend not running -> fallback to LocalStorage
+      // Backend not running -> fallback to LocalStorage. A verification
+      // refusal is not an outage and must not reach the mock data.
+      this.rethrowIfBlocked(err);
     }
 
     let clients = this.getLocalClients();
@@ -266,7 +348,9 @@ class ApiService {
     try {
       const res = await this.authFetch(`${API_BASE_URL}/clients/${id}`);
       if (res.ok) return await res.json();
-    } catch (err) {}
+    } catch (err) {
+      this.rethrowIfBlocked(err);
+    }
     const clients = this.getLocalClients();
     return clients.find(c => c.id === id) || null;
   }
@@ -279,7 +363,9 @@ class ApiService {
         body: JSON.stringify(input)
       });
       if (res.ok) return await res.json();
-    } catch (err) {}
+    } catch (err) {
+      this.rethrowIfBlocked(err);
+    }
 
     const clients = this.getLocalClients();
     const newClient: Client = {
@@ -306,7 +392,9 @@ class ApiService {
         body: JSON.stringify(input)
       });
       if (res.ok) return await res.json();
-    } catch (err) {}
+    } catch (err) {
+      this.rethrowIfBlocked(err);
+    }
 
     const clients = this.getLocalClients();
     const idx = clients.findIndex(c => c.id === id);
@@ -325,7 +413,9 @@ class ApiService {
   async deleteClient(id: string): Promise<void> {
     try {
       await this.authFetch(`${API_BASE_URL}/clients/${id}`, { method: 'DELETE' });
-    } catch (err) {}
+    } catch (err) {
+      this.rethrowIfBlocked(err);
+    }
 
     const clients = this.getLocalClients().filter(c => c.id !== id);
     const visits = this.getLocalVisits().filter(v => v.clientId !== id);
@@ -342,7 +432,9 @@ class ApiService {
         const visits: Visit[] = await res.json();
         return visits.map(visit => this.normalizeVisit(visit));
       }
-    } catch (err) {}
+    } catch (err) {
+      this.rethrowIfBlocked(err);
+    }
 
     let visits = this.getLocalVisits();
     if (clientId) {
@@ -359,7 +451,9 @@ class ApiService {
         body: JSON.stringify(input)
       });
       if (res.ok) return await res.json();
-    } catch (err) {}
+    } catch (err) {
+      this.rethrowIfBlocked(err);
+    }
 
     const visits = this.getLocalVisits();
     const newVisit: Visit = {
@@ -404,7 +498,9 @@ class ApiService {
         body: formData
       });
       if (res.ok) return await res.json();
-    } catch (err) {}
+    } catch (err) {
+      this.rethrowIfBlocked(err);
+    }
 
     const visits = this.getLocalVisits();
     const vIdx = visits.findIndex(v => v.id === visitId);
@@ -455,6 +551,28 @@ class ApiService {
       throw new ApiError(res.status, body);
     }
     return res.json();
+  }
+
+  /**
+   * Asks for a fresh verification link.
+   *
+   * Takes no address: the backend reads it from the access token, so this
+   * cannot be used to mail a stranger. Answers 204 whether or not anything was
+   * sent — including for an already-verified account — so there is nothing to
+   * parse and nothing the caller could usefully branch on.
+   *
+   * The backend rate-limits this to 3 per minute per IP. The UI applies its own
+   * cooldown on top so the common double-click does not spend the budget and
+   * leave the user staring at a 429.
+   */
+  async resendVerificationEmail(): Promise<void> {
+    const res = await this.authFetch(`${API_BASE_URL}/auth/resend-verification`, {
+      method: 'POST',
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new ApiError(res.status, body);
+    }
   }
 
   /**

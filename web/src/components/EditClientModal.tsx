@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import type { Client } from '../types';
-import { api } from '../services/api';
+import { api, writeErrorMessage } from '../services/api';
 import { X, Plus, Trash2, Edit2 } from 'lucide-react';
 
 interface EditClientModalProps {
@@ -80,7 +80,7 @@ export const EditClientModal: React.FC<EditClientModalProps> = ({ client, onClos
       onSuccess();
       onClose();
     } catch (err) {
-      setError('Failed to save changes. Please try again.');
+      setError(writeErrorMessage(err, 'Failed to save changes. Please try again.'));
     } finally {
       setIsSubmitting(false);
     }
