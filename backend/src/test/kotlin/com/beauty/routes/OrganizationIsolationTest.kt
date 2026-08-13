@@ -1,5 +1,6 @@
 package com.beauty.routes
 
+import com.beauty.auth.OrgCreationTokenService
 import com.beauty.module
 import com.beauty.plugins.ORG_HEADER
 import io.ktor.client.request.*
@@ -11,6 +12,7 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import java.time.LocalDateTime
 import java.util.UUID
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -74,12 +76,35 @@ class OrganizationIsolationTest {
             .jsonObject["token"]!!.jsonPrimitive.content
     }
 
+    /**
+     * Mints a one-use organization-creation token, bypassing HTTP.
+     *
+     * There is no admin-panel HTTP endpoint exercised in *this* file — that
+     * gating is `OrgCreationTokenTest`'s concern — so tests here call the
+     * service directly, the same way they'd call any other collaborator
+     * that isn't the property under test. [issuerToken]'s user id is read
+     * back via `/api/users/me` because the register() helper only returns
+     * the access token.
+     */
+    private suspend fun ApplicationTestBuilder.mintCreationToken(issuerToken: String): String {
+        val me = client.get("/api/users/me") { bearerAuth(issuerToken) }
+        val issuerId = Json.parseToJsonElement(me.bodyAsText()).jsonObject["id"]!!.jsonPrimitive.content
+        val (_, rawToken) = OrgCreationTokenService().issue(
+            createdBy = issuerId,
+            label = null,
+            maxUses = 1,
+            expiresAt = LocalDateTime.now().plusDays(1)
+        )
+        return rawToken
+    }
+
     /** Creates an organization owned by [token]'s user and returns its id. */
     private suspend fun ApplicationTestBuilder.createOrg(token: String, slug: String): String {
+        val creationToken = mintCreationToken(token)
         val response = client.post("/api/organizations") {
             bearerAuth(token)
             contentType(ContentType.Application.Json)
-            setBody("""{"name":"$slug","slug":"$slug"}""")
+            setBody("""{"name":"$slug","slug":"$slug","creationToken":"$creationToken"}""")
         }
         assertEquals(HttpStatusCode.Created, response.status, "createOrg failed: ${response.bodyAsText()}")
         return Json.parseToJsonElement(response.bodyAsText())

@@ -343,6 +343,7 @@ Current migrations, in order:
 |---|---|---|
 | `001_email_verification.sql` | `users.email_verified_at`, backfills existing accounts as verified | No |
 | `002_multi_tenant_rbac.sql` | `organizations`, `user_organizations`, `users.global_role`, `organization_id`/`created_by` on `clients` and `visits` | **Yes** |
+| `003_admin_panel_and_org_creation_links.sql` | `users.suspended_at`, `organization_creation_tokens` | No |
 | `004_email_verification_enforcement.sql` | No schema change. Clears `email_verified_at` for every account so all users must re-verify, and retires outstanding verification tokens | Data only — see below |
 
 `002` is destructive by design: `organization_id` is `NOT NULL` with no backfill,
@@ -352,8 +353,9 @@ trade for this cutover. If you are reading this with data you care about, do not
 run it as-is — take a `pg_dump` first, then rewrite it to create one
 organization, `UPDATE` the rows to point at it, and add the constraint last.
 
-There is no `003` in this tree — the number belongs to admin-panel work that
-lives elsewhere. The gap is intentional; do not renumber `004` to close it.
+`003` must run before `004`: the write gate reads `users.suspended_at` and
+`email_verified_at` from the same row, so a backend deployed against a database
+missing the first column 500s on every authorized request.
 
 `004` changes no schema but is **not safe to re-run**: it clears every
 verification stamp, so a second run also clears everyone who has verified since

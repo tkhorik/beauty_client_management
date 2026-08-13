@@ -1,6 +1,6 @@
 package com.beauty.routes
 
-import com.beauty.auth.AccountState
+import com.beauty.auth.AccountStatus
 import com.beauty.auth.GlobalRole
 import com.beauty.auth.OneTimeTokenService
 import com.beauty.auth.RefreshTokenService
@@ -150,8 +150,9 @@ internal fun userDto(
     row: org.jetbrains.exposed.sql.ResultRow,
     policy: VerificationPolicy? = null
 ): UserDto {
-    val account = AccountState(
+    val account = AccountStatus(
         globalRole = GlobalRole.parse(row[UsersTable.globalRole]),
+        suspendedAt = row[UsersTable.suspendedAt],
         emailVerifiedAt = row[UsersTable.emailVerifiedAt],
         createdAt = row[UsersTable.createdAt]
     )
@@ -161,6 +162,7 @@ internal fun userDto(
         fullName = row[UsersTable.fullName],
         createdAt = row[UsersTable.createdAt].toString(),
         emailVerified = account.emailVerified,
+        globalRole = row[UsersTable.globalRole],
         // Null when no policy is supplied. That is the honest answer rather
         // than a guess: a caller with no policy in hand cannot know whether
         // enforcement is on, and inventing a deadline would have clients
@@ -320,7 +322,12 @@ fun Route.authRoutes() {
                     // can act on it; one who first meets it as a refused save
                     // on day eight has been ambushed.
                     verificationDeadline = verification.deadlineFor(
-                        AccountState(GlobalRole.USER, emailVerifiedAt = null, createdAt = createdAt)
+                        AccountStatus(
+                            globalRole = GlobalRole.USER,
+                            suspendedAt = null,
+                            emailVerifiedAt = null,
+                            createdAt = createdAt
+                        )
                     )?.toString()
                 )
             )
