@@ -28,6 +28,12 @@ import { API_BASE_URL } from '../config';
 export const ORG_HEADER = 'X-Org-Id';
 
 /**
+ * Mock persistence is intentionally opt-in.  It is useful for a product demo,
+ * but must never make a rejected production write look as if it was saved.
+ */
+const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === 'true';
+
+/**
  * Carries the parsed error body (field-level messages, or a flat `error`
  * string) alongside the HTTP status, so callers can render the same kind of
  * inline, per-field feedback `LoginPage` gives on registration.
@@ -198,6 +204,9 @@ const INITIAL_MOCK_VISITS: Visit[] = [
 ];
 
 class ApiService {
+  /** Object URLs let `<img>` use authenticated attachment responses without putting a token in a URL. */
+  private attachmentObjectUrls = new Map<string, string>();
+
   /**
    * Older visit records may predate the attachments field.  Keep the API
    * boundary backwards-compatible so consumers can always treat it as an
@@ -291,6 +300,39 @@ class ApiService {
     if (err instanceof EmailNotVerifiedError) throw err;
   }
 
+  /** Converts an HTTP refusal into an error rather than silently using mocks. */
+  private async apiError(res: Response): Promise<ApiError> {
+    const body = await res.json().catch(() => ({}));
+    return new ApiError(res.status, body);
+  }
+
+  /** Only a deliberate demo session may fall back after a network failure. */
+  private fallbackOrThrow(err: unknown): void {
+    this.rethrowIfBlocked(err);
+    if (!DEMO_MODE || err instanceof ApiError) throw err;
+  }
+
+  private async hydrateAttachment(attachment: Attachment): Promise<Attachment> {
+    if (!attachment.fileUrl.startsWith('/api/attachments/')) return attachment;
+
+    const cached = this.attachmentObjectUrls.get(attachment.id);
+    if (cached) return { ...attachment, fileUrl: cached };
+
+    const res = await this.authFetch(new URL(attachment.fileUrl, API_BASE_URL).toString());
+    if (!res.ok) throw await this.apiError(res);
+    const objectUrl = URL.createObjectURL(await res.blob());
+    this.attachmentObjectUrls.set(attachment.id, objectUrl);
+    return { ...attachment, fileUrl: objectUrl };
+  }
+
+  private async hydrateVisitAttachments(visit: Visit): Promise<Visit> {
+    const normalized = this.normalizeVisit(visit);
+    return {
+      ...normalized,
+      attachments: await Promise.all(normalized.attachments.map(attachment => this.hydrateAttachment(attachment))),
+    };
+  }
+
   private getLocalClients(): Client[] {
     const saved = localStorage.getItem('beauty_clients');
     if (!saved) {
@@ -323,11 +365,10 @@ class ApiService {
       if (query) url.searchParams.set('q', query);
       if (tagFilter) url.searchParams.set('tag', tagFilter);
       const res = await this.authFetch(url.toString());
-      if (res.ok) return await res.json();
+      if (!res.ok) throw await this.apiError(res);
+      return await res.json();
     } catch (err) {
-      // Backend not running -> fallback to LocalStorage. A verification
-      // refusal is not an outage and must not reach the mock data.
-      this.rethrowIfBlocked(err);
+      this.fallbackOrThrow(err);
     }
 
     let clients = this.getLocalClients();
@@ -352,8 +393,10 @@ class ApiService {
     try {
       const res = await this.authFetch(`${API_BASE_URL}/clients/${id}`);
       if (res.ok) return await res.json();
+      if (res.status === 404) return null;
+      throw await this.apiError(res);
     } catch (err) {
-      this.rethrowIfBlocked(err);
+      this.fallbackOrThrow(err);
     }
     const clients = this.getLocalClients();
     return clients.find(c => c.id === id) || null;
@@ -366,9 +409,10 @@ class ApiService {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(input)
       });
-      if (res.ok) return await res.json();
+      if (!res.ok) throw await this.apiError(res);
+      return await res.json();
     } catch (err) {
-      this.rethrowIfBlocked(err);
+      this.fallbackOrThrow(err);
     }
 
     const clients = this.getLocalClients();
@@ -395,9 +439,10 @@ class ApiService {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(input)
       });
-      if (res.ok) return await res.json();
+      if (!res.ok) throw await this.apiError(res);
+      return await res.json();
     } catch (err) {
-      this.rethrowIfBlocked(err);
+      this.fallbackOrThrow(err);
     }
 
     const clients = this.getLocalClients();
@@ -416,9 +461,10 @@ class ApiService {
 
   async deleteClient(id: string): Promise<void> {
     try {
-      await this.authFetch(`${API_BASE_URL}/clients/${id}`, { method: 'DELETE' });
+      const res = await this.authFetch(`${API_BASE_URL}/clients/${id}`, { method: 'DELETE' });
+      if (!res.ok) throw await this.apiError(res);
     } catch (err) {
-      this.rethrowIfBlocked(err);
+      this.fallbackOrThrow(err);
     }
 
     const clients = this.getLocalClients().filter(c => c.id !== id);
@@ -432,12 +478,11 @@ class ApiService {
       const url = new URL(`${API_BASE_URL}/visits`);
       if (clientId) url.searchParams.set('clientId', clientId);
       const res = await this.authFetch(url.toString());
-      if (res.ok) {
-        const visits: Visit[] = await res.json();
-        return visits.map(visit => this.normalizeVisit(visit));
-      }
+      if (!res.ok) throw await this.apiError(res);
+      const visits: Visit[] = await res.json();
+      return await Promise.all(visits.map(visit => this.hydrateVisitAttachments(visit)));
     } catch (err) {
-      this.rethrowIfBlocked(err);
+      this.fallbackOrThrow(err);
     }
 
     let visits = this.getLocalVisits();
@@ -454,9 +499,10 @@ class ApiService {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(input)
       });
-      if (res.ok) return await res.json();
+      if (!res.ok) throw await this.apiError(res);
+      return await res.json();
     } catch (err) {
-      this.rethrowIfBlocked(err);
+      this.fallbackOrThrow(err);
     }
 
     const visits = this.getLocalVisits();
@@ -501,9 +547,10 @@ class ApiService {
         method: 'POST',
         body: formData
       });
-      if (res.ok) return await res.json();
+      if (!res.ok) throw await this.apiError(res);
+      return await this.hydrateAttachment(await res.json());
     } catch (err) {
-      this.rethrowIfBlocked(err);
+      this.fallbackOrThrow(err);
     }
 
     const visits = this.getLocalVisits();
