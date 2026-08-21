@@ -71,17 +71,13 @@ class RefreshTokenService(
         val userId = row[RefreshTokensTable.userId]
         val familyId = row[RefreshTokensTable.familyId]
 
-        // A spent token being presented again means one of two things: a stolen
-        // copy is being replayed, or the real client's replacement never
-        // arrived. Both warrant killing the family — the first because it is an
-        // active attack, the second because we cannot tell it apart from one.
+        // A token observed as spent before the claim attempt is rejected.  Do
+        // not revoke the whole family here: a second refresh from another tab
+        // can race the first request and arrive after it spent this token.
+        // The conditional update below is the single-use gate, so only one
+        // request can win without turning an ordinary retry into a logout.
         if (row[RefreshTokensTable.revokedAt] != null) {
-            log.warn(
-                "Refresh token reuse detected for user {} (family {}). Revoking the entire family.",
-                userId,
-                familyId
-            )
-            revokeFamily(familyId)
+            log.info("Rejected an already-spent refresh token for user {} (family {}).", userId, familyId)
             return RotationResult.Rejected
         }
 
@@ -92,11 +88,18 @@ class RefreshTokenService(
         // Spend the presented token before minting its replacement, so a crash
         // between the two leaves the user logged out rather than holding a
         // token that can be replayed.
-        dbQuery {
-            RefreshTokensTable.update({ RefreshTokensTable.id eq row[RefreshTokensTable.id] }) {
+        val claimed = dbQuery {
+            RefreshTokensTable.update({
+                (RefreshTokensTable.id eq row[RefreshTokensTable.id]) and
+                    RefreshTokensTable.revokedAt.isNull()
+            }) {
                 it[revokedAt] = now
             }
         }
+        // The zero-row result means another concurrent request consumed it
+        // after our SELECT.  Reject just this retry; never revoke the session
+        // family for a benign multi-tab race.
+        if (claimed == 0) return RotationResult.Rejected
 
         return RotationResult.Rotated(userId, issue(userId, familyId))
     }
@@ -122,16 +125,6 @@ class RefreshTokenService(
         dbQuery {
             RefreshTokensTable.update(
                 { RefreshTokensTable.userId eq userId and RefreshTokensTable.revokedAt.isNull() }
-            ) {
-                it[revokedAt] = LocalDateTime.now()
-            }
-        }
-    }
-
-    private suspend fun revokeFamily(familyId: String) {
-        dbQuery {
-            RefreshTokensTable.update(
-                { RefreshTokensTable.familyId eq familyId and RefreshTokensTable.revokedAt.isNull() }
             ) {
                 it[revokedAt] = LocalDateTime.now()
             }
