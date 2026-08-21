@@ -102,16 +102,6 @@ server {
         include /etc/nginx/proxy_params_aura.conf;
     }
 
-    # --- Uploaded attachment files ----------------------------------------
-    location /uploads/ {
-        proxy_pass http://backend:8080;
-        include /etc/nginx/proxy_params_aura.conf;
-        # `expires` rather than `add_header Cache-Control`: any add_header in a
-        # location block silently discards the security headers inherited from
-        # the server block.
-        expires 30d;
-    }
-
     # --- Everything else: the React SPA ------------------------------------
     location / {
         proxy_pass http://web:80;

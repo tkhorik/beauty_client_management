@@ -1,6 +1,7 @@
 package com.beauty.routes
 
 import com.beauty.auth.MembershipService
+import com.beauty.config.AppSettings
 import com.beauty.db.AttachmentsTable
 import com.beauty.db.ClientsTable
 import com.beauty.db.DatabaseFactory.dbQuery
@@ -31,18 +32,25 @@ private fun OrgContext.visitScope(): Op<Boolean> =
 
 /** Reads a visit's attachments. Callers must have already scoped the visit itself. */
 private fun attachmentsFor(visitId: String): List<AttachmentDto> =
-    AttachmentsTable.select { AttachmentsTable.visitId eq visitId }.map { attRow ->
+    attachmentsForVisits(listOf(visitId))[visitId].orEmpty()
+
+/** Reads attachments for a page of visits in one query, avoiding an N+1 loop. */
+private fun attachmentsForVisits(visitIds: List<String>): Map<String, List<AttachmentDto>> {
+    if (visitIds.isEmpty()) return emptyMap()
+    return AttachmentsTable.select { AttachmentsTable.visitId inList visitIds }
+        .map { attRow ->
         AttachmentDto(
             id = attRow[AttachmentsTable.id],
             visitId = attRow[AttachmentsTable.visitId],
-            fileUrl = attRow[AttachmentsTable.fileUrl],
+            fileUrl = attachmentDownloadUrl(attRow[AttachmentsTable.id]),
             fileType = attRow[AttachmentsTable.fileType],
             fileSize = attRow[AttachmentsTable.fileSize],
             caption = attRow[AttachmentsTable.caption],
             tag = attRow[AttachmentsTable.tag],
             uploadedAt = attRow[AttachmentsTable.uploadedAt].toString()
         )
-    }
+    }.groupBy { it.visitId }
+}
 
 /**
  * Visit records, scoped to one organization.
@@ -58,6 +66,8 @@ fun Route.visitRoutes() {
         get {
             val ctx = requireOrgAccess(memberships, allowGlobal = true) ?: return@get
             val clientId = call.request.queryParameters["clientId"]
+            val limit = call.pageLimit()
+            val offset = call.pageOffset()
 
             val visits = dbQuery {
                 // `clientId` narrows the result but does not authorize it. The
@@ -70,20 +80,24 @@ fun Route.visitRoutes() {
                     ctx.visitScope()
                 }
 
-                VisitsTable.select { predicate }
+                val page = VisitsTable.select { predicate }
                     .orderBy(VisitsTable.visitDateTime to SortOrder.DESC)
-                    .map { row ->
-                        val visitId = row[VisitsTable.id]
-                        VisitDto(
-                            id = visitId,
-                            clientId = row[VisitsTable.clientId],
-                            visitDateTime = row[VisitsTable.visitDateTime].toString(),
-                            durationMinutes = row[VisitsTable.durationMinutes],
-                            procedureNotes = row[VisitsTable.procedureNotes],
-                            status = row[VisitsTable.status],
-                            attachments = attachmentsFor(visitId),
-                            createdAt = row[VisitsTable.createdAt].toString()
-                        )
+                    .limit(limit, offset)
+                    .toList()
+                val attachments = attachmentsForVisits(page.map { it[VisitsTable.id] })
+
+                page.map { row ->
+                    val visitId = row[VisitsTable.id]
+                    VisitDto(
+                        id = visitId,
+                        clientId = row[VisitsTable.clientId],
+                        visitDateTime = row[VisitsTable.visitDateTime].toString(),
+                        durationMinutes = row[VisitsTable.durationMinutes],
+                        procedureNotes = row[VisitsTable.procedureNotes],
+                        status = row[VisitsTable.status],
+                        attachments = attachments[visitId].orEmpty(),
+                        createdAt = row[VisitsTable.createdAt].toString()
+                    )
                     }
             }
             call.respond(visits)
@@ -226,7 +240,7 @@ fun Route.visitRoutes() {
             val ctx = requireOrgAccess(memberships, allowGlobal = true) ?: return@delete
             val id = call.parameters["id"] ?: return@delete call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Missing ID"))
 
-            val count = dbQuery {
+            val deletedFiles = dbQuery {
                 // Prove the visit is in scope before removing its attachments,
                 // so a foreign id cannot destroy another organization's files
                 // on the way to a 404.
@@ -234,14 +248,21 @@ fun Route.visitRoutes() {
                     .select { (VisitsTable.id eq id) and ctx.visitScope() }
                     .singleOrNull()
                 if (visible == null) {
-                    0
+                    null
                 } else {
-                    AttachmentsTable.deleteWhere { AttachmentsTable.visitId eq id }
-                    VisitsTable.deleteWhere { VisitsTable.id eq id }
+                    val files = AttachmentsTable
+                        .select { AttachmentsTable.visitId eq id }
+                        .map { it[AttachmentsTable.fileUrl] }
+                    if (VisitsTable.deleteWhere { VisitsTable.id eq id } > 0) files else null
                 }
             }
 
-            if (count > 0) {
+            if (deletedFiles != null) {
+                deletedFiles.forEach { storedPath ->
+                    storedAttachmentFile(AppSettings(application.environment.config).uploadDir, storedPath)?.let { file ->
+                        if (file.exists() && !file.delete()) application.log.error("Could not delete attachment file {}", file)
+                    }
+                }
                 call.respond(HttpStatusCode.OK, mapOf("message" to "Visit deleted successfully"))
             } else {
                 call.respond(HttpStatusCode.NotFound, mapOf("error" to "Visit not found"))

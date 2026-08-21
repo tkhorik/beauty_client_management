@@ -18,7 +18,7 @@ Beauty client and visit management monorepo with three runnable targets:
 
 The app now requires login before accessing client data.
 
-- The backend protects all `/api/clients`, `/api/visits`, and `/api/attachments` routes with JWT authentication. Requests without a valid Bearer token receive `401 Unauthorized`.
+- The backend protects all `/api/clients`, `/api/visits`, and `/api/attachments` routes with JWT authentication. Requests without a valid Bearer token receive `401 Unauthorized`. Attachment bytes are served only through `GET /api/attachments/{id}/file`; `/uploads/` is not publicly served.
 - `/api/auth/register`, `/login`, `/refresh` and `/logout` are public. `/logout-all` requires a token.
 - A valid token is no longer sufficient on its own — every data route is also scoped to an **organization**. See the next section.
 - **Registration rules**: passwords must be at least 12 characters and at most 72 bytes (BCrypt ignores anything beyond that). Emails are stored lowercase, so `Owner@x.com` and `owner@x.com` are the same account. Invalid input returns `400` with a `{"errors": {"<field>": "<message>"}}` body.

@@ -104,6 +104,8 @@ object DatabaseFactory {
      * needs `003_admin_panel_and_org_creation_links.sql` for the same reason;
      * `OrganizationCreationTokensTable` itself is a brand-new table, so it
      * appears here automatically like `OneTimeTokensTable` did originally.
+     * Finally, `005_attachment_integrity_and_indexes.sql` upgrades existing
+     * visit/attachment foreign keys to cascade and adds the lookup indexes.
      */
     private fun createSchema() = transaction(database) {
         SchemaUtils.create(
