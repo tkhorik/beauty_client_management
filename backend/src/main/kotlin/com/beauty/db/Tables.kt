@@ -1,6 +1,7 @@
 package com.beauty.db
 
 import org.jetbrains.exposed.sql.Table
+import org.jetbrains.exposed.sql.ReferenceOption
 import org.jetbrains.exposed.sql.javatime.datetime
 import org.jetbrains.exposed.sql.json.jsonb
 import kotlinx.serialization.json.JsonObject
@@ -296,7 +297,9 @@ object ClientsTable : Table("clients") {
 
 object VisitsTable : Table("visits") {
     val id = varchar("id", 64)
-    val clientId = varchar("client_id", 64).references(ClientsTable.id)
+    val clientId = varchar("client_id", 64)
+        .references(ClientsTable.id, onDelete = ReferenceOption.CASCADE)
+        .index()
 
     /**
      * Denormalised copy of the parent client's organization.
@@ -324,7 +327,9 @@ object VisitsTable : Table("visits") {
 
 object AttachmentsTable : Table("attachments") {
     val id = varchar("id", 64)
-    val visitId = varchar("visit_id", 64).references(VisitsTable.id)
+    val visitId = varchar("visit_id", 64)
+        .references(VisitsTable.id, onDelete = ReferenceOption.CASCADE)
+        .index()
     val fileUrl = varchar("file_url", 512)
     val fileType = varchar("file_type", 100)
     val fileSize = long("file_size")

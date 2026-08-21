@@ -11,7 +11,6 @@ import com.beauty.routes.userRoutes
 import com.beauty.routes.visitRoutes
 import io.ktor.http.*
 import io.ktor.server.application.*
-import io.ktor.server.http.content.*
 import io.ktor.server.plugins.cors.routing.*
 import io.ktor.server.plugins.forwardedheaders.*
 import io.ktor.server.plugins.statuspages.*
@@ -156,9 +155,6 @@ fun Application.configureRouting() {
         get("/health") {
             call.respond(HttpStatusCode.OK, mapOf("status" to "ok"))
         }
-
-        // Serve uploaded attachment files from the configured upload directory.
-        staticFiles("/uploads", settings.uploadDir)
 
         authRoutes()
 

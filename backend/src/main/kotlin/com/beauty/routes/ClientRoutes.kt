@@ -1,6 +1,8 @@
 package com.beauty.routes
 
 import com.beauty.auth.MembershipService
+import com.beauty.config.AppSettings
+import com.beauty.db.AttachmentsTable
 import com.beauty.db.ClientsTable
 import com.beauty.db.DatabaseFactory.dbQuery
 import com.beauty.db.VisitsTable
@@ -14,6 +16,7 @@ import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.like
 import java.time.LocalDateTime
 import java.util.UUID
 
@@ -54,11 +57,33 @@ fun Route.clientRoutes() {
 
             val q = call.request.queryParameters["q"]?.lowercase()?.trim()
             val tag = call.request.queryParameters["tag"]?.lowercase()?.trim()
+            val limit = call.pageLimit()
+            val offset = call.pageOffset()
 
             val clients = dbQuery {
-                ClientsTable.select { ctx.clientScope() }.map { row ->
+                var predicate: Op<Boolean> = ctx.clientScope()
+                if (!q.isNullOrEmpty()) {
+                    val pattern = "%${q.escapeLike()}%"
+                    predicate = predicate and (
+                        (ClientsTable.name.lowerCase() like pattern) or
+                            (ClientsTable.phone.lowerCase() like pattern) or
+                            (ClientsTable.email.lowerCase() like pattern) or
+                            (ClientsTable.tags.lowerCase() like pattern)
+                    )
+                }
+                if (!tag.isNullOrEmpty()) {
+                    predicate = predicate and (ClientsTable.tags.lowerCase() like "%${tag.escapeLike()}%")
+                }
+
+                val visitCount = VisitsTable.id.count()
+                (ClientsTable leftJoin VisitsTable)
+                    .slice(ClientsTable.columns + visitCount)
+                    .select { predicate }
+                    .groupBy(*ClientsTable.columns.toTypedArray())
+                    .orderBy(ClientsTable.updatedAt to SortOrder.DESC)
+                    .limit(limit, offset)
+                    .map { row ->
                     val clientId = row[ClientsTable.id]
-                    val totalVisits = VisitsTable.select { VisitsTable.clientId eq clientId }.count().toInt()
                     val tagsList = row[ClientsTable.tags].split(",").map { it.trim() }.filter { it.isNotEmpty() }
 
                     ClientDto(
@@ -68,25 +93,11 @@ fun Route.clientRoutes() {
                         email = row[ClientsTable.email],
                         tags = tagsList,
                         customFields = row[ClientsTable.customFields],
-                        totalVisits = totalVisits,
+                        totalVisits = row[visitCount].toInt(),
                         createdAt = row[ClientsTable.createdAt].toString(),
                         updatedAt = row[ClientsTable.updatedAt].toString()
                     )
                 }
-            }.filter { client ->
-                var matches = true
-                if (!q.isNullOrEmpty()) {
-                    val inName = client.name.lowercase().contains(q)
-                    val inPhone = client.phone.lowercase().contains(q)
-                    val inEmail = client.email?.lowercase()?.contains(q) == true
-                    val inTags = client.tags.any { it.lowercase().contains(q) }
-                    val inCustomFields = client.customFields.toString().lowercase().contains(q)
-                    matches = inName || inPhone || inEmail || inTags || inCustomFields
-                }
-                if (matches && !tag.isNullOrEmpty()) {
-                    matches = client.tags.any { it.lowercase() == tag }
-                }
-                matches
             }
 
             call.respond(clients)
@@ -226,7 +237,7 @@ fun Route.clientRoutes() {
             val ctx = requireOrgAccess(memberships, allowGlobal = true) ?: return@delete
             val id = call.parameters["id"] ?: return@delete call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Missing ID"))
 
-            val count = dbQuery {
+            val deletedFiles = dbQuery {
                 // Confirm the client is in scope *before* deleting its visits.
                 // Deleting the children first and only then discovering the
                 // parent belongs to another organization would already have
@@ -235,14 +246,22 @@ fun Route.clientRoutes() {
                     .select { (ClientsTable.id eq id) and ctx.clientScope() }
                     .singleOrNull()
                 if (visible == null) {
-                    0
+                    null
                 } else {
-                    VisitsTable.deleteWhere { VisitsTable.clientId eq id }
-                    ClientsTable.deleteWhere { ClientsTable.id eq id }
+                    val files = (AttachmentsTable innerJoin VisitsTable)
+                        .select { VisitsTable.clientId eq id }
+                        .map { it[AttachmentsTable.fileUrl] }
+                    if (ClientsTable.deleteWhere { ClientsTable.id eq id } > 0) files else null
                 }
             }
 
-            if (count > 0) {
+            if (deletedFiles != null) {
+                val uploadDir = AppSettings(application.environment.config).uploadDir
+                deletedFiles.forEach { storedPath ->
+                    storedAttachmentFile(uploadDir, storedPath)?.let { file ->
+                        if (file.exists() && !file.delete()) application.log.error("Could not delete attachment file {}", file)
+                    }
+                }
                 call.respond(HttpStatusCode.OK, mapOf("message" to "Client deleted successfully"))
             } else {
                 call.respond(HttpStatusCode.NotFound, mapOf("error" to "Client not found"))
@@ -250,3 +269,6 @@ fun Route.clientRoutes() {
         }
     }
 }
+
+/** Escapes SQL LIKE metacharacters before putting user input in a pattern. */
+private fun String.escapeLike(): String = replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
