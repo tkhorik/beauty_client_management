@@ -353,7 +353,7 @@ trade for this cutover. If you are reading this with data you care about, do not
 run it as-is — take a `pg_dump` first, then rewrite it to create one
 organization, `UPDATE` the rows to point at it, and add the constraint last.
 
-`003` must run before `004`: the write gate reads `users.suspended_at` and
+`003` must run before `004`: the verification gate reads `users.suspended_at` and
 `email_verified_at` from the same row, so a backend deployed against a database
 missing the first column 500s on every authorized request.
 
@@ -370,8 +370,17 @@ Run it in this order, and do not compress the steps:
    tells users they must re-verify — the migration sends no mail and there is no
    bulk mailer in this repo.
 4. Set `EMAIL_VERIFICATION_ENFORCED_FROM` to a timestamp and restart. Every
-   account gets `VERIFICATION_GRACE_DAYS` from that moment, not from its
-   creation date, so nobody is restricted the instant you flip it.
+   account that already exists gets `VERIFICATION_GRACE_DAYS` from that moment,
+   not from its creation date, so nobody is restricted the instant you flip it.
+   Accounts registered *after* that timestamp get no grace at all — they are
+   restricted until they confirm, which is the point of the feature.
+
+Once enforcement is on, a restricted account is refused every
+organization-scoped request, reads included, and its client replaces the app
+with a "confirm your email" screen. `POST /api/auth/resend-verification`,
+`GET /api/users/me`, `POST /api/users/me/password` and the logout routes stay
+open — they are the only way off that screen, and
+`EmailVerificationEnforcementTest` pins each one.
 
 To back out: unset the variable and restart. That restores unrestricted access
 immediately. The cleared timestamps cannot be restored — take a `pg_dump` before

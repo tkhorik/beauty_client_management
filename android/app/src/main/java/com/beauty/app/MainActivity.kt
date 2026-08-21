@@ -55,6 +55,7 @@ import com.beauty.app.ui.org.OrganizationViewModel
 import com.beauty.app.ui.settings.SettingsScreen
 import com.beauty.app.ui.settings.SettingsViewModel
 import com.beauty.app.ui.verification.VerificationBanner
+import com.beauty.app.ui.verification.VerificationGate
 import com.beauty.app.ui.theme.*
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
@@ -158,59 +159,85 @@ fun AppNavHost() {
         }
 
         composable("clients") {
-            // Clients belong to an organization, so with none selected there is
-            // nothing to show and every request would come back
-            // MISSING_ORGANIZATION. Send the user somewhere they can act on it
-            // instead of to an empty list that never loads.
-            val activeOrgId = orgViewModel.activeOrgId
-            if (!orgViewModel.loading && activeOrgId == null) {
+            // Wrapped in the verification gate rather than gated inside
+            // BeautyAppScreen: a restricted account is refused the organization
+            // list as well as the clients, so the branch below would send it to
+            // the organization picker — a screen that cannot load either, and
+            // that explains nothing about why.
+            VerificationGate(
+                repository = repository,
+                onLogout = {
+                    authViewModel.logout {
+                        navController.navigate("login") { popUpTo(0) { inclusive = true } }
+                    }
+                }
+            ) content@ {
+                // Clients belong to an organization, so with none selected there is
+                // nothing to show and every request would come back
+                // MISSING_ORGANIZATION. Send the user somewhere they can act on it
+                // instead of to an empty list that never loads.
+                val activeOrgId = orgViewModel.activeOrgId
+                if (!orgViewModel.loading && activeOrgId == null) {
+                    OrganizationScreen(
+                        viewModel = orgViewModel,
+                        onDone = null,
+                        onLogout = {
+                            authViewModel.logout {
+                                navController.navigate("login") { popUpTo(0) { inclusive = true } }
+                            }
+                        }
+                    )
+                    return@content
+                }
+
+                BeautyAppScreen(
+                    tokenStore = tokenStore,
+                    // Keying the screen on the organization means switching salons
+                    // rebuilds it, rather than leaving the previous one's search
+                    // text and selection sitting over the new one's data.
+                    organizationId = activeOrgId ?: return@content,
+                    onClientTap = { clientId ->
+                        navController.navigate("edit_client/$clientId")
+                    },
+                    onOpenSettings = { navController.navigate("settings") },
+                    onOpenOrganizations = { navController.navigate("organizations") },
+                    onLogout = {
+                        // Revokes the refresh token server-side before clearing it
+                        // locally; navigation waits for that so the user is never
+                        // returned to the login screen while still holding a live
+                        // session. Failures still clear locally — see the ViewModel.
+                        authViewModel.logout {
+                            navController.navigate("login") {
+                                popUpTo(0) { inclusive = true }
+                            }
+                        }
+                    }
+                )
+            }
+        }
+
+        composable("organizations") {
+            // Same gate: joining or switching organizations is refused for an
+            // unverified account, so this destination has nothing to show it
+            // either.
+            VerificationGate(
+                repository = repository,
+                onLogout = {
+                    authViewModel.logout {
+                        navController.navigate("login") { popUpTo(0) { inclusive = true } }
+                    }
+                }
+            ) {
                 OrganizationScreen(
                     viewModel = orgViewModel,
-                    onDone = null,
+                    onDone = { navController.popBackStack() },
                     onLogout = {
                         authViewModel.logout {
                             navController.navigate("login") { popUpTo(0) { inclusive = true } }
                         }
                     }
                 )
-                return@composable
             }
-
-            BeautyAppScreen(
-                tokenStore = tokenStore,
-                // Keying the screen on the organization means switching salons
-                // rebuilds it, rather than leaving the previous one's search
-                // text and selection sitting over the new one's data.
-                organizationId = activeOrgId ?: return@composable,
-                onClientTap = { clientId ->
-                    navController.navigate("edit_client/$clientId")
-                },
-                onOpenSettings = { navController.navigate("settings") },
-                onOpenOrganizations = { navController.navigate("organizations") },
-                onLogout = {
-                    // Revokes the refresh token server-side before clearing it
-                    // locally; navigation waits for that so the user is never
-                    // returned to the login screen while still holding a live
-                    // session. Failures still clear locally — see the ViewModel.
-                    authViewModel.logout {
-                        navController.navigate("login") {
-                            popUpTo(0) { inclusive = true }
-                        }
-                    }
-                }
-            )
-        }
-
-        composable("organizations") {
-            OrganizationScreen(
-                viewModel = orgViewModel,
-                onDone = { navController.popBackStack() },
-                onLogout = {
-                    authViewModel.logout {
-                        navController.navigate("login") { popUpTo(0) { inclusive = true } }
-                    }
-                }
-            )
         }
 
         composable("settings") {

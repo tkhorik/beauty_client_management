@@ -25,19 +25,30 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
- * End-to-end tests for the read-only restriction on unverified accounts.
+ * End-to-end tests for the restriction on unverified accounts.
  *
  * Driven over HTTP against the real module for the same reason as
  * `OrganizationIsolationTest`: the property under test is "the *endpoint*
- * refuses". The gate is derived from the HTTP method inside `requireOrgAccess`,
- * so a unit test of the policy — which exists separately in
+ * refuses". The gate lives inside `requireOrgAccess`/`requireActiveAccount`, so
+ * a unit test of the policy — which exists separately in
  * `auth/VerificationPolicyTest` — cannot tell you whether any given route
  * actually consults it.
  *
- * Most tests run with `graceDays = 0` so "unverified" and "restricted" coincide
- * without any waiting. The grace window itself is tested against a fixed clock
- * in the unit test; duplicating that here would mean either a sleep or a fake
- * clock threaded through the application, both worse than the split.
+ * The suite is organised around the two halves of the feature that can each
+ * break silently:
+ *  - **the wall** — every organization-scoped route refuses an unverified
+ *    account, reads included. A regression here is a privacy hole and produces
+ *    no error anywhere.
+ *  - **the escape hatches** — the handful of routes a walled-off user must
+ *    still reach to get out of the wall. A regression here strands the user
+ *    with a screen whose buttons do nothing, which is worse than not shipping
+ *    the feature.
+ *
+ * Most tests run with `graceDays = 0` so "unverified" and "restricted"
+ * coincide without any waiting. The grace window itself is tested against a
+ * fixed clock in the unit test; duplicating that here would mean either a
+ * sleep or a fake clock threaded through the application, both worse than the
+ * split.
  */
 class EmailVerificationEnforcementTest {
 
@@ -102,6 +113,45 @@ class EmailVerificationEnforcementTest {
     }
 
     /**
+     * Clears the verified flag, the way `004_email_verification_enforcement.sql`
+     * does to the whole table on the day enforcement is switched on.
+     *
+     * Needed because an unverified account can no longer *join* an
+     * organization — the wall covers that route too. Setting a membership up
+     * therefore means verifying, joining, and then dropping back to
+     * unverified, which is not a contrivance: it is exactly the state every
+     * existing member is in the moment that migration runs.
+     */
+    private suspend fun unverify(email: String) {
+        dbQuery {
+            UsersTable.update({ UsersTable.email eq email }) {
+                it[emailVerifiedAt] = null
+            }
+        }
+    }
+
+    /**
+     * Backdates an account's creation, making it a *legacy* account in the
+     * policy's eyes — one that predates enforcement and therefore gets a grace
+     * window rather than an immediate wall.
+     *
+     * There is no other way to reach that state in a test: a row inserted by
+     * `/register` during the test run is necessarily newer than any
+     * `enforcedFrom` the app can already be running with.
+     */
+    private suspend fun backdateCreation(email: String, to: LocalDateTime) {
+        dbQuery {
+            UsersTable.update({ UsersTable.email eq email }) {
+                it[createdAt] = to
+            }
+        }
+    }
+
+    private suspend fun userIdOf(email: String): String = dbQuery {
+        UsersTable.select { UsersTable.email eq email }.single()[UsersTable.id]
+    }
+
+    /**
      * Mints an organization-creation token, mirroring `OrganizationIsolationTest`.
      *
      * Organization creation stopped being self-service when the admin panel
@@ -132,12 +182,46 @@ class EmailVerificationEnforcementTest {
         return Json.parseToJsonElement(response.bodyAsText()).jsonObject["id"]!!.jsonPrimitive.content
     }
 
+    /**
+     * Puts [email] into [orgId] as an approved member and leaves them
+     * unverified — the state the wall is about.
+     */
+    private suspend fun ApplicationTestBuilder.joinAsUnverifiedMember(
+        email: String,
+        memberToken: String,
+        adminToken: String,
+        orgId: String,
+        slug: String
+    ) {
+        verify(email)
+        val join = client.post("/api/organizations/join-requests") {
+            bearerAuth(memberToken)
+            contentType(ContentType.Application.Json)
+            setBody("""{"slug":"$slug"}""")
+        }
+        assertEquals(HttpStatusCode.OK, join.status, "join request failed: ${join.bodyAsText()}")
+
+        val approval = client.post("/api/organizations/$orgId/members/${userIdOf(email)}/approval") {
+            bearerAuth(adminToken)
+            header(ORG_HEADER, orgId)
+        }
+        assertEquals(HttpStatusCode.OK, approval.status, "approval failed: ${approval.bodyAsText()}")
+
+        unverify(email)
+    }
+
     private suspend fun ApplicationTestBuilder.postClient(token: String, orgId: String, name: String) =
         client.post("/api/clients") {
             bearerAuth(token)
             header(ORG_HEADER, orgId)
             contentType(ContentType.Application.Json)
             setBody("""{"name":"$name","phone":"+1 555 0100"}""")
+        }
+
+    private suspend fun ApplicationTestBuilder.getClients(token: String, orgId: String) =
+        client.get("/api/clients") {
+            bearerAuth(token)
+            header(ORG_HEADER, orgId)
         }
 
     /** The `code` field of an error body, or null if the body has none. */
@@ -147,50 +231,30 @@ class EmailVerificationEnforcementTest {
         }.getOrNull()
 
     // -----------------------------------------------------------------------
-    // The core restriction
+    // The wall
     // -----------------------------------------------------------------------
 
     @Test
-    fun `an unverified user can read but cannot write`() = testApplication {
+    fun `an unverified member is refused reads as well as writes`() = testApplication {
         startApp()
 
-        // Alice verifies so she can set the organization up; Bob does not.
+        // Alice verifies so she can set the organization up; Bob ends up in it
+        // as an approved member whose address has never been confirmed.
         val alice = register("alice@example.com")
         verify("alice@example.com")
         val orgId = createOrg(alice, "salon-a")
-
-        // Alice, verified, writes normally.
         assertEquals(HttpStatusCode.Created, postClient(alice, orgId, "Real Client").status)
 
-        // Bob joins and is approved, then finds himself read-only.
         val bob = register("bob@example.com")
-        val join = client.post("/api/organizations/join-requests") {
-            bearerAuth(bob)
-            contentType(ContentType.Application.Json)
-            setBody("""{"slug":"salon-a"}""")
-        }
-        assertEquals(HttpStatusCode.OK, join.status, "joining must stay open to unverified accounts")
+        joinAsUnverifiedMember("bob@example.com", bob, alice, orgId, "salon-a")
 
-        val bobUserId = dbQuery {
-            UsersTable.select { UsersTable.email eq "bob@example.com" }.single()[UsersTable.id]
-        }
-        assertEquals(
-            HttpStatusCode.OK,
-            client.post("/api/organizations/$orgId/members/$bobUserId/approval") {
-                bearerAuth(alice)
-                header(ORG_HEADER, orgId)
-            }.status
-        )
+        // The read is the case that regressed silently under the old
+        // write-only gate: Bob is a genuine member of this salon, so nothing
+        // else in the stack refuses him. Only the verification gate does.
+        val read = getClients(bob, orgId)
+        assertEquals(HttpStatusCode.Forbidden, read.status, "an unverified member must not read client records")
+        assertEquals("EMAIL_NOT_VERIFIED", read.code())
 
-        // Reads: allowed. This is the whole point of read-only rather than a
-        // hard block — the salon can still look up a client's history.
-        val read = client.get("/api/clients") {
-            bearerAuth(bob)
-            header(ORG_HEADER, orgId)
-        }
-        assertEquals(HttpStatusCode.OK, read.status, "an unverified member must keep read access")
-
-        // Writes: refused, with a code the clients can match on.
         val write = postClient(bob, orgId, "Bob Client")
         assertEquals(HttpStatusCode.Forbidden, write.status)
         val body = Json.parseToJsonElement(write.bodyAsText()).jsonObject
@@ -199,90 +263,51 @@ class EmailVerificationEnforcementTest {
     }
 
     @Test
-    fun `verifying lifts the restriction without signing in again`() = testApplication {
+    fun `a brand-new signup is restricted from its very first request`() = testApplication {
+        // The requirement in one test: verification is mandatory, not
+        // eventually mandatory. `graceDays = 7` is deliberately generous here —
+        // if the grace window leaked into new registrations, this would pass
+        // for a week and then start failing in production.
+        startApp(enforcedFrom = LocalDateTime.now().minusDays(30), graceDays = 7)
+
+        val admin = register("admin@example.com")
+        verify("admin@example.com")
+        val orgId = createOrg(admin, "salon-a")
+
+        val newcomer = register("newcomer@example.com")
+        val response = client.get("/api/organizations") { bearerAuth(newcomer) }
+
+        assertEquals(HttpStatusCode.Forbidden, response.status)
+        assertEquals("EMAIL_NOT_VERIFIED", response.code())
+        assertEquals(HttpStatusCode.Forbidden, getClients(newcomer, orgId).status)
+    }
+
+    @Test
+    fun `an unverified user cannot list or join organizations`() = testApplication {
+        // These two used to be open on purpose, so that an invited user landed
+        // inside the organization read-only rather than stranded outside it.
+        // Read-only is no longer a state this system has, so the exemption
+        // would now only let a walled account accumulate memberships it cannot
+        // use.
         startApp()
 
         val alice = register("alice@example.com")
         verify("alice@example.com")
-        val orgId = createOrg(alice, "salon-a")
+        createOrg(alice, "salon-a")
 
         val bob = register("bob@example.com")
-        client.post("/api/organizations/join-requests") {
+
+        val list = client.get("/api/organizations") { bearerAuth(bob) }
+        assertEquals(HttpStatusCode.Forbidden, list.status)
+        assertEquals("EMAIL_NOT_VERIFIED", list.code())
+
+        val join = client.post("/api/organizations/join-requests") {
             bearerAuth(bob)
             contentType(ContentType.Application.Json)
             setBody("""{"slug":"salon-a"}""")
         }
-        val bobUserId = dbQuery {
-            UsersTable.select { UsersTable.email eq "bob@example.com" }.single()[UsersTable.id]
-        }
-        client.post("/api/organizations/$orgId/members/$bobUserId/approval") {
-            bearerAuth(alice)
-            header(ORG_HEADER, orgId)
-        }
-
-        assertEquals(HttpStatusCode.Forbidden, postClient(bob, orgId, "Before").status)
-
-        verify("bob@example.com")
-
-        // Same access token as before. The gate reads the database on every
-        // request rather than trusting a claim in the JWT, so clicking the link
-        // in another tab takes effect immediately — no re-login, no waiting for
-        // the 15-minute token to lapse.
-        assertEquals(
-            HttpStatusCode.Created,
-            postClient(bob, orgId, "After").status,
-            "verification must take effect on the very next request"
-        )
-    }
-
-    @Test
-    fun `enforcement is off unless configured`() = testApplication {
-        // The kill switch, and the reason no existing test suite needed
-        // changing: with the variable unset the app behaves exactly as it did
-        // before this feature existed.
-        startApp(enforcedFrom = null)
-
-        val alice = register("alice@example.com")
-        val orgId = createOrg(alice, "salon-a")
-
-        assertEquals(
-            HttpStatusCode.Created,
-            postClient(alice, orgId, "Unverified But Allowed").status
-        )
-    }
-
-    @Test
-    fun `an unverified user inside the grace window can still write`() = testApplication {
-        startApp(enforcedFrom = LocalDateTime.now().minusHours(1), graceDays = 7)
-
-        val alice = register("alice@example.com")
-        val orgId = createOrg(alice, "salon-a")
-
-        assertEquals(
-            HttpStatusCode.Created,
-            postClient(alice, orgId, "Within Grace").status,
-            "the grace window is what stops a rollout locking everyone out on day one"
-        )
-    }
-
-    // -----------------------------------------------------------------------
-    // What stays open
-    // -----------------------------------------------------------------------
-
-    @Test
-    fun `a restricted user can still change their password`() = testApplication {
-        startApp()
-
-        val token = register("alice@example.com")
-
-        // Not a data write, and the action someone takes when they believe
-        // their account is compromised. Blocking it would be actively harmful.
-        val response = client.post("/api/users/me/password") {
-            bearerAuth(token)
-            contentType(ContentType.Application.Json)
-            setBody("""{"currentPassword":"a-long-enough-password","newPassword":"another-long-password"}""")
-        }
-        assertEquals(HttpStatusCode.OK, response.status, "password change must survive the restriction")
+        assertEquals(HttpStatusCode.Forbidden, join.status)
+        assertEquals("EMAIL_NOT_VERIFIED", join.code())
     }
 
     @Test
@@ -305,6 +330,154 @@ class EmailVerificationEnforcementTest {
         assertEquals("EMAIL_NOT_VERIFIED", response.code())
     }
 
+    @Test
+    fun `verifying lifts every restriction without signing in again`() = testApplication {
+        startApp()
+
+        val alice = register("alice@example.com")
+        verify("alice@example.com")
+        val orgId = createOrg(alice, "salon-a")
+
+        val bob = register("bob@example.com")
+        joinAsUnverifiedMember("bob@example.com", bob, alice, orgId, "salon-a")
+
+        assertEquals(HttpStatusCode.Forbidden, getClients(bob, orgId).status)
+        assertEquals(HttpStatusCode.Forbidden, postClient(bob, orgId, "Before").status)
+
+        verify("bob@example.com")
+
+        // Same access token as before. The gate reads the database on every
+        // request rather than trusting a claim in the JWT, so clicking the link
+        // in another tab takes effect immediately — no re-login, no waiting for
+        // the 15-minute token to lapse. That is what makes the wall's
+        // "I've verified" button work at all.
+        assertEquals(
+            HttpStatusCode.OK,
+            getClients(bob, orgId).status,
+            "verification must restore reads on the very next request"
+        )
+        assertEquals(
+            HttpStatusCode.Created,
+            postClient(bob, orgId, "After").status,
+            "verification must restore writes on the very next request"
+        )
+    }
+
+    // -----------------------------------------------------------------------
+    // The rollout safety valves
+    // -----------------------------------------------------------------------
+
+    @Test
+    fun `enforcement is off unless configured`() = testApplication {
+        // The kill switch, and the reason no existing test suite needed
+        // changing: with the variable unset the app behaves exactly as it did
+        // before this feature existed.
+        startApp(enforcedFrom = null)
+
+        val alice = register("alice@example.com")
+        val orgId = createOrg(alice, "salon-a")
+
+        assertEquals(HttpStatusCode.OK, getClients(alice, orgId).status)
+        assertEquals(
+            HttpStatusCode.Created,
+            postClient(alice, orgId, "Unverified But Allowed").status
+        )
+    }
+
+    @Test
+    fun `an account that predates enforcement keeps full access inside its grace window`() = testApplication {
+        // The other half of the design, and the one that keeps a switch-on from
+        // locking out every existing salon at once. Note the backdating: an
+        // account created *after* enforcement began would be walled
+        // immediately, which is the test above.
+        val enforcedFrom = LocalDateTime.now().minusDays(1)
+        startApp(enforcedFrom = enforcedFrom, graceDays = 7)
+
+        val alice = register("alice@example.com")
+        verify("alice@example.com")
+        val orgId = createOrg(alice, "salon-a")
+
+        val legacy = register("legacy@example.com")
+        joinAsUnverifiedMember("legacy@example.com", legacy, alice, orgId, "salon-a")
+        backdateCreation("legacy@example.com", enforcedFrom.minusMonths(6))
+
+        assertEquals(
+            HttpStatusCode.OK,
+            getClients(legacy, orgId).status,
+            "a pre-existing member must not be cut off the day enforcement is switched on"
+        )
+        assertEquals(
+            HttpStatusCode.Created,
+            postClient(legacy, orgId, "Within Grace").status,
+            "the grace window is what stops a rollout locking everyone out on day one"
+        )
+    }
+
+    // -----------------------------------------------------------------------
+    // The escape hatches
+    //
+    // Everything a walled-off user needs in order to stop being walled off.
+    // These routes resolve the caller with `call.userId()` and never touch
+    // `requireOrgAccess`, so the exemption is structural rather than a flag —
+    // but "structural" is exactly the kind of claim that stops being true
+    // during a refactor, which is why each one is pinned here.
+    // -----------------------------------------------------------------------
+
+    @Test
+    fun `a restricted user can still read their own profile`() = testApplication {
+        startApp()
+
+        val token = register("alice@example.com")
+        val response = client.get("/api/users/me") { bearerAuth(token) }
+
+        // The wall polls this to notice the link was clicked in another tab.
+        // Refusing it would make the "I've verified" button permanently wrong.
+        assertEquals(HttpStatusCode.OK, response.status, "the wall re-checks verification through this route")
+        val body = Json.parseToJsonElement(response.bodyAsText()).jsonObject
+        assertEquals(false, body["emailVerified"]!!.jsonPrimitive.content.toBoolean())
+        assertEquals("alice@example.com", body["email"]!!.jsonPrimitive.content)
+    }
+
+    @Test
+    fun `a restricted user can still request a new verification email`() = testApplication {
+        startApp()
+
+        val token = register("alice@example.com")
+        val response = client.post("/api/auth/resend-verification") { bearerAuth(token) }
+
+        // If this ever 403s, the wall becomes a dead end: the only account
+        // that needs a resend is by definition the one being refused.
+        assertEquals(HttpStatusCode.NoContent, response.status, "the resend button must work from behind the wall")
+    }
+
+    @Test
+    fun `a restricted user can still change their password`() = testApplication {
+        startApp()
+
+        val token = register("alice@example.com")
+
+        // Not a data write, and the action someone takes when they believe
+        // their account is compromised. Blocking it would be actively harmful.
+        val response = client.post("/api/users/me/password") {
+            bearerAuth(token)
+            contentType(ContentType.Application.Json)
+            setBody("""{"currentPassword":"a-long-enough-password","newPassword":"another-long-password"}""")
+        }
+        assertEquals(HttpStatusCode.OK, response.status, "password change must survive the restriction")
+    }
+
+    @Test
+    fun `a restricted user can still sign out everywhere`() = testApplication {
+        startApp()
+
+        val token = register("alice@example.com")
+        val response = client.post("/api/auth/logout-all") { bearerAuth(token) }
+
+        // The wall offers a sign-out. Someone who registered with a typo'd
+        // address has no other way off the screen.
+        assertEquals(HttpStatusCode.NoContent, response.status)
+    }
+
     // -----------------------------------------------------------------------
     // What clients are told
     // -----------------------------------------------------------------------
@@ -318,11 +491,15 @@ class EmailVerificationEnforcementTest {
             setBody("""{"email":"alice@example.com","password":"a-long-enough-password","fullName":"Alice"}""")
         }
 
+        // Registration still hands back a full session on purpose: the client
+        // needs an access token to call `resend-verification` and to poll its
+        // own profile from behind the wall. The session is what the wall is
+        // rendered *inside*, not a way around it.
         val user = Json.parseToJsonElement(response.bodyAsText()).jsonObject["user"]!!.jsonObject
         assertEquals(false, user["emailVerified"]!!.jsonPrimitive.content.toBoolean())
         assertNotNull(
             user["verificationDeadline"]?.jsonPrimitive?.contentOrNull,
-            "a user must be told the deadline up front, not discover it as a refused save"
+            "the client decides between the wall and the banner from this field"
         )
     }
 
