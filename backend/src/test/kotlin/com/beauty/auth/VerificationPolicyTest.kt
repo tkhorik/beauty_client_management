@@ -16,9 +16,15 @@ import kotlin.test.assertTrue
  * waiting a week or faking a clock across the whole application. Here the clock
  * is just an argument.
  *
- * The case that matters most is [`an existing account gets its window from the
- * enforcement date, not its creation date`] — it pins the one property that
- * stops a rollout locking out the entire user base.
+ * Two cases carry the design, and they pull in opposite directions:
+ *  - [`a new signup is restricted immediately, with no grace window`] is the
+ *    requirement — verification is mandatory, not eventually mandatory.
+ *  - [`an existing account gets its window from the enforcement date, not its
+ *    creation date`] is the safety property that stops the switch-on from
+ *    locking out the entire user base at once.
+ *
+ * A change that makes one of them pass by breaking the other has missed the
+ * point of the split.
  */
 class VerificationPolicyTest {
 
@@ -38,13 +44,13 @@ class VerificationPolicyTest {
     )
 
     @Test
-    fun `enforcement off means everyone can always write`() {
+    fun `enforcement off means everyone always has access`() {
         val policy = VerificationPolicy(enforcedFrom = null, graceDays = 0)
         val ancient = account(createdAt = LocalDateTime.of(2020, 1, 1, 0, 0))
 
         assertFalse(policy.isEnforced)
         assertNull(policy.deadlineFor(ancient), "no deadline should be advertised when enforcement is off")
-        assertTrue(policy.canWrite(ancient, now = LocalDateTime.of(2030, 1, 1, 0, 0)))
+        assertTrue(policy.canAccess(ancient, now = LocalDateTime.of(2030, 1, 1, 0, 0)))
     }
 
     @Test
@@ -56,7 +62,7 @@ class VerificationPolicyTest {
         )
 
         assertNull(policy.deadlineFor(verified))
-        assertTrue(policy.canWrite(verified, now = enforcedFrom.plusYears(1)))
+        assertTrue(policy.canAccess(verified, now = enforcedFrom.plusYears(1)))
     }
 
     @Test
@@ -69,28 +75,60 @@ class VerificationPolicyTest {
 
         assertEquals(enforcedFrom.plusDays(7), policy.deadlineFor(oldAccount))
         assertTrue(
-            policy.canWrite(oldAccount, now = enforcedFrom.plusDays(1)),
+            policy.canAccess(oldAccount, now = enforcedFrom.plusDays(1)),
             "a five-year-old account must still get a full grace window"
         )
-        assertFalse(policy.canWrite(oldAccount, now = enforcedFrom.plusDays(8)))
+        assertFalse(policy.canAccess(oldAccount, now = enforcedFrom.plusDays(8)))
     }
 
     @Test
-    fun `a new signup gets its window from registration`() {
+    fun `a new signup is restricted immediately, with no grace window`() {
+        // Verification is mandatory for anyone who registers under the rule.
+        // The grace window is a migration aid for accounts that predate it,
+        // not an allowance every new user inherits.
         val policy = VerificationPolicy(enforcedFrom, graceDays = 7)
-        val newAccount = account(createdAt = enforcedFrom.plusDays(30))
+        val registeredAt = enforcedFrom.plusDays(30)
+        val newAccount = account(createdAt = registeredAt)
 
-        assertEquals(enforcedFrom.plusDays(37), policy.deadlineFor(newAccount))
-        assertTrue(policy.canWrite(newAccount, now = enforcedFrom.plusDays(36)))
-        assertFalse(policy.canWrite(newAccount, now = enforcedFrom.plusDays(38)))
+        assertEquals(registeredAt, policy.deadlineFor(newAccount))
+        assertFalse(
+            policy.canAccess(newAccount, now = registeredAt.plusSeconds(1)),
+            "a brand-new unverified account must be restricted on its very first request"
+        )
+        assertFalse(policy.canAccess(newAccount, now = registeredAt.plusDays(3)))
     }
 
     @Test
-    fun `zero grace days restricts immediately`() {
+    fun `an account created in the same instant enforcement begins counts as new`() {
+        // The boundary between "legacy account, give it a window" and "new
+        // signup, no window" is an inclusive one on the new-signup side. An
+        // account registered at exactly the switch-on moment was created under
+        // the new rule.
+        val policy = VerificationPolicy(enforcedFrom, graceDays = 7)
+        val borderline = account(createdAt = enforcedFrom)
+
+        assertEquals(enforcedFrom, policy.deadlineFor(borderline))
+        assertFalse(policy.canAccess(borderline, now = enforcedFrom.plusSeconds(1)))
+    }
+
+    @Test
+    fun `a legacy account registered one second before the cutover still gets its window`() {
+        // The mirror of the case above, and the one that would hurt: an
+        // off-by-one on the comparison would restrict accounts that predate
+        // enforcement without warning.
+        val policy = VerificationPolicy(enforcedFrom, graceDays = 7)
+        val legacy = account(createdAt = enforcedFrom.minusSeconds(1))
+
+        assertEquals(enforcedFrom.plusDays(7), policy.deadlineFor(legacy))
+        assertTrue(policy.canAccess(legacy, now = enforcedFrom.plusDays(6)))
+    }
+
+    @Test
+    fun `zero grace days restricts existing accounts immediately too`() {
         val policy = VerificationPolicy(enforcedFrom, graceDays = 0)
         val account = account(createdAt = enforcedFrom.minusDays(1))
 
-        assertFalse(policy.canWrite(account, now = enforcedFrom.plusSeconds(1)))
+        assertFalse(policy.canAccess(account, now = enforcedFrom.plusSeconds(1)))
     }
 
     @Test
@@ -100,6 +138,18 @@ class VerificationPolicyTest {
         val policy = VerificationPolicy(enforcedFrom, graceDays = 0)
         val admin = account(createdAt = enforcedFrom.minusYears(1), role = GlobalRole.SUPER_ADMIN)
 
-        assertTrue(policy.canWrite(admin, now = enforcedFrom.plusYears(1)))
+        assertTrue(policy.canAccess(admin, now = enforcedFrom.plusYears(1)))
+    }
+
+    @Test
+    fun `a super admin who registers after the cutover is exempt as well`() {
+        // The exemption is about the role, not about when the account was
+        // made. A bootstrapped super admin created after enforcement begins
+        // would otherwise be restricted from its first request, with no route
+        // left that could lift the restriction.
+        val policy = VerificationPolicy(enforcedFrom, graceDays = 7)
+        val admin = account(createdAt = enforcedFrom.plusDays(10), role = GlobalRole.SUPER_ADMIN)
+
+        assertTrue(policy.canAccess(admin, now = enforcedFrom.plusDays(11)))
     }
 }

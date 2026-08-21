@@ -10,9 +10,11 @@ import { AuthLayout } from './AuthLayout';
  * `?status=`. It exists because the person who clicked the link is looking at a
  * browser and needs to be told what happened, rather than shown a JSON body.
  *
- * Verification is soft-enforced — an unverified account works normally — so
- * even the failure case is a dead end rather than a blocker. It offers a way
- * back into the app, where the account's own settings can send a fresh link.
+ * The failure case matters more than it used to. An unverified account is
+ * refused the application entirely, so someone who lands here on an expired or
+ * already-used link is stuck outside it — "continue" takes them to the
+ * verification wall, which is where a fresh link can be requested. The wording
+ * says so rather than implying they can carry on regardless.
  */
 export function VerifyEmailPage({ status }: { status: VerificationStatus }) {
   const verified = status === 'success';
@@ -28,8 +30,8 @@ export function VerifyEmailPage({ status }: { status: VerificationStatus }) {
 
         <p style={{ color: 'var(--text-muted)', fontSize: '14px', lineHeight: 1.6 }}>
           {verified
-            ? 'Thanks — your email address is confirmed. You can carry on using your account as normal.'
-            : 'This verification link is invalid, has expired, or has already been used. You can send yourself a new one from your account settings.'}
+            ? 'Thanks — your email address is confirmed. Your account is now fully unlocked.'
+            : "This verification link is invalid, has expired, or has already been used. Sign in and we'll offer you a fresh one."}
         </p>
 
         <button

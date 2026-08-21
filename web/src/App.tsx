@@ -74,8 +74,10 @@ function OrganizationGate({ onOpenAdmin }: { onOpenAdmin: () => void }) {
 
   // The banner wraps the onboarding screen too, not just the app proper.
   // Creating an organization is one of the actions the restriction blocks, so
-  // an unverified user can land here, hit a 403 on the only button available,
-  // and have no idea why unless the explanation is on this screen as well.
+  // a user inside the grace window can land here, hit a 403 on the only button
+  // available, and have no idea why unless the notice is on this screen as
+  // well. An already-restricted user never reaches this component at all —
+  // `VerificationGate` in `main.tsx` replaces the whole tree with the wall.
   if (!current) {
     return (
       <div style={{ padding: '24px 32px', maxWidth: '1400px', margin: '0 auto' }}>
