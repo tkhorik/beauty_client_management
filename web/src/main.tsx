@@ -8,6 +8,7 @@ import { usePublicRoute } from './auth/route.ts'
 import { ForgotPasswordPage } from './components/ForgotPasswordPage.tsx'
 import { ResetPasswordPage } from './components/ResetPasswordPage.tsx'
 import { VerifyEmailPage } from './components/VerifyEmailPage.tsx'
+import { VerificationGate } from './components/VerificationWall.tsx'
 
 /**
  * Chooses between the application and the three screens that must work without
@@ -38,11 +39,18 @@ function Root() {
     default:
       return (
         <AuthProvider>
-          {/* Inside AuthProvider: the organization list is per-user and cannot be
-              fetched until there is a session to fetch it with. */}
-          <OrgProvider>
-            <App />
-          </OrgProvider>
+          {/* Inside AuthProvider, outside OrgProvider — the same placement, and
+              the same reason, as the session-less pages above. A restricted
+              account is refused the organization list along with everything
+              else, so mounting OrgProvider behind the wall would fire a request
+              that can only 403. See VerificationWall. */}
+          <VerificationGate>
+            {/* Inside AuthProvider: the organization list is per-user and cannot be
+                fetched until there is a session to fetch it with. */}
+            <OrgProvider>
+              <App />
+            </OrgProvider>
+          </VerificationGate>
         </AuthProvider>
       );
   }

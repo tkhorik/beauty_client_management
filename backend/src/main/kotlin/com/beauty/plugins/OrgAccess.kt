@@ -79,16 +79,17 @@ data class OrgContext(
  *    admin-only route.
  *
  *  - 403 `EMAIL_NOT_VERIFIED`: everything checks out, but the caller has never
- *    confirmed their address and their grace window has run out. Reads still
- *    succeed; only writes land here.
+ *    confirmed their address and their grace window has run out. Every
+ *    organization-scoped request lands here, read and write alike — see
+ *    [passesVerificationGate].
  *
  * @param requireAdmin gate the route to `org_admin`/`super_admin`.
  * @param allowGlobal let a super admin omit the header and operate across all
  *   organizations. Off by default so that a route which forgets to think about
  *   the unscoped case cannot accidentally get it.
- * @param requireVerified override the email-verification gate. Null — the
- *   default — derives it from the HTTP method, which is the important part:
- *   see [requiresWriteAccess].
+ * @param requireVerified opt this route out of the email-verification gate by
+ *   passing false. Null — the default — gates it. There is deliberately no way
+ *   to express "gate this one only": see [passesVerificationGate].
  */
 suspend fun PipelineContext<Unit, ApplicationCall>.requireOrgAccess(
     memberships: MembershipService,
@@ -185,41 +186,44 @@ suspend fun PipelineContext<Unit, ApplicationCall>.requireOrgAccess(
 }
 
 /**
- * Whether this request should be treated as a write for verification purposes.
- *
- * **Derived from the HTTP method rather than declared per route, and that is
- * deliberate.** The obvious design — a `requireVerified = true` argument at
- * each write call site — fails open: a route added later by someone who has
- * never heard of this feature simply omits it and is silently exempt. There is
- * no compiler error and no failing test for a gate nobody wrote. Deriving it
- * from the method inverts that: a new `post`/`put`/`patch`/`delete` handler is
- * covered the moment it calls [requireOrgAccess], and *exempting* one requires
- * writing `requireVerified = false`, which is visible in review.
- *
- * GET and HEAD are reads. OPTIONS is a CORS preflight and never carries intent.
- */
-private fun requiresWriteAccess(method: HttpMethod): Boolean =
-    method !in setOf(HttpMethod.Get, HttpMethod.Head, HttpMethod.Options)
-
-/**
  * Applies the verification gate, answering 403 and returning false when it
- * fails. Shared by [requireOrgAccess] and [requireWritableAccount].
+ * fails. Shared by [requireOrgAccess], [requireActiveAccount] and
+ * [requireWritableAccount] — that is, by every entry point that resolves a
+ * caller against organization data.
+ *
+ * **The gate is unconditional rather than derived from the request, and that is
+ * deliberate.** An earlier version read the HTTP method and gated only
+ * non-GETs, which let an unverified account read every client record in a
+ * salon it belonged to. Both designs share the property that matters — a
+ * handler added next year is covered the moment it calls one of the
+ * `require*` helpers, and *exempting* it takes an explicit
+ * `requireVerified = false` that a reviewer can see. Dropping the method check
+ * only removes the read-shaped hole; it does not weaken that. The inverse
+ * design — `requireVerified = true` opted into per write call site — fails
+ * open, because a route that forgets it produces no compiler error and no
+ * failing test.
+ *
+ * Nothing here needs an exception for the routes a locked-out user must still
+ * reach. Resending the mail, re-reading their own profile, changing their
+ * password and signing out are handled by `authenticatedAuthRoutes` and
+ * `userRoutes`, which resolve the caller with [userId] and never call into
+ * this file. That is the escape hatch, and it is structural: it cannot be
+ * broken by an edit to this function.
  */
 private suspend fun PipelineContext<Unit, ApplicationCall>.passesVerificationGate(
     account: AccountStatus,
     requireVerified: Boolean?
 ): Boolean {
-    val gated = requireVerified ?: requiresWriteAccess(call.request.httpMethod)
-    if (!gated) return true
+    if (requireVerified == false) return true
 
     val policy = call.application.verificationPolicy()
-    if (policy.canWrite(account)) return true
+    if (policy.canAccess(account)) return true
 
     call.respond(
         HttpStatusCode.Forbidden,
         VerificationRequiredResponse(
-            error = "Confirm your email address to make changes. " +
-                "We sent a link when you registered — request a new one from your account settings.",
+            error = "Confirm your email address to continue. We sent a link when " +
+                "you registered — check your spam folder, or request a new one.",
             code = EMAIL_NOT_VERIFIED,
             // Echoed so a client can say "your window closed on the 3rd"
             // rather than leaving the user guessing why yesterday worked.
@@ -233,14 +237,16 @@ private suspend fun PipelineContext<Unit, ApplicationCall>.passesVerificationGat
 const val EMAIL_NOT_VERIFIED = "EMAIL_NOT_VERIFIED"
 
 /**
- * [requireActiveAccount] plus the email-verification gate, for a *write* with
- * no organization context — `POST /api/organizations` is the only one today.
+ * Historically [requireActiveAccount] plus the email-verification gate, for a
+ * *write* with no organization context — `POST /api/organizations` is the only
+ * one today.
  *
- * Kept separate from [requireActiveAccount] rather than folded into it, because
- * the routes that use that one are reads and a join request: listing your own
- * organizations and asking to join one both stay open to an unverified account
- * on purpose. Only the route that mints a new tenant needs this stricter
- * version.
+ * The two now behave identically, because verification gates reads as well.
+ * The name is kept, and the call site with it, so the create-organization
+ * route still states at a glance that it is a write: if the read gate is ever
+ * relaxed again — a decision this codebase has already reversed once — this is
+ * the helper that must stay strict, and finding the routes that need it should
+ * not require re-deriving the argument from scratch.
  */
 suspend fun PipelineContext<Unit, ApplicationCall>.requireWritableAccount(
     memberships: MembershipService
@@ -340,6 +346,14 @@ suspend fun PipelineContext<Unit, ApplicationCall>.requireSuperAdmin(
  * organization or requesting to join one defeats the point of suspending
  * them. This is the same DB read [requireOrgAccess] and [requireSuperAdmin]
  * already do, applied without the organization-scoping logic those two add.
+ *
+ * The email-verification gate applies here too. Listing and joining
+ * organizations used to be open to an unverified account deliberately — an
+ * `INVITED` user landed inside the organization read-only rather than stranded
+ * outside it — but read-only access is no longer a state this system has, so
+ * that landing place no longer exists. Leaving these two routes open would
+ * only let a restricted account accumulate memberships it cannot use, behind a
+ * screen its client will not render.
  */
 suspend fun PipelineContext<Unit, ApplicationCall>.requireActiveAccount(
     memberships: MembershipService
@@ -350,13 +364,16 @@ suspend fun PipelineContext<Unit, ApplicationCall>.requireActiveAccount(
         return null
     }
 
-    if (memberships.accountStatus(userId).isSuspended) {
+    val account = memberships.accountStatus(userId)
+    if (account.isSuspended) {
         call.respond(
             HttpStatusCode.Forbidden,
             mapOf("error" to "This account has been suspended.", "code" to "ACCOUNT_SUSPENDED")
         )
         return null
     }
+
+    if (!passesVerificationGate(account, requireVerified = null)) return null
 
     return userId
 }
