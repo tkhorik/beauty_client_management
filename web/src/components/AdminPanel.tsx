@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { X, ShieldCheck, Users, Building2, Link2, Copy, Check, Trash2, Ban, RotateCcw } from 'lucide-react';
+import { X, ShieldCheck, Users, Building2, Link2, Copy, Check, Trash2, Ban, RotateCcw, UserCog } from 'lucide-react';
 import type { AdminUser, AdminOrganization, OrganizationCreationLink } from '../types';
 import { api, ApiError } from '../services/api';
+import { MembersModal } from './MembersModal';
 import { useAuth } from '../auth/AuthContext';
 
 interface AdminPanelProps {
@@ -57,6 +58,18 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
   // right after — including, in the past, an unmount this component no
   // longer performs but might again if that loading logic changes.
   const [freshLink, setFreshLink] = useState<{ url: string; token: string } | null>(null);
+
+  /**
+   * The organization whose roster is open on top of this panel, if any.
+   *
+   * A super admin is an administrator of every organization as far as the
+   * backend is concerned — `requireOrgAccess()` grants them ORG_ADMIN for any
+   * `X-Org-Id` — but until this existed there was no way to reach that: the
+   * header's organization switcher only lists organizations you are a member
+   * of, so a salon you had never joined was unreachable from the UI no matter
+   * what the server would have allowed.
+   */
+  const [managingOrg, setManagingOrg] = useState<AdminOrganization | null>(null);
 
   const loadAll = useCallback(async () => {
     setError('');
@@ -153,12 +166,34 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
           ) : tab === 'users' ? (
             <UsersTab users={users} selfId={user?.id} onRun={run} />
           ) : tab === 'organizations' ? (
-            <OrganizationsTab orgs={orgs} />
+            <OrganizationsTab orgs={orgs} onManageMembers={setManagingOrg} />
           ) : (
             <LinksTab links={links} onRun={run} freshLink={freshLink} onFreshLink={setFreshLink} />
           )}
         </div>
       </div>
+
+      {/*
+        Rendered as a sibling of the panel body rather than inside the tab, so
+        closing the roster returns to the admin panel with its tab, scroll
+        position and freshly issued link intact. `loadAll` is re-run on close
+        because a membership change moves the member counts this panel shows.
+      */}
+      {managingOrg && (
+        // The wrapper is not cosmetic: this panel's own backdrop closes it on
+        // any click that reaches it, and a click on the members modal's
+        // backdrop would otherwise bubble up and close both at once.
+        <div onClick={e => e.stopPropagation()}>
+          <MembersModal
+            orgId={managingOrg.id}
+            orgName={managingOrg.name}
+            onClose={() => {
+              setManagingOrg(null);
+              void loadAll();
+            }}
+          />
+        </div>
+      )}
     </div>
   );
 };
@@ -262,7 +297,10 @@ const UsersTab: React.FC<{
 // Organizations
 // ---------------------------------------------------------------------------
 
-const OrganizationsTab: React.FC<{ orgs: AdminOrganization[] }> = ({ orgs }) => (
+const OrganizationsTab: React.FC<{
+  orgs: AdminOrganization[];
+  onManageMembers: (org: AdminOrganization) => void;
+}> = ({ orgs, onManageMembers }) => (
   <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
     {orgs.map(o => (
       <div
@@ -284,8 +322,18 @@ const OrganizationsTab: React.FC<{ orgs: AdminOrganization[] }> = ({ orgs }) => 
             {o.slug} · created by {o.createdByEmail ?? 'unknown'}
           </div>
         </div>
-        <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-          {o.memberCount} active member{o.memberCount === 1 ? '' : 's'}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+            {o.memberCount} active member{o.memberCount === 1 ? '' : 's'}
+          </span>
+          <button
+            className="btn-secondary"
+            style={{ padding: '6px 12px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}
+            onClick={() => onManageMembers(o)}
+            title={`Manage members of ${o.name}`}
+          >
+            <UserCog size={13} /> Manage members
+          </button>
         </div>
       </div>
     ))}
