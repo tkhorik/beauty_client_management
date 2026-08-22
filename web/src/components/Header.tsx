@@ -87,8 +87,16 @@ export const Header: React.FC<HeaderProps> = ({
             Shown to administrators only — a convenience, not the control. The
             backend refuses these calls from a plain member regardless of what
             the UI renders.
+
+            A SUPER_ADMIN qualifies whatever their membership role says, because
+            the server already treats them as an administrator of every
+            organization: requireOrgAccess() hands them ORG_ADMIN for any
+            X-Org-Id without consulting the membership table at all. Gating this
+            on the org role alone hid the entry point in any salon where the
+            super admin happened to be a plain member, while every action behind
+            it would have been accepted.
           */}
-          {current?.role === 'ORG_ADMIN' && !offline && (
+          {(current?.role === 'ORG_ADMIN' || user?.globalRole === 'SUPER_ADMIN') && !offline && (
             <button
               className="btn-secondary"
               onClick={onOpenMembers}
