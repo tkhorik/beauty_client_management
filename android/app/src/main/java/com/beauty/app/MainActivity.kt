@@ -11,10 +11,13 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.icons.Icons
+import com.beauty.app.ui.admin.AdminScreen
+import com.beauty.app.ui.admin.AdminViewModel
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.pullrefresh.PullRefreshIndicator
 import androidx.compose.material.pullrefresh.pullRefresh
@@ -192,6 +195,14 @@ fun AppNavHost() {
 
                 BeautyAppScreen(
                     tokenStore = tokenStore,
+                    // Drawn only for a super admin. The flag arrives from the
+                    // profile a moment after the organization list, so this
+                    // recomposes the toolbar rather than being read once.
+                    onOpenAdmin = if (orgViewModel.isSuperAdmin) {
+                        { navController.navigate("admin") }
+                    } else {
+                        null
+                    },
                     // Keying the screen on the organization means switching salons
                     // rebuilds it, rather than leaving the previous one's search
                     // text and selection sitting over the new one's data.
@@ -238,6 +249,24 @@ fun AppNavHost() {
                     }
                 )
             }
+        }
+
+        /**
+         * System-wide administration. Deliberately *not* wrapped in
+         * `VerificationGate`: a super admin passes the verification policy
+         * anyway, and this screen is organization-independent, so the gate's
+         * fallback — "go pick an organization" — would be the wrong advice
+         * here. The server's `requireSuperAdmin()` is the real guard.
+         */
+        composable("admin") {
+            val adminViewModel: AdminViewModel = viewModel(
+                factory = object : ViewModelProvider.Factory {
+                    @Suppress("UNCHECKED_CAST")
+                    override fun <T : ViewModel> create(modelClass: Class<T>): T =
+                        AdminViewModel(repository) as T
+                }
+            )
+            AdminScreen(viewModel = adminViewModel, onDone = { navController.popBackStack() })
         }
 
         composable("settings") {
@@ -290,6 +319,14 @@ fun BeautyAppScreen(
     onClientTap: (clientId: String) -> Unit,
     onOpenSettings: () -> Unit,
     onOpenOrganizations: () -> Unit,
+    /**
+     * Null for an ordinary account, which is how the shield stays hidden.
+     *
+     * A capability hint, not a control: `requireSuperAdmin()` refuses every
+     * endpoint behind that screen regardless of whether this app draws the
+     * button.
+     */
+    onOpenAdmin: (() -> Unit)? = null,
     onLogout: () -> Unit
 ) {
     var searchQuery by remember { mutableStateOf("") }
@@ -382,6 +419,15 @@ fun BeautyAppScreen(
                             contentDescription = "Organizations",
                             tint = TextMuted
                         )
+                    }
+                    if (onOpenAdmin != null) {
+                        IconButton(onClick = onOpenAdmin) {
+                            Icon(
+                                Icons.Default.Shield,
+                                contentDescription = "Admin panel",
+                                tint = RoseGoldPrimary
+                            )
+                        }
                     }
                     IconButton(onClick = onOpenSettings) {
                         Icon(

@@ -5,8 +5,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -16,7 +14,6 @@ import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.beauty.app.data.api.MemberDto
 import com.beauty.app.data.api.OrganizationDto
 import com.beauty.app.ui.theme.CardSurface
 import com.beauty.app.ui.theme.RoseGoldPrimary
@@ -318,44 +315,6 @@ private fun OrganizationRow(org: OrganizationDto, selected: Boolean, onSelect: (
                 color = TextMuted,
                 fontSize = 12.sp
             )
-        }
-    }
-}
-
-@Composable
-private fun MemberRow(
-    member: MemberDto,
-    onApprove: () -> Unit,
-    onRemove: () -> Unit,
-    onToggleRole: () -> Unit
-) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
-    ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(member.fullName, fontSize = 14.sp)
-            Text(
-                "${member.email} · ${member.role.removePrefix("ORG_").lowercase()} · ${member.status.lowercase()}",
-                color = TextMuted,
-                fontSize = 12.sp
-            )
-        }
-        if (member.status == "PENDING") {
-            IconButton(onClick = onApprove) {
-                Icon(Icons.Default.Check, contentDescription = "Approve", tint = RoseGoldPrimary)
-            }
-        } else if (member.status == "ACTIVE") {
-            TextButton(onClick = onToggleRole) {
-                Text(
-                    if (member.role == "ORG_ADMIN") "Demote" else "Promote",
-                    color = RoseGoldPrimary,
-                    fontSize = 12.sp
-                )
-            }
-        }
-        IconButton(onClick = onRemove) {
-            Icon(Icons.Default.Delete, contentDescription = "Remove", tint = TextMuted)
         }
     }
 }

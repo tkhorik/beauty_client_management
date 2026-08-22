@@ -1,18 +1,24 @@
 package com.beauty.app.data
 
+import com.beauty.app.data.api.AdminOrganizationDto
+import com.beauty.app.data.api.AdminUserDto
 import com.beauty.app.data.api.AuthResponse
 import com.beauty.app.data.api.BeautyApi
 import com.beauty.app.data.api.ChangeMemberRoleRequest
 import com.beauty.app.data.api.ChangePasswordRequest
 import com.beauty.app.data.api.ClientDto
+import com.beauty.app.data.api.CreateOrganizationCreationTokenRequest
+import com.beauty.app.data.api.CreateOrganizationCreationTokenResponse
 import com.beauty.app.data.api.CreateOrganizationRequest
 import com.beauty.app.data.api.CreateVisitRequest
 import com.beauty.app.data.api.InviteMemberRequest
 import com.beauty.app.data.api.JoinOrganizationRequest
 import com.beauty.app.data.api.MemberDto
+import com.beauty.app.data.api.OrganizationCreationTokenDto
 import com.beauty.app.data.api.OrganizationDto
 import com.beauty.app.data.api.UpdateClientRequest
 import com.beauty.app.data.api.UpdateProfileRequest
+import com.beauty.app.data.api.UpdateUserAdminRequest
 import com.beauty.app.data.api.UserDto
 import com.beauty.app.data.api.isEmailNotVerified
 import com.beauty.app.data.local.ClientDao
@@ -150,6 +156,37 @@ class BeautyRepository(
     /** Returns a brand-new session — the caller must persist it, replacing whatever it's holding. */
     suspend fun changePassword(currentPassword: String, newPassword: String): AuthResponse =
         api.changePassword(ChangePasswordRequest(currentPassword, newPassword))
+
+    // -- Admin panel (SUPER_ADMIN only) --------------------------------------
+    //
+    // Pass-throughs with no local caching, deliberately: this data is a
+    // system-wide snapshot an operator acts on immediately, and a stale copy in
+    // Room would be worse than a spinner — it would show an account as active
+    // seconds after it was suspended. Nothing here touches the offline path.
+
+    suspend fun getAdminUsers(): List<AdminUserDto> = api.getAdminUsers()
+
+    suspend fun setUserSuspended(userId: String, suspended: Boolean) =
+        api.setUserSuspended(userId, UpdateUserAdminRequest(suspended))
+
+    suspend fun getAdminOrganizations(): List<AdminOrganizationDto> = api.getAdminOrganizations()
+
+    suspend fun getCreationTokens(): List<OrganizationCreationTokenDto> = api.getCreationTokens()
+
+    suspend fun createCreationToken(
+        label: String?,
+        maxUses: Int,
+        expiresInHours: Long
+    ): CreateOrganizationCreationTokenResponse =
+        api.createCreationToken(
+            CreateOrganizationCreationTokenRequest(
+                label = label?.takeIf { it.isNotBlank() },
+                maxUses = maxUses,
+                expiresInHours = expiresInHours
+            )
+        )
+
+    suspend fun revokeCreationToken(id: String) = api.revokeCreationToken(id)
 
     override suspend fun syncPendingVisits(): VisitSyncOutcome {
         var allSucceeded = true
