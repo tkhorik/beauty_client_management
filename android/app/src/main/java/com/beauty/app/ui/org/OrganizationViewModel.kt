@@ -11,6 +11,7 @@ import com.beauty.app.data.api.OrganizationDto
 import com.beauty.app.data.local.OrgStore
 import io.ktor.client.call.body
 import io.ktor.client.plugins.ClientRequestException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
 /**
@@ -46,34 +47,57 @@ class OrganizationViewModel(
 
     val current: OrganizationDto? get() = activeOrganizations.firstOrNull { it.id == activeOrgId }
 
+    /**
+     * The in-flight refresh, so overlapping triggers collapse into one request.
+     *
+     * The screen now asks for a refresh from three places — first composition,
+     * every `ON_RESUME`, and the toolbar button — and on a cold start the first
+     * two fire within milliseconds of each other. Without this they would issue
+     * two identical requests whose responses could be applied in either order.
+     */
+    private var refreshJob: Job? = null
+
     init {
         refresh()
     }
 
     fun refresh() {
-        viewModelScope.launch {
+        if (refreshJob?.isActive == true) return
+        refreshJob = viewModelScope.launch {
             loading = true
             error = null
             try {
-                val list = repository.getOrganizations()
-                organizations = list
-
-                // Re-validate the remembered choice against what the server just
-                // said. A user removed from an organization since last launch
-                // still has its id on disk, and keeping it selected would leave
-                // every request coming back 403 with nothing on screen to
-                // explain why.
-                val active = list.filter { it.isActive }
-                val stored = orgStore.getActiveOrgId()
-                val next = if (active.any { it.id == stored }) stored else active.firstOrNull()?.id
-                orgStore.setActiveOrgId(next)
-                activeOrgId = next
+                loadOrganizations()
             } catch (e: Exception) {
                 error = e.friendlyMessage("Could not load your organizations.")
             } finally {
                 loading = false
             }
         }
+    }
+
+    /**
+     * Re-reads the list and reconciles the remembered selection.
+     *
+     * Split out of [refresh] so it can also be called from a *failure* path
+     * without clearing the message that failure produced — see [requestToJoin].
+     * It deliberately touches neither [error] nor [loading]; the caller owns
+     * those.
+     */
+    private suspend fun loadOrganizations() {
+        val list = repository.getOrganizations()
+        organizations = list
+
+        // Re-validate the remembered choice against what the server just
+        // said. A user removed from an organization since last launch
+        // still has its id on disk, and keeping it selected would leave
+        // every request coming back 403 with nothing on screen to
+        // explain why.
+        val active = list.filter { it.isActive }
+        val stored = orgStore.getActiveOrgId()
+        val next = if (active.any { it.id == stored }) stored else active.firstOrNull()?.id
+        orgStore.setActiveOrgId(next)
+        activeOrgId = next
     }
 
     fun select(orgId: String) {
@@ -112,6 +136,17 @@ class OrganizationViewModel(
                 refresh()
             } catch (e: Exception) {
                 error = e.friendlyMessage("Could not send the request.")
+
+                // Re-read the list even though the request failed. A refusal —
+                // "you are already a member" above all — is the strongest
+                // evidence available that what this device is showing is out of
+                // date, and it used to be the one path that did not re-sync.
+                // That combination stranded users: approved on an
+                // administrator's device, still displaying their old PENDING
+                // row, asking again, and getting a 409 that left the stale row
+                // exactly where it was. [loadOrganizations] rather than
+                // [refresh] so the message above survives the update.
+                runCatching { loadOrganizations() }
             }
         }
     }
