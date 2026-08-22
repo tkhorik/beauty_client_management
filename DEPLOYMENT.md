@@ -345,6 +345,27 @@ Current migrations, in order:
 | `002_multi_tenant_rbac.sql` | `organizations`, `user_organizations`, `users.global_role`, `organization_id`/`created_by` on `clients` and `visits` | **Yes** |
 | `003_admin_panel_and_org_creation_links.sql` | `users.suspended_at`, `organization_creation_tokens` | No |
 | `004_email_verification_enforcement.sql` | No schema change. Clears `email_verified_at` for every account so all users must re-verify, and retires outstanding verification tokens | Data only — see below |
+| `005_attachment_integrity_and_indexes.sql` | `ON DELETE CASCADE` on `visits.client_id` and `attachments.visit_id`, plus the indexes those lookups use | No — but see `006` |
+| `006_drop_legacy_restrict_foreign_keys.sql` | Nothing new. Removes the original RESTRICT foreign keys that `005` failed to drop, which were still blocking the deletes it was meant to enable | No, and safe to re-run |
+
+`006` exists because `005` reported success and changed nothing observable.
+It dropped the constraint names PostgreSQL generates by default, but these
+tables were created by Exposed's `SchemaUtils.create`, which names foreign keys
+`fk_<table>_<column>__<referenced column>`. The drops matched nothing, the adds
+created a *second* key on each column, and PostgreSQL enforces the strictest one
+— so deleting a client with visits still failed. Check any database you are
+unsure about:
+
+```sql
+SELECT conrelid::regclass AS table_name, conname, confdeltype
+FROM pg_constraint
+WHERE contype = 'f' AND conrelid IN ('visits'::regclass, 'attachments'::regclass)
+ORDER BY 1, 2;
+```
+
+Each of `visits.client_id` and `attachments.visit_id` should have exactly one
+foreign key, with `confdeltype` `c`. Two rows for the same column, one of them
+`r`, means `006` has not been run.
 
 `002` is destructive by design: `organization_id` is `NOT NULL` with no backfill,
 because there is no correct organization to guess for a pre-existing row, so it
