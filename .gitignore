@@ -3,6 +3,17 @@
 .idea/
 .vscode/
 .kiro/
+*.fuse_hidden*
+
+# Local AI-agent state and worktrees — do not share personal context or scratch work
+.claude/
+.codex/
+.cursor/
+.aider/
+.continue/
+.roo/
+.cline/
+.agents/
 
 # Web / Node
 web/node_modules/
