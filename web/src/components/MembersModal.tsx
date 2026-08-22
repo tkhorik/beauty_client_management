@@ -6,6 +6,20 @@ import { useAuth } from '../auth/AuthContext';
 import { useOrg } from '../auth/OrgContext';
 
 interface MembersModalProps {
+  /**
+   * The organization to manage — passed in rather than read from
+   * `useOrg().current`, because this modal is opened from two places that mean
+   * two different things by "the organization".
+   *
+   * From the header it is the active one. From the admin panel it is whichever
+   * row a super admin clicked, which may be a salon they do not belong to and
+   * is then *not* the active organization. Deriving the target from context
+   * would have that second case silently edit the roster of whichever salon
+   * happened to be selected — the wrong organization, with no error to show
+   * for it, since the server would accept every call.
+   */
+  orgId: string;
+  orgName: string;
   onClose: () => void;
 }
 
@@ -22,14 +36,19 @@ const bannerStyle = (kind: 'error' | 'success') =>
 /**
  * Membership management for an organization administrator.
  *
- * Rendered only for `ORG_ADMIN` — see `Header.tsx`. That is a convenience, not
- * the control: the backend rejects every one of these calls from a plain
- * member with `ADMIN_REQUIRED`, which is what actually enforces the rule. If
- * the two ever disagree, the server is right.
+ * Rendered for `ORG_ADMIN` and for any `SUPER_ADMIN` — see `Header.tsx` and
+ * `AdminPanel.tsx`. That is a convenience, not the control: the backend
+ * rejects every one of these calls from a plain member with `ADMIN_REQUIRED`,
+ * which is what actually enforces the rule. If the two ever disagree, the
+ * server is right.
+ *
+ * The roster it renders includes `PENDING` and `INVITED` rows, so a super
+ * admin reaching a foreign organization gets its approval queue too, not just
+ * the members already inside.
  */
-export const MembersModal: React.FC<MembersModalProps> = ({ onClose }) => {
+export const MembersModal: React.FC<MembersModalProps> = ({ orgId, orgName, onClose }) => {
   const { user } = useAuth();
-  const { current, refresh: refreshOrgs } = useOrg();
+  const { organizations, refresh: refreshOrgs } = useOrg();
 
   const [members, setMembers] = useState<OrgMember[]>([]);
   const [loading, setLoading] = useState(true);
@@ -40,10 +59,15 @@ export const MembersModal: React.FC<MembersModalProps> = ({ onClose }) => {
   const [inviteRole, setInviteRole] = useState<OrgRole>('ORG_USER');
   const [inviting, setInviting] = useState(false);
 
-  const orgId = current?.id ?? null;
+  /**
+   * Whether the target is one of the caller's own organizations, which decides
+   * whether their own membership list is worth re-reading after an action —
+   * see [run]. A super admin acting on a foreign organization changes nothing
+   * about their own standing anywhere.
+   */
+  const isOwnOrganization = organizations.some(o => o.id === orgId);
 
   const load = useCallback(async () => {
-    if (!orgId) return;
     setLoading(true);
     setError('');
     try {
@@ -69,8 +93,11 @@ export const MembersModal: React.FC<MembersModalProps> = ({ onClose }) => {
       await load();
       // Role and membership changes can affect the caller's own standing —
       // demoting yourself, for instance — so the organization list is re-read
-      // as well rather than left stale.
-      await refreshOrgs();
+      // as well rather than left stale. Only when the caller is actually in
+      // this organization, though: for a super admin managing someone else's
+      // salon there is no own standing to have changed, and refreshing would
+      // spend a request to learn nothing.
+      if (isOwnOrganization) await refreshOrgs();
     } catch (err) {
       setError(err instanceof ApiError && err.body.error ? err.body.error : 'That action failed.');
     }
@@ -78,7 +105,6 @@ export const MembersModal: React.FC<MembersModalProps> = ({ onClose }) => {
 
   async function handleInvite(e: React.FormEvent) {
     e.preventDefault();
-    if (!orgId) return;
     setInviting(true);
     await run(
       () => api.inviteMember(orgId, inviteEmail.trim().toLowerCase(), inviteRole),
@@ -87,8 +113,6 @@ export const MembersModal: React.FC<MembersModalProps> = ({ onClose }) => {
     setInviteEmail('');
     setInviting(false);
   }
-
-  if (!orgId) return null;
 
   const pending = members.filter(m => m.status === 'PENDING');
   const invited = members.filter(m => m.status === 'INVITED');
@@ -133,7 +157,7 @@ export const MembersModal: React.FC<MembersModalProps> = ({ onClose }) => {
           }}
         >
           <h2 className="text-gradient" style={{ fontSize: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Users size={20} /> {current?.name} — Members
+            <Users size={20} /> {orgName} — Members
           </h2>
           <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
             <X size={22} />

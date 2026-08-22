@@ -92,8 +92,24 @@ data class UserDto(
      */
     val emailVerified: Boolean = true,
     /** ISO timestamp after which unverified accounts become read-only. */
-    val verificationDeadline: String? = null
-)
+    val verificationDeadline: String? = null,
+    /**
+     * The account's system-wide privilege level: `USER` or `SUPER_ADMIN`.
+     *
+     * Distinct from [OrganizationDto.role], which is a capability *within one
+     * organization*. A `SUPER_ADMIN` is an administrator of every organization
+     * as far as the backend is concerned — `requireOrgAccess()` grants them
+     * ORG_ADMIN for any `X-Org-Id` without reading the membership table — so a
+     * client that only looks at the membership role hides management it would
+     * have been allowed to perform.
+     *
+     * Defaults to `USER`, the same safe direction as [emailVerified]: a server
+     * that does not send the field grants nothing extra rather than everything.
+     */
+    val globalRole: String = "USER"
+) {
+    val isSuperAdmin: Boolean get() = globalRole == "SUPER_ADMIN"
+}
 
 @Serializable
 data class AuthResponse(

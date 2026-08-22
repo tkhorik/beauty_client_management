@@ -1,6 +1,8 @@
 package com.beauty.routes
 
+import com.beauty.auth.GlobalRole
 import com.beauty.auth.OrgCreationTokenService
+import com.beauty.db.UsersTable
 import com.beauty.module
 import com.beauty.plugins.ORG_HEADER
 import io.ktor.client.request.*
@@ -12,6 +14,9 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
+import org.jetbrains.exposed.sql.transactions.transaction
+import org.jetbrains.exposed.sql.update
 import java.time.LocalDateTime
 import java.util.UUID
 import kotlin.test.Test
@@ -536,5 +541,148 @@ class OrganizationIsolationTest {
             .map { it.jsonObject["slug"]!!.jsonPrimitive.content }
         assertTrue(slugs.containsAll(listOf("salon-one", "salon-two")))
         assertNotNull(orgB)
+    }
+
+    // -----------------------------------------------------------------------
+    // Super admins
+    // -----------------------------------------------------------------------
+
+    /** The id of [token]'s own account. */
+    private suspend fun ApplicationTestBuilder.userId(token: String): String {
+        val me = client.get("/api/users/me") { bearerAuth(token) }
+        return Json.parseToJsonElement(me.bodyAsText()).jsonObject["id"]!!.jsonPrimitive.content
+    }
+
+    /**
+     * Promotes an existing account to `SUPER_ADMIN` with a direct UPDATE,
+     * because there is deliberately no API that can do it — see the class doc
+     * on `AdminRoutes.kt`. Mirrors the real bootstrap (`SUPER_ADMIN_EMAILS`,
+     * or a manual UPDATE).
+     */
+    private fun promoteToSuperAdmin(id: String) {
+        transaction {
+            UsersTable.update({ UsersTable.id eq id }) {
+                it[globalRole] = GlobalRole.SUPER_ADMIN.name
+            }
+        }
+    }
+
+    /** Reads a member's role out of an organization's roster. */
+    private fun roleOf(rosterBody: String, userId: String): String =
+        Json.parseToJsonElement(rosterBody).jsonArray
+            .map { it.jsonObject }
+            .first { it["userId"]!!.jsonPrimitive.content == userId }["role"]!!
+            .jsonPrimitive.content
+
+    @Test
+    fun `a super admin manages an organization they do not belong to`() = testApplication {
+        startApp()
+
+        val bob = register("bob@example.com")
+        val orgB = createOrg(bob, "org-b")
+        val bobId = userId(bob)
+
+        val root = register("root@example.com")
+        promoteToSuperAdmin(userId(root))
+
+        // No membership row exists for root in orgB at all. requireOrgAccess
+        // hands a super admin ORG_ADMIN for any X-Org-Id without consulting
+        // the membership table, so the roster is readable...
+        val roster = client.get("/api/organizations/$orgB/members") {
+            bearerAuth(root)
+            header(ORG_HEADER, orgB)
+        }
+        assertEquals(HttpStatusCode.OK, roster.status, roster.bodyAsText())
+        assertEquals("ORG_ADMIN", roleOf(roster.bodyAsText(), bobId))
+
+        // ...and writable. This is the capability the clients used to hide:
+        // the UI gated member management on the *membership* role, which for a
+        // super admin is frequently ORG_USER or absent entirely.
+        val invited = client.post("/api/organizations/$orgB/members/invitations") {
+            bearerAuth(root)
+            header(ORG_HEADER, orgB)
+            contentType(ContentType.Application.Json)
+            setBody("""{"email":"bob@example.com","role":"ORG_USER"}""")
+        }
+        // Bob is already active, so the invitation is refused on *its own*
+        // terms (409) rather than on authorization — which is the point: the
+        // request got past the admin gate.
+        assertEquals(HttpStatusCode.Conflict, invited.status, invited.bodyAsText())
+    }
+
+    @Test
+    fun `a super admin who is a plain member can still change roles there`() = testApplication {
+        startApp()
+
+        val bob = register("bob@example.com")
+        val orgB = createOrg(bob, "org-b")
+
+        // Root joins the ordinary way and is approved as an ORG_USER — the
+        // exact state in which the web header and the Android screen used to
+        // hide member management from them.
+        val root = register("root@example.com")
+        val rootId = userId(root)
+        val join = client.post("/api/organizations/join-requests") {
+            bearerAuth(root)
+            contentType(ContentType.Application.Json)
+            setBody("""{"slug":"org-b"}""")
+        }
+        assertEquals(HttpStatusCode.OK, join.status, join.bodyAsText())
+
+        val approved = client.post("/api/organizations/$orgB/members/$rootId/approval") {
+            bearerAuth(bob)
+            header(ORG_HEADER, orgB)
+        }
+        assertEquals(HttpStatusCode.OK, approved.status, approved.bodyAsText())
+
+        promoteToSuperAdmin(rootId)
+
+        val before = client.get("/api/organizations/$orgB/members") {
+            bearerAuth(root)
+            header(ORG_HEADER, orgB)
+        }
+        assertEquals(HttpStatusCode.OK, before.status, before.bodyAsText())
+        assertEquals("ORG_USER", roleOf(before.bodyAsText(), rootId), "membership role stays ORG_USER")
+
+        // Promoting themselves through the ordinary org endpoint: allowed
+        // because the *global* role already grants it, not because the
+        // membership row said so.
+        val promoted = client.patch("/api/organizations/$orgB/members/$rootId") {
+            bearerAuth(root)
+            header(ORG_HEADER, orgB)
+            contentType(ContentType.Application.Json)
+            setBody("""{"role":"ORG_ADMIN"}""")
+        }
+        assertEquals(HttpStatusCode.OK, promoted.status, promoted.bodyAsText())
+
+        val after = client.get("/api/organizations/$orgB/members") {
+            bearerAuth(root)
+            header(ORG_HEADER, orgB)
+        }
+        assertEquals("ORG_ADMIN", roleOf(after.bodyAsText(), rootId))
+    }
+
+    @Test
+    fun `the last-administrator rail applies to super admins too`() = testApplication {
+        startApp()
+
+        val bob = register("bob@example.com")
+        val orgB = createOrg(bob, "org-b")
+        val bobId = userId(bob)
+
+        val root = register("root@example.com")
+        promoteToSuperAdmin(userId(root))
+
+        // Bob is org-b's only admin. A super admin may reach into the
+        // organization, but removing its last administrator would strand it
+        // with nobody able to approve, invite or promote — so the rail holds
+        // for them as well. Deliberate: the fix is to join and promote
+        // yourself first, which leaves a trace, rather than to orphan a tenant
+        // in one call.
+        val removed = client.delete("/api/organizations/$orgB/members/$bobId") {
+            bearerAuth(root)
+            header(ORG_HEADER, orgB)
+        }
+        assertEquals(HttpStatusCode.Conflict, removed.status, removed.bodyAsText())
     }
 }
