@@ -43,6 +43,22 @@ class OrganizationViewModel(
     var members by mutableStateOf<List<MemberDto>>(emptyList())
         private set
 
+    /**
+     * Whether the signed-in account is a `SUPER_ADMIN`.
+     *
+     * Read from the profile rather than from any organization row, because it
+     * is not a property of a membership: the backend grants a super admin
+     * ORG_ADMIN in *every* organization, including ones they have never
+     * joined. Without this the screen hid member management from them in any
+     * salon where they happened to be a plain member, while the server would
+     * have accepted every action behind it.
+     *
+     * Starts false and is only ever raised by a successful profile read, so a
+     * failed or slow request shows less, never more.
+     */
+    var isSuperAdmin by mutableStateOf(false)
+        private set
+
     val activeOrganizations: List<OrganizationDto> get() = organizations.filter { it.isActive }
 
     val current: OrganizationDto? get() = activeOrganizations.firstOrNull { it.id == activeOrgId }
@@ -68,6 +84,7 @@ class OrganizationViewModel(
             error = null
             try {
                 loadOrganizations()
+                loadGlobalRole()
             } catch (e: Exception) {
                 error = e.friendlyMessage("Could not load your organizations.")
             } finally {
@@ -99,6 +116,29 @@ class OrganizationViewModel(
         orgStore.setActiveOrgId(next)
         activeOrgId = next
     }
+
+    /**
+     * Re-reads the caller's own privilege level.
+     *
+     * Deliberately swallows its own failure. This is a *capability hint* for
+     * what to draw, not an authorization decision — the server re-checks every
+     * action regardless — so a profile request that fails should leave the
+     * organization list, which did load, on screen rather than replacing it
+     * with an error about something the user never asked for.
+     */
+    private suspend fun loadGlobalRole() {
+        runCatching { repository.getCurrentUser() }
+            .onSuccess { isSuperAdmin = it.isSuperAdmin }
+    }
+
+    /**
+     * Whether the caller may manage [org]'s membership.
+     *
+     * Mirrors the server's rule exactly: an `ORG_ADMIN` of that organization,
+     * or a super admin anywhere.
+     */
+    fun canManage(org: OrganizationDto?): Boolean =
+        org != null && (org.isAdmin || isSuperAdmin)
 
     fun select(orgId: String) {
         orgStore.setActiveOrgId(orgId)
@@ -151,8 +191,16 @@ class OrganizationViewModel(
         }
     }
 
-    fun loadMembers() {
-        val orgId = activeOrgId ?: return
+    /**
+     * Loads [orgId]'s roster — including its `PENDING` and `INVITED` rows,
+     * which are the approval queue.
+     *
+     * `orgId` is a parameter rather than read from [activeOrgId] for the same
+     * reason `BeautyApi` takes it on every scoped call: an ambient
+     * "current organization" is how a roster action lands on the salon that
+     * happened to be selected instead of the one on screen.
+     */
+    fun loadMembers(orgId: String) {
         viewModelScope.launch {
             error = null
             try {
@@ -163,19 +211,19 @@ class OrganizationViewModel(
         }
     }
 
-    fun approve(userId: String) = memberAction("Request approved.") { orgId ->
+    fun approve(orgId: String, userId: String) = memberAction(orgId, "Request approved.") {
         repository.approveMember(orgId, userId)
     }
 
-    fun remove(userId: String) = memberAction("Member removed.") { orgId ->
+    fun remove(orgId: String, userId: String) = memberAction(orgId, "Member removed.") {
         repository.removeMember(orgId, userId)
     }
 
-    fun changeRole(userId: String, role: String) = memberAction("Role updated.") { orgId ->
+    fun changeRole(orgId: String, userId: String, role: String) = memberAction(orgId, "Role updated.") {
         repository.changeMemberRole(orgId, userId, role)
     }
 
-    fun invite(email: String, role: String) = memberAction("Invitation sent.") { orgId ->
+    fun invite(orgId: String, email: String, role: String) = memberAction(orgId, "Invitation sent.") {
         repository.inviteMember(orgId, email.trim().lowercase(), role)
     }
 
@@ -184,13 +232,12 @@ class OrganizationViewModel(
         notice = null
     }
 
-    private fun memberAction(success: String, action: suspend (String) -> Unit) {
-        val orgId = activeOrgId ?: return
+    private fun memberAction(orgId: String, success: String, action: suspend () -> Unit) {
         viewModelScope.launch {
             error = null
             notice = null
             try {
-                action(orgId)
+                action()
                 notice = success
                 members = repository.getMembers(orgId)
                 // The action may have changed the caller's own standing —

@@ -75,11 +75,17 @@ fun OrganizationScreen(
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
-    // The roster is only fetched once an administrator is actually looking at
-    // it — a plain member's request would be refused with ADMIN_REQUIRED, and
-    // firing it anyway would show them an error they did nothing to cause.
-    LaunchedEffect(current?.id, current?.role) {
-        if (current?.isAdmin == true) viewModel.loadMembers()
+    // The roster is only fetched once someone allowed to see it is actually
+    // looking — a plain member's request would be refused with ADMIN_REQUIRED,
+    // and firing it anyway would show them an error they did nothing to cause.
+    //
+    // Keyed on isSuperAdmin as well, because that arrives from a second request
+    // that usually lands *after* the organization list: without it a super
+    // admin who is a plain member here would have the effect evaluated once,
+    // while the flag was still false, and never again.
+    LaunchedEffect(current?.id, current?.role, viewModel.isSuperAdmin) {
+        val orgId = current?.id
+        if (orgId != null && viewModel.canManage(current)) viewModel.loadMembers(orgId)
     }
 
     Scaffold(
@@ -210,20 +216,27 @@ fun OrganizationScreen(
                 }
             }
 
-            // -- Manage (administrators only) -------------------------------
+            // -- Manage (administrators and super admins) -------------------
             //
             // Hidden from plain members as a courtesy, not as the control: the
             // backend refuses every one of these calls with ADMIN_REQUIRED
             // regardless of what this screen chooses to draw.
-            if (current?.isAdmin == true) {
+            //
+            // A super admin passes even where their membership role is
+            // ORG_USER — see OrganizationViewModel.canManage. The membership
+            // role itself is left alone: it is an honest statement about this
+            // organization, and folding a system-wide flag into it is how
+            // "admin of my salon" turns into "admin of every salon".
+            if (current != null && viewModel.canManage(current)) {
                 item { SectionTitle("Members of ${current.name}") }
                 items(viewModel.members, key = { it.userId }) { member ->
                     MemberRow(
                         member = member,
-                        onApprove = { viewModel.approve(member.userId) },
-                        onRemove = { viewModel.remove(member.userId) },
+                        onApprove = { viewModel.approve(current.id, member.userId) },
+                        onRemove = { viewModel.remove(current.id, member.userId) },
                         onToggleRole = {
                             viewModel.changeRole(
+                                current.id,
                                 member.userId,
                                 if (member.role == "ORG_ADMIN") "ORG_USER" else "ORG_ADMIN"
                             )
@@ -249,7 +262,7 @@ fun OrganizationScreen(
                             modifier = Modifier.fillMaxWidth()
                         )
                         Button(
-                            onClick = { viewModel.invite(inviteEmail, "ORG_USER"); inviteEmail = "" },
+                            onClick = { viewModel.invite(current.id, inviteEmail, "ORG_USER"); inviteEmail = "" },
                             enabled = inviteEmail.isNotBlank(),
                             colors = ButtonDefaults.buttonColors(containerColor = RoseGoldPrimary)
                         ) { Text("Send invitation") }
