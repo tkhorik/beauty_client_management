@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import type { Client, Visit, Attachment } from './types';
+import type { Client, Visit, Attachment, Organization } from './types';
 import { api } from './services/api';
 import { useAuth } from './auth/AuthContext';
 import { useOrg } from './auth/OrgContext';
@@ -92,10 +92,22 @@ function OrganizationGate({ onOpenAdmin }: { onOpenAdmin: () => void }) {
   // client and open modals mounted while the new data loads — showing one
   // tenant's records under another's name, which is the exact confusion this
   // feature exists to prevent.
-  return <AuthenticatedApp key={current.id} onOpenAdmin={onOpenAdmin} />;
+  return <AuthenticatedApp key={current.id} organization={current} onOpenAdmin={onOpenAdmin} />;
 }
 
-function AuthenticatedApp({ onOpenAdmin }: { onOpenAdmin: () => void }) {
+/**
+ * `organization` is passed down rather than re-read from `useOrg()` inside:
+ * this component only ever renders when one is selected, and threading it
+ * through the props keeps that guarantee in the type rather than forcing a
+ * non-null assertion at every use.
+ */
+function AuthenticatedApp({
+  organization,
+  onOpenAdmin
+}: {
+  organization: Organization;
+  onOpenAdmin: () => void;
+}) {
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -242,9 +254,13 @@ function AuthenticatedApp({ onOpenAdmin }: { onOpenAdmin: () => void }) {
         <SettingsModal onClose={() => setIsSettingsOpen(false)} />
       )}
 
-      {/* Organization Members Modal (administrators only) */}
+      {/* Organization Members Modal (administrators and super admins) */}
       {isMembersOpen && (
-        <MembersModal onClose={() => setIsMembersOpen(false)} />
+        <MembersModal
+          orgId={organization.id}
+          orgName={organization.name}
+          onClose={() => setIsMembersOpen(false)}
+        />
       )}
     </div>
   );
