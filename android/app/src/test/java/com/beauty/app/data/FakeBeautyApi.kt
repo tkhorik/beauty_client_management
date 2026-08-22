@@ -1,22 +1,28 @@
 package com.beauty.app.data
 
+import com.beauty.app.data.api.AdminOrganizationDto
+import com.beauty.app.data.api.AdminUserDto
 import com.beauty.app.data.api.AuthRequest
 import com.beauty.app.data.api.AuthResponse
 import com.beauty.app.data.api.BeautyApi
 import com.beauty.app.data.api.ChangeMemberRoleRequest
 import com.beauty.app.data.api.ChangePasswordRequest
 import com.beauty.app.data.api.ClientDto
+import com.beauty.app.data.api.CreateOrganizationCreationTokenRequest
+import com.beauty.app.data.api.CreateOrganizationCreationTokenResponse
 import com.beauty.app.data.api.CreateOrganizationRequest
 import com.beauty.app.data.api.CreateVisitRequest
 import com.beauty.app.data.api.ForgotPasswordRequest
 import com.beauty.app.data.api.InviteMemberRequest
 import com.beauty.app.data.api.JoinOrganizationRequest
 import com.beauty.app.data.api.MemberDto
+import com.beauty.app.data.api.OrganizationCreationTokenDto
 import com.beauty.app.data.api.OrganizationDto
 import com.beauty.app.data.api.RefreshRequest
 import com.beauty.app.data.api.RegisterRequest
 import com.beauty.app.data.api.UpdateClientRequest
 import com.beauty.app.data.api.UpdateProfileRequest
+import com.beauty.app.data.api.UpdateUserAdminRequest
 import com.beauty.app.data.api.UserDto
 import com.beauty.app.data.api.VisitDto
 
@@ -50,4 +56,12 @@ abstract class FakeBeautyApi(private val reason: String = "not used in this test
     override suspend fun inviteMember(orgId: String, request: InviteMemberRequest): Unit = error(reason)
     override suspend fun changeMemberRole(orgId: String, userId: String, request: ChangeMemberRoleRequest): Unit = error(reason)
     override suspend fun removeMember(orgId: String, userId: String): Unit = error(reason)
+    override suspend fun getAdminUsers(): List<AdminUserDto> = error(reason)
+    override suspend fun setUserSuspended(userId: String, request: UpdateUserAdminRequest): Unit = error(reason)
+    override suspend fun getAdminOrganizations(): List<AdminOrganizationDto> = error(reason)
+    override suspend fun getCreationTokens(): List<OrganizationCreationTokenDto> = error(reason)
+    override suspend fun createCreationToken(
+        request: CreateOrganizationCreationTokenRequest
+    ): CreateOrganizationCreationTokenResponse = error(reason)
+    override suspend fun revokeCreationToken(id: String): Unit = error(reason)
 }

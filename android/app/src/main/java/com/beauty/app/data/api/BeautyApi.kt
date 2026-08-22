@@ -195,6 +195,87 @@ data class InviteMemberRequest(val email: String, val role: String = "ORG_USER")
 @Serializable
 data class ChangeMemberRoleRequest(val role: String)
 
+// ──────────────────────────────────────────────
+// Admin panel — global, cross-organization
+// ──────────────────────────────────────────────
+//
+// These mirror `AdminRoutes.kt` and carry no organization context at all:
+// there is nothing to scope them to, only the whole system. Every one of them
+// is refused with SUPER_ADMIN_REQUIRED for an ordinary account, which is what
+// actually enforces the rule — the screen that draws them only decides whether
+// to bother asking.
+
+/** One account, as listed in the admin panel's global user table. */
+@Serializable
+data class AdminUserDto(
+    val id: String,
+    val email: String,
+    val fullName: String,
+    val globalRole: String = "USER",
+    val emailVerified: Boolean = true,
+    /** Null when the account is in good standing. */
+    val suspendedAt: String? = null,
+    val organizationCount: Int = 0,
+    val createdAt: String
+) {
+    val isSuperAdmin: Boolean get() = globalRole == "SUPER_ADMIN"
+    val isSuspended: Boolean get() = suspendedAt != null
+}
+
+/** One organization, system-wide — not "one the caller belongs to". */
+@Serializable
+data class AdminOrganizationDto(
+    val id: String,
+    val name: String,
+    val slug: String,
+    val createdByEmail: String? = null,
+    val memberCount: Int = 0,
+    val createdAt: String
+)
+
+@Serializable
+data class UpdateUserAdminRequest(val suspended: Boolean)
+
+/**
+ * An organization-creation link's metadata.
+ *
+ * Never carries the raw token: the server stores only its hash, so a link is
+ * recoverable exactly once, in the response to issuing it — see
+ * [CreateOrganizationCreationTokenResponse].
+ */
+@Serializable
+data class OrganizationCreationTokenDto(
+    val id: String,
+    val label: String? = null,
+    val createdByEmail: String? = null,
+    val maxUses: Int,
+    val usesCount: Int,
+    val expiresAt: String,
+    val revokedAt: String? = null,
+    val createdAt: String
+) {
+    val isRevoked: Boolean get() = revokedAt != null
+    val isExhausted: Boolean get() = usesCount >= maxUses
+}
+
+/**
+ * Both bounds are mandatory, matching the server: a link with no cap and no
+ * expiry is a standing backdoor, not a convenience.
+ */
+@Serializable
+data class CreateOrganizationCreationTokenRequest(
+    val label: String? = null,
+    val maxUses: Int,
+    val expiresInHours: Long
+)
+
+/** The one-time response to issuing a link — the only place the raw token appears. */
+@Serializable
+data class CreateOrganizationCreationTokenResponse(
+    val token: String,
+    val info: OrganizationCreationTokenDto
+)
+
 @Serializable
 data class MemberDto(
     val userId: String,
@@ -313,6 +394,36 @@ interface BeautyApi {
 
     /** Returns a brand-new session: the backend revokes every other session on a successful change. */
     suspend fun changePassword(request: ChangePasswordRequest): AuthResponse
+
+    // -- Admin panel (SUPER_ADMIN only) ----------------------------------
+    //
+    // No `orgId` on any of these, unlike the scoped calls above: they have no
+    // organization to be about. The server answers 403 SUPER_ADMIN_REQUIRED
+    // for everyone else.
+
+    suspend fun getAdminUsers(): List<AdminUserDto>
+
+    /**
+     * Suspends or lifts a suspension.
+     *
+     * Suspending also revokes every refresh-token family server-side, so there
+     * is nothing further for a client to do about the target's existing
+     * session — it stops working as soon as its short-lived access token
+     * lapses, and cannot be renewed.
+     */
+    suspend fun setUserSuspended(userId: String, request: UpdateUserAdminRequest)
+
+    suspend fun getAdminOrganizations(): List<AdminOrganizationDto>
+
+    suspend fun getCreationTokens(): List<OrganizationCreationTokenDto>
+
+    /** Issues a link. The raw token in the response can never be read again. */
+    suspend fun createCreationToken(
+        request: CreateOrganizationCreationTokenRequest
+    ): CreateOrganizationCreationTokenResponse
+
+    /** Kills a link before its natural expiry. */
+    suspend fun revokeCreationToken(id: String)
 }
 
 // ──────────────────────────────────────────────
@@ -428,4 +539,32 @@ class KtorBeautyApi(private val client: HttpClient) : BeautyApi {
             contentType(ContentType.Application.Json)
             setBody(request)
         }.body()
+
+    override suspend fun getAdminUsers(): List<AdminUserDto> =
+        client.get("api/admin/users").body()
+
+    override suspend fun setUserSuspended(userId: String, request: UpdateUserAdminRequest) {
+        client.patch("api/admin/users/$userId") {
+            contentType(ContentType.Application.Json)
+            setBody(request)
+        }
+    }
+
+    override suspend fun getAdminOrganizations(): List<AdminOrganizationDto> =
+        client.get("api/admin/organizations").body()
+
+    override suspend fun getCreationTokens(): List<OrganizationCreationTokenDto> =
+        client.get("api/admin/organization-creation-tokens").body()
+
+    override suspend fun createCreationToken(
+        request: CreateOrganizationCreationTokenRequest
+    ): CreateOrganizationCreationTokenResponse =
+        client.post("api/admin/organization-creation-tokens") {
+            contentType(ContentType.Application.Json)
+            setBody(request)
+        }.body()
+
+    override suspend fun revokeCreationToken(id: String) {
+        client.delete("api/admin/organization-creation-tokens/$id")
+    }
 }
