@@ -7,10 +7,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -19,6 +21,8 @@ import com.beauty.app.data.api.OrganizationDto
 import com.beauty.app.ui.theme.CardSurface
 import com.beauty.app.ui.theme.RoseGoldPrimary
 import com.beauty.app.ui.theme.TextMuted
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 
 /**
  * Organization picker, onboarding, and membership management in one screen.
@@ -41,11 +45,35 @@ fun OrganizationScreen(
     onLogout: () -> Unit
 ) {
     val current = viewModel.current
+    val lifecycleOwner = LocalLifecycleOwner.current
     var showCreate by remember { mutableStateOf(false) }
     var name by remember { mutableStateOf("") }
     var slug by remember { mutableStateOf("") }
     var joinSlug by remember { mutableStateOf("") }
     var inviteEmail by remember { mutableStateOf("") }
+
+    // Re-read the list whenever this screen is shown.
+    //
+    // Membership status changes on somebody *else's* device — an administrator
+    // approves the request — so nothing on this one can observe it. The
+    // ViewModel is hoisted to the NavHost and previously fetched only in its
+    // `init`, which meant a user approved after the app started went on being
+    // shown their old PENDING row for as long as the process lived, with no
+    // way to ask for an update. Re-requesting only produced "you are already a
+    // member", which is true and unhelpful.
+    LaunchedEffect(Unit) { viewModel.refresh() }
+
+    // And again on every resume, for the common case: the user is told they
+    // have been approved, switches back to the app, and expects to be in.
+    // Mirrors the directory's own resume refresh in `MainActivity`. Overlapping
+    // triggers collapse inside the ViewModel.
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) viewModel.refresh()
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
 
     // The roster is only fetched once an administrator is actually looking at
     // it — a plain member's request would be refused with ADMIN_REQUIRED, and
@@ -63,6 +91,19 @@ fun OrganizationScreen(
                         IconButton(onClick = onDone) {
                             Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = TextMuted)
                         }
+                    }
+                },
+                // Someone waiting on an approval is watching this screen while
+                // it happens elsewhere. The automatic refreshes above cannot
+                // help them without a resume or a navigation, so give them
+                // something to press.
+                actions = {
+                    IconButton(onClick = { viewModel.refresh() }, enabled = !viewModel.loading) {
+                        Icon(
+                            Icons.Default.Refresh,
+                            contentDescription = "Refresh",
+                            tint = if (viewModel.loading) TextMuted else RoseGoldPrimary
+                        )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = CardSurface)
