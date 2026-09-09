@@ -99,10 +99,6 @@ class EditClientViewModel(
                 ?.key
 
             if (duplicateKey != null) {
-                // `associate` below keeps only the last value for a repeated
-                // key, so without this check two custom fields typed with the
-                // same name would silently lose one of them on save. Caught
-                // here, before any network call, so the user can rename one.
                 saveState = SaveState.Error(
                     "Custom field \"$duplicateKey\" is entered more than once. Field names must be unique."
                 )
