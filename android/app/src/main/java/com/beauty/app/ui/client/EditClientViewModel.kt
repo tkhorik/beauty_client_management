@@ -89,11 +89,29 @@ class EditClientViewModel(
     fun save() {
         viewModelScope.launch {
             saveState = SaveState.Loading
+
+            val nonBlankCustomFields = customFields.filter { it.first.isNotBlank() }
+            val duplicateKey = nonBlankCustomFields
+                .groupingBy { it.first }
+                .eachCount()
+                .entries
+                .firstOrNull { it.value > 1 }
+                ?.key
+
+            if (duplicateKey != null) {
+                // `associate` below keeps only the last value for a repeated
+                // key, so without this check two custom fields typed with the
+                // same name would silently lose one of them on save. Caught
+                // here, before any network call, so the user can rename one.
+                saveState = SaveState.Error(
+                    "Custom field \"$duplicateKey\" is entered more than once. Field names must be unique."
+                )
+                return@launch
+            }
+
             saveState = try {
                 val cfJsonObject = JsonObject(
-                    customFields
-                        .filter { it.first.isNotBlank() }
-                        .associate { (k, v) -> k to JsonPrimitive(v) }
+                    nonBlankCustomFields.associate { (k, v) -> k to JsonPrimitive(v) }
                 )
 
                 val dto = repository.updateClient(
