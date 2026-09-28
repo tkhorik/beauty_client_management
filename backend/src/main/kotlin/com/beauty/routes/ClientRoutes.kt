@@ -1,7 +1,6 @@
 package com.beauty.routes
 
 import com.beauty.auth.MembershipService
-import com.beauty.config.AppSettings
 import com.beauty.db.AttachmentsTable
 import com.beauty.db.ClientsTable
 import com.beauty.db.DatabaseFactory.dbQuery
@@ -9,6 +8,7 @@ import com.beauty.db.VisitsTable
 import com.beauty.models.*
 import com.beauty.plugins.OrgContext
 import com.beauty.plugins.requireOrgAccess
+import com.beauty.storage.FileStorageService
 import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.request.*
@@ -46,7 +46,7 @@ private fun OrgContext.clientScope(): Op<Boolean> =
  *    verified membership check, so a client cannot write into an organization
  *    it does not belong to by naming it in the payload.
  */
-fun Route.clientRoutes() {
+fun Route.clientRoutes(storage: FileStorageService) {
     val memberships = MembershipService()
 
     route("/api/clients") {
@@ -256,12 +256,7 @@ fun Route.clientRoutes() {
             }
 
             if (deletedFiles != null) {
-                val uploadDir = AppSettings(application.environment.config).uploadDir
-                deletedFiles.forEach { storedPath ->
-                    storedAttachmentFile(uploadDir, storedPath)?.let { file ->
-                        if (file.exists() && !file.delete()) application.log.error("Could not delete attachment file {}", file)
-                    }
-                }
+                storage.deleteMultiple(deletedFiles)
                 call.respond(HttpStatusCode.OK, mapOf("message" to "Client deleted successfully"))
             } else {
                 call.respond(HttpStatusCode.NotFound, mapOf("error" to "Client not found"))

@@ -1,7 +1,6 @@
 package com.beauty.routes
 
 import com.beauty.auth.MembershipService
-import com.beauty.config.AppSettings
 import com.beauty.db.AttachmentsTable
 import com.beauty.db.ClientsTable
 import com.beauty.db.DatabaseFactory.dbQuery
@@ -9,6 +8,7 @@ import com.beauty.db.VisitsTable
 import com.beauty.models.*
 import com.beauty.plugins.OrgContext
 import com.beauty.plugins.requireOrgAccess
+import com.beauty.storage.FileStorageService
 import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.request.*
@@ -59,7 +59,7 @@ private fun attachmentsForVisits(visitIds: List<String>): Map<String, List<Attac
  * 403, and the owning organization is derived server-side from the parent
  * client — never accepted from the request body.
  */
-fun Route.visitRoutes() {
+fun Route.visitRoutes(storage: FileStorageService) {
     val memberships = MembershipService()
 
     route("/api/visits") {
@@ -258,11 +258,7 @@ fun Route.visitRoutes() {
             }
 
             if (deletedFiles != null) {
-                deletedFiles.forEach { storedPath ->
-                    storedAttachmentFile(AppSettings(application.environment.config).uploadDir, storedPath)?.let { file ->
-                        if (file.exists() && !file.delete()) application.log.error("Could not delete attachment file {}", file)
-                    }
-                }
+                storage.deleteMultiple(deletedFiles)
                 call.respond(HttpStatusCode.OK, mapOf("message" to "Visit deleted successfully"))
             } else {
                 call.respond(HttpStatusCode.NotFound, mapOf("error" to "Visit not found"))
