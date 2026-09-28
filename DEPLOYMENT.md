@@ -333,9 +333,16 @@ new code meets the old schema and 500s on every affected route.
 
 ```bash
 cd /srv/aura
-docker compose exec -T db psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
+docker compose exec -T db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"' \
   < backend/migrations/00X_whatever.sql
 ```
+
+The single quotes are load-bearing. `POSTGRES_USER`/`POSTGRES_DB` live in `.env`,
+which docker compose reads but never exports into the deploy user's shell —
+unquoted they expand to empty on the host and psql falls back to the login name
+(`FATAL: role "root" does not exist`). Quoted, they expand inside the container,
+where they are set. The backup cron below avoids this differently, by sourcing
+`.env` first.
 
 Current migrations, in order:
 
