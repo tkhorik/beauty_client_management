@@ -59,6 +59,9 @@ dependencies {
     implementation("org.mindrot:jbcrypt:0.4")
     implementation("ch.qos.logback:logback-classic:$logbackVersion")
 
+    // Object Storage (AWS S3, MinIO, Cloudflare R2)
+    implementation("software.amazon.awssdk:s3:2.25.16")
+
     // Testing
     testImplementation("io.ktor:ktor-server-tests-jvm:$ktorVersion")
     // was pinned to $ktorVersion, which is not a valid Kotlin version

@@ -1,6 +1,7 @@
 package com.beauty.db
 
 import com.beauty.config.AppSettings
+import com.beauty.config.StorageProvider
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
 import io.ktor.server.config.*
@@ -60,8 +61,10 @@ object DatabaseFactory {
             createSchema()
         }
 
-        if (!settings.uploadDir.exists() && !settings.uploadDir.mkdirs()) {
-            throw IllegalStateException("Cannot create upload directory: ${settings.uploadDir.absolutePath}")
+        if (settings.storageProvider == StorageProvider.LOCAL) {
+            if (!settings.uploadDir.exists() && !settings.uploadDir.mkdirs()) {
+                throw IllegalStateException("Cannot create upload directory: ${settings.uploadDir.absolutePath}")
+            }
         }
     }
 
