@@ -15,8 +15,14 @@
 -- HOW TO RUN (on the VPS):
 --     sudo -iu deploy
 --     cd /srv/aura
---     docker compose exec -T db psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
+--     docker compose exec -T db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"' \
 --         < backend/migrations/004_email_verification_enforcement.sql
+--
+-- The single quotes are load-bearing: POSTGRES_USER/POSTGRES_DB live in .env,
+-- which docker compose reads but never exports into the deploy user's shell.
+-- Unquoted, they expand to empty on the host and psql falls back to the login
+-- name — 'FATAL: role "root" does not exist'. Quoted, they expand inside the
+-- container, where they are set.
 -- ---------------------------------------------------------------------------
 
 BEGIN;
