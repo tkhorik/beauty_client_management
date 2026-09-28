@@ -456,6 +456,25 @@ docker run --rm -v aura_uploads:/data -v /srv/backups:/backup alpine \
   tar czf /backup/uploads-$(date +%F).tar.gz -C /data .
 ```
 
+With `STORAGE_PROVIDER=s3` the photos live in the bucket instead, and the volume stays empty. Use the bucket's own versioning or replication for backups there.
+
+### Storing attachments in S3
+
+Local disk is the default. To move attachments to an S3-compatible bucket, set these in `.env` and restart the backend:
+
+| Variable | Purpose |
+|---|---|
+| `STORAGE_PROVIDER` | `local` (default) or `s3` |
+| `S3_BUCKET` | Bucket name. Startup fails in production if it is blank while the provider is `s3` |
+| `S3_REGION` | e.g. `eu-central-1`. Default `us-east-1` |
+| `S3_ENDPOINT` | Only for non-AWS providers: MinIO (`http://minio:9000`), R2 (`https://<account>.r2.cloudflarestorage.com`) |
+| `S3_ACCESS_KEY` / `S3_SECRET_KEY` | Leave empty to use the AWS default credential chain (instance role, env, profile) |
+| `S3_PATH_STYLE_ACCESS` | `true` for MinIO |
+| `S3_DELIVERY_MODE` | `redirect` (default): after the org check, the API answers `302` to a short-lived presigned URL. `stream`: the API proxies the bytes itself |
+| `S3_PRESIGNED_URL_MINUTES` | Lifetime of the presigned URL. Default `15` |
+
+Keep the bucket private. Every download still goes through `GET /api/attachments/{id}/file`, which enforces organization access before it redirects or streams. The provider switch does not migrate existing files, so copy the contents of the `uploads` volume to the bucket's `uploads/` prefix before switching (for example, `aws s3 sync /data s3://$S3_BUCKET/uploads/`).
+
 ### Disk space
 ```bash
 df -h && docker system df
