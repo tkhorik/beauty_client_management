@@ -184,6 +184,14 @@ jobs:
             docker compose pull backend web
             docker compose up -d --remove-orphans
 
+            # Nginx resolves the literal `backend`/`web` hostnames in its
+            # proxy_pass lines only when it loads its config. The proxy
+            # container usually survives a deploy while backend and web are
+            # recreated, and if they come back on each other's IPs every
+            # request 502s until the 6h reload loop runs. Reloading here
+            # re-resolves them against the containers that just started.
+            docker compose exec -T proxy nginx -s reload
+
             # Reclaim disk. A VPS filling up with old image layers is one of
             # the most common ways these deployments eventually break.
             docker image prune -f --filter "until=168h"
