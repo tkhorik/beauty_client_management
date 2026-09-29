@@ -6,6 +6,7 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.beauty.app.data.BeautyRepository
+import com.beauty.app.data.api.safeMessage
 import com.beauty.app.data.api.VisitHistoryDto
 import com.beauty.app.data.local.ClientDao
 import com.beauty.app.data.local.ClientEntity
@@ -15,10 +16,16 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
+import android.content.Context
+import android.net.Uri
+import java.io.File
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import java.io.FileOutputStream
 
 class ClientDetailViewModel(
     private val clientId: String,
-    private val organizationId: String,
+    val organizationId: String,
     private val repository: BeautyRepository,
     private val clientDao: ClientDao,
     visitDao: VisitDao
@@ -38,6 +45,10 @@ class ClientDetailViewModel(
     var saving by mutableStateOf(false)
         private set
     var saveError by mutableStateOf<String?>(null)
+        private set
+    var deleting by mutableStateOf(false)
+        private set
+    var deleteError by mutableStateOf<String?>(null)
         private set
     private var refreshJob: Job? = null
 
@@ -65,6 +76,8 @@ class ClientDetailViewModel(
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (_: Exception) {
+                visits = repository.getCachedVisitsForClient(organizationId, clientId)
+                historyLoaded = false
                 error = "Could not refresh visit history. Previously loaded visits and visits saved on this device may be incomplete."
             } finally {
                 loading = false
@@ -74,7 +87,22 @@ class ClientDetailViewModel(
 
     fun clearSaveError() { saveError = null }
 
-    fun saveVisit(dateTime: String, duration: String, notes: String, status: String, onSaved: () -> Unit) {
+    fun delete(onDeleted: () -> Unit) {
+        if (deleting) return
+        deleting = true; deleteError = null
+        viewModelScope.launch {
+            try { repository.deleteClient(organizationId, clientId); onDeleted() }
+            catch (cancelled: CancellationException) { throw cancelled }
+            catch (error: Exception) { deleteError = error.safeMessage("Could not delete this client.") }
+            finally { deleting = false }
+        }
+    }
+
+    fun saveVisit(dateTime: String, duration: String, notes: String, status: String, onSaved: () -> Unit) =
+        saveVisitWithPhotos(dateTime, duration, notes, status, onSaved, null, emptyList())
+
+    fun saveVisitWithPhotos(dateTime: String, duration: String, notes: String, status: String, onSaved: () -> Unit,
+                            context: Context? = null, photos: List<Pair<String, Uri>> = emptyList()) {
         if (saving) return
         val minutes = duration.toIntOrNull()
         if (minutes == null || minutes <= 0 || notes.isBlank()) {
@@ -85,7 +113,18 @@ class ClientDetailViewModel(
         saveError = null
         viewModelScope.launch {
             try {
-                repository.enqueueVisit(organizationId, clientId, dateTime, minutes, notes.trim(), status)
+                val localVisitId = repository.enqueueVisit(organizationId, clientId, dateTime, minutes, notes.trim(), status)
+                if (context != null) photos.forEach { (tag, uri) ->
+                    val file = File(context.filesDir, "photo_${localVisitId}_${tag.lowercase()}_${System.nanoTime()}.jpg")
+                    val compressed = context.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it) }
+                    if (compressed == null) throw IllegalStateException("Could not read selected photo")
+                    val scale = minOf(1f, 1200f / compressed.width.toFloat())
+                    val output = if (scale < 1f) Bitmap.createScaledBitmap(compressed, (compressed.width * scale).toInt(), (compressed.height * scale).toInt(), true) else compressed
+                    FileOutputStream(file).use { output.compress(Bitmap.CompressFormat.JPEG, 85, it) }
+                    if (output !== compressed) output.recycle()
+                    compressed.recycle()
+                    repository.addPhotoDraft(organizationId, clientId, localVisitId, file.absolutePath, tag)
+                }
                 onSaved()
             } catch (cancelled: CancellationException) {
                 throw cancelled

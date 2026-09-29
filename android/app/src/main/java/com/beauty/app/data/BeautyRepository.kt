@@ -26,10 +26,19 @@ import com.beauty.app.data.local.ClientDao
 import com.beauty.app.data.local.ClientEntity
 import com.beauty.app.data.local.VisitDao
 import com.beauty.app.data.local.VisitEntity
+import com.beauty.app.data.local.ParityDao
+import com.beauty.app.data.local.PhotoDraftEntity
+import com.beauty.app.data.local.HistorySnapshotEntity
+import com.beauty.app.data.api.VisitAttachmentDto
+import com.beauty.app.data.api.PendingVisitsException
+import com.beauty.app.data.api.PhotoDraftException
+import com.beauty.app.data.api.safeMessage
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import java.util.UUID
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 /**
  * What happened to the offline queue on one sync attempt.
@@ -64,7 +73,8 @@ class BeautyRepository(
     private val api: BeautyApi,
     private val clientDao: ClientDao,
     private val visitDao: VisitDao,
-    private val json: Json = Json
+    private val json: Json = Json,
+    private val parityDao: ParityDao? = null
 ) : VisitSyncRepository {
     suspend fun refreshClients(orgId: String): Result<Unit> = runCatching {
         // The API list is the source of truth for downloaded data.  Reconciling
@@ -76,6 +86,27 @@ class BeautyRepository(
         // the server", they are simply not part of this answer.
         clientDao.reconcileClients(orgId, api.getClients(orgId).map { it.toEntity(orgId, json) })
     }
+
+    suspend fun searchClients(orgId: String, query: String, tag: String?): List<ClientDto> {
+        val result = api.searchClients(orgId, query, tag)
+        clientDao.insertClients(result.map { it.toEntity(orgId, json) })
+        return result
+    }
+
+    suspend fun createClient(orgId: String, name: String, phone: String, email: String?, tags: List<String>, customFields: JsonObject): ClientDto =
+        api.createClient(orgId, UpdateClientRequest(name, phone, email, tags, customFields))
+
+    suspend fun deleteClient(orgId: String, id: String) {
+        if (visitDao.countPendingVisits(orgId, id) > 0) throw PendingVisitsException()
+        parityDao?.getPhotoDrafts(orgId, id)?.takeIf { it.isNotEmpty() }?.let { throw PendingVisitsException("Upload pending photos before deleting this client.") }
+        api.deleteClient(orgId, id)
+        clientDao.deleteClient(id)
+        parityDao?.deleteHistory(orgId, id)
+        parityDao?.deleteClientPhotoDrafts(orgId, id)
+    }
+
+    suspend fun getCachedVisitsForClient(orgId: String, clientId: String): List<VisitHistoryDto> =
+        parityDao?.getHistory(orgId, clientId)?.let { runCatching { json.decodeFromString<List<VisitHistoryDto>>(it.historyJson) }.getOrDefault(emptyList()) } ?: emptyList()
 
     /** Update a client on the backend and return the updated ClientDto. */
     suspend fun updateClient(
@@ -90,7 +121,44 @@ class BeautyRepository(
 
     /** Read-through history: the backend remains the source of truth for visit records and attachments. */
     suspend fun getVisitsForClient(orgId: String, clientId: String): List<VisitHistoryDto> =
-        api.getVisitsForClient(orgId, clientId)
+        api.getVisitsForClient(orgId, clientId).also { visits ->
+            parityDao?.saveHistory(HistorySnapshotEntity(orgId, clientId, json.encodeToString(visits)))
+        }
+
+    suspend fun addPhotoDraft(orgId: String, clientId: String, localVisitId: String, localFilePath: String, tag: String): PhotoDraftEntity {
+        val draft = PhotoDraftEntity(UUID.randomUUID().toString(), orgId, clientId, localVisitId, localFilePath, tag)
+        requireNotNull(parityDao) { "Photo drafts require the current database" }.savePhotoDraft(draft)
+        return draft
+    }
+
+    suspend fun getPhotoDrafts(orgId: String, clientId: String): List<PhotoDraftEntity> = parityDao?.getPhotoDrafts(orgId, clientId).orEmpty()
+
+    suspend fun uploadPhotoDraft(draftId: String): VisitAttachmentDto {
+        val dao = requireNotNull(parityDao) { "Photo drafts require the current database" }
+        val draft = dao.getPhotoDraft(draftId) ?: throw PhotoDraftException("Photo draft is no longer available.")
+        val visit = visitDao.getVisitById(draft.localVisitId) ?: throw PhotoDraftException("Visit is no longer available.")
+        val remoteVisitId = visit.remoteId ?: throw PhotoDraftException("The visit must finish uploading before its photo can upload.")
+        val bytes = java.io.File(draft.localFilePath).takeIf { it.exists() }?.readBytes() ?: throw PhotoDraftException("Photo file is no longer available.")
+        val uploaded = api.uploadAttachment(draft.organizationId, remoteVisitId, draft.tag, bytes)
+        dao.deletePhotoDraft(draft.id)
+        return uploaded
+    }
+
+    /** Uploads only drafts whose visit has already received a server id. */
+    suspend fun syncPendingPhotos(): Boolean {
+        val dao = parityDao ?: return true
+        var allUploaded = true
+        dao.getAllPendingPhotoDrafts().forEach { draft ->
+            try { uploadPhotoDraft(draft.id) }
+            catch (error: Exception) {
+                allUploaded = false
+                dao.savePhotoDraft(draft.copy(syncError = error.safeMessage("Photo upload is pending.")))
+            }
+        }
+        return allUploaded
+    }
+
+    suspend fun downloadAttachment(orgId: String, id: String): ByteArray = api.downloadAttachment(orgId, id)
 
     // -- Organizations ---------------------------------------------------
 
@@ -193,7 +261,9 @@ class BeautyRepository(
 
     suspend fun revokeCreationToken(id: String) = api.revokeCreationToken(id)
 
-    override suspend fun syncPendingVisits(): VisitSyncOutcome {
+    override suspend fun syncPendingVisits(): VisitSyncOutcome = syncMutex.withLock { syncPendingVisitsUnsafe() }
+
+    private suspend fun syncPendingVisitsUnsafe(): VisitSyncOutcome {
         var allSucceeded = true
         var blocked = false
 
@@ -234,6 +304,10 @@ class BeautyRepository(
             allSucceeded -> VisitSyncOutcome.SUCCESS
             else -> VisitSyncOutcome.RETRY
         }
+    }
+
+    companion object {
+        private val syncMutex = Mutex()
     }
 }
 
