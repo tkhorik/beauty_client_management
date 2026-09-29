@@ -9,6 +9,7 @@ import com.beauty.routes.clientRoutes
 import com.beauty.routes.organizationRoutes
 import com.beauty.routes.userRoutes
 import com.beauty.routes.visitRoutes
+import com.beauty.storage.FileStorageService
 import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.plugins.cors.routing.*
@@ -38,7 +39,7 @@ const val RATE_LIMIT_AUTH = "auth-credentials"
  */
 private fun ApplicationCall.clientKey(): String = request.origin.remoteHost
 
-fun Application.configureRouting() {
+fun Application.configureRouting(storage: FileStorageService) {
     val settings = AppSettings(environment.config)
 
     // Nginx terminates TLS and forwards to this process over plain HTTP on the
@@ -166,9 +167,9 @@ fun Application.configureRouting() {
             // obtained. Everything below requires an organization context.
             organizationRoutes()
             adminRoutes()
-            clientRoutes()
-            visitRoutes()
-            attachmentRoutes()
+            clientRoutes(storage)
+            visitRoutes(storage)
+            attachmentRoutes(storage)
         }
     }
 }

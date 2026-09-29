@@ -6,13 +6,21 @@ import com.beauty.auth.RefreshTokenService
 import com.beauty.config.AppSettings
 import com.beauty.db.DatabaseFactory
 import com.beauty.plugins.*
+import com.beauty.storage.FileStorageFactory
+import com.beauty.storage.FileStorageService
 import io.ktor.server.application.*
 import io.ktor.server.netty.*
 import kotlinx.coroutines.launch
 
 fun main(args: Array<String>): Unit = EngineMain.main(args)
 
-fun Application.module() {
+fun Application.module() = configureApplication(storageOverride = null)
+
+/**
+ * The real module body. [storageOverride] exists so tests can substitute a
+ * fake attachment store; production always builds one from configuration.
+ */
+internal fun Application.configureApplication(storageOverride: FileStorageService?) {
     val settings = AppSettings(environment.config)
     // Refuse to boot in production with development secrets or an H2 database.
     settings.validateOrFail()
@@ -21,7 +29,9 @@ fun Application.module() {
     DatabaseFactory.init(settings)
     configureSerialization()
     configureSecurity()
-    configureRouting()
+    val storage = storageOverride ?: FileStorageFactory.createStorageService(settings)
+    environment.monitor.subscribe(ApplicationStopped) { storage.close() }
+    configureRouting(storage)
 
     // Refresh tokens rotate on every use, so the table gains a row per refresh
     // — with a 15-minute access token that is roughly 100 rows per user per

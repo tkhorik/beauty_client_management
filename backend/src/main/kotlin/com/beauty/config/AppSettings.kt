@@ -24,7 +24,22 @@ class AppSettings(private val config: ApplicationConfig) {
         .map { it.trim() }
         .filter { it.isNotEmpty() }
 
+    val storageProvider: StorageProvider = StorageProvider.fromString(
+        str("storage.provider", "local")
+    )
+
     val uploadDir: File = File(str("app.uploadDir", "uploads"))
+
+    val s3Settings: S3Settings = S3Settings(
+        bucket = str("storage.s3.bucket", ""),
+        region = str("storage.s3.region", "us-east-1").ifBlank { "us-east-1" },
+        endpoint = str("storage.s3.endpoint", "").takeIf { it.isNotBlank() },
+        accessKey = str("storage.s3.accessKey", "").takeIf { it.isNotBlank() },
+        secretKey = str("storage.s3.secretKey", "").takeIf { it.isNotBlank() },
+        pathStyleAccess = str("storage.s3.pathStyleAccess", "false").toBoolean(),
+        deliveryMode = S3DeliveryMode.fromString(str("storage.s3.deliveryMode", "redirect")),
+        presignedUrlMinutes = str("storage.s3.presignedUrlMinutes", "15").toLongOrNull() ?: 15L
+    )
 
     /**
      * Addresses promoted to `SUPER_ADMIN` at startup, comma-separated.
@@ -196,6 +211,10 @@ class AppSettings(private val config: ApplicationConfig) {
             if (!mailStartTls && !mailSslOnConnect) {
                 add("Both MAIL_STARTTLS and MAIL_SSL_ON_CONNECT are false: mail, including password-reset links, would be sent unencrypted.")
             }
+
+            if (storageProvider == StorageProvider.S3 && s3Settings.bucket.isBlank()) {
+                add("S3_BUCKET must not be blank when STORAGE_PROVIDER=s3.")
+            }
         }
 
         if (problems.isNotEmpty()) {
@@ -212,3 +231,40 @@ class AppSettings(private val config: ApplicationConfig) {
         const val INSECURE_DEV_SECRET = "dev-only-insecure-secret-change-me"
     }
 }
+
+enum class StorageProvider {
+    LOCAL,
+    S3;
+
+    companion object {
+        fun fromString(value: String): StorageProvider =
+            when (value.trim().lowercase()) {
+                "s3" -> S3
+                else -> LOCAL
+            }
+    }
+}
+
+enum class S3DeliveryMode {
+    REDIRECT,
+    STREAM;
+
+    companion object {
+        fun fromString(value: String): S3DeliveryMode =
+            when (value.trim().lowercase()) {
+                "stream" -> STREAM
+                else -> REDIRECT
+            }
+    }
+}
+
+data class S3Settings(
+    val bucket: String,
+    val region: String,
+    val endpoint: String?,
+    val accessKey: String?,
+    val secretKey: String?,
+    val pathStyleAccess: Boolean,
+    val deliveryMode: S3DeliveryMode,
+    val presignedUrlMinutes: Long
+)
