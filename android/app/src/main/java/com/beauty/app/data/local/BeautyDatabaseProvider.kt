@@ -48,12 +48,29 @@ object BeautyDatabaseProvider {
         }
     }
 
-    @Volatile private var instance: BeautyDatabase? = null
+    val migration4To5 = object : Migration(4, 5) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("CREATE TABLE IF NOT EXISTS history_snapshots (organizationId TEXT NOT NULL, clientId TEXT NOT NULL, historyJson TEXT NOT NULL, PRIMARY KEY(organizationId, clientId))")
+            db.execSQL("CREATE TABLE IF NOT EXISTS photo_drafts (id TEXT NOT NULL PRIMARY KEY, organizationId TEXT NOT NULL, clientId TEXT NOT NULL, localVisitId TEXT NOT NULL, localFilePath TEXT NOT NULL, tag TEXT NOT NULL, syncError TEXT, uploadedAttachmentJson TEXT)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS index_photo_drafts_organizationId_clientId ON photo_drafts (organizationId, clientId)")
+        }
+    }
 
-    fun get(context: Context): BeautyDatabase = instance ?: synchronized(this) {
-        instance ?: Room.databaseBuilder(context.applicationContext, BeautyDatabase::class.java, "beauty_db")
-            .addMigrations(migration1To2, migration2To3, migration3To4)
-            .build()
-            .also { instance = it }
+    private val instances = mutableMapOf<String, BeautyDatabase>()
+
+    /** Legacy beauty_db is retained unchanged, but never assigned to a guessed account. */
+    fun databaseName(accountId: String?): String {
+        if (accountId.isNullOrBlank()) return "beauty_signed_out"
+        val digest = java.security.MessageDigest.getInstance("SHA-256").digest(accountId.toByteArray())
+        return "beauty_account_" + digest.joinToString("") { "%02x".format(it) }
+    }
+
+    fun get(context: Context, accountId: String? = TokenStore(context).getAccountId()): BeautyDatabase = synchronized(this) {
+        val name = databaseName(accountId)
+        instances.getOrPut(name) {
+            Room.databaseBuilder(context.applicationContext, BeautyDatabase::class.java, name)
+                .addMigrations(migration1To2, migration2To3, migration3To4, migration4To5)
+                .build()
+        }
     }
 }

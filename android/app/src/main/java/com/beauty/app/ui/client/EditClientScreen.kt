@@ -19,7 +19,7 @@ import com.beauty.app.ui.theme.RoseGoldPrimary
 import com.beauty.app.ui.theme.TextLight
 import com.beauty.app.ui.theme.TextMuted
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 fun EditClientScreen(
     viewModel: EditClientViewModel,
@@ -39,7 +39,7 @@ fun EditClientScreen(
             TopAppBar(
                 title = {
                     Text(
-                        "Edit Client",
+                        if (viewModel.isNewClient) "New Client" else "Edit Client",
                         color = RoseGoldPrimary,
                         fontWeight = FontWeight.Bold,
                         fontSize = 20.sp
@@ -68,6 +68,23 @@ fun EditClientScreen(
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            when (viewModel.existingClientState) {
+                EditClientViewModel.ExistingClientState.Loading -> {
+                    Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(color = RoseGoldPrimary)
+                    }
+                    return@Column
+                }
+                EditClientViewModel.ExistingClientState.Missing -> {
+                    Text(
+                        "This client is no longer available. Return to the directory and refresh it.",
+                        color = MaterialTheme.colorScheme.error
+                    )
+                    return@Column
+                }
+                else -> Unit
+            }
+
             // Full Name
             OutlinedTextField(
                 value = viewModel.name,
@@ -122,8 +139,9 @@ fun EditClientScreen(
             }
             // Existing tags as chips
             if (viewModel.tags.isNotEmpty()) {
-                Row(
+                FlowRow(
                     modifier = Modifier.fillMaxWidth(),
+                    maxItemsInEachRow = 4,
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     viewModel.tags.forEach { tag ->
@@ -167,23 +185,23 @@ fun EditClientScreen(
                     )
                 ) { Text("+ Add", color = RoseGoldPrimary, fontSize = 12.sp) }
             }
-            viewModel.customFields.forEachIndexed { index, (key, value) ->
+            viewModel.customFields.forEachIndexed { index, field ->
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     OutlinedTextField(
-                        value = key,
-                        onValueChange = { viewModel.updateCustomField(index, it, value) },
+                        value = field.key,
+                        onValueChange = { viewModel.updateCustomField(index, it, field.value) },
                         label = { Text("Attribute", color = TextMuted) },
                         singleLine = true,
                         modifier = Modifier.weight(1f),
                         colors = outlinedColors()
                     )
                     OutlinedTextField(
-                        value = value,
-                        onValueChange = { viewModel.updateCustomField(index, key, it) },
+                        value = field.value,
+                        onValueChange = { viewModel.updateCustomField(index, field.key, it) },
                         label = { Text("Value", color = TextMuted) },
                         singleLine = true,
                         modifier = Modifier.weight(1f),
@@ -224,7 +242,7 @@ fun EditClientScreen(
                     )
                 } else {
                     Text(
-                        text = "Save Changes",
+                        text = if (viewModel.isNewClient) "Create Client" else "Save Changes",
                         color = Color.Black,
                         fontWeight = FontWeight.Bold,
                         fontSize = 15.sp

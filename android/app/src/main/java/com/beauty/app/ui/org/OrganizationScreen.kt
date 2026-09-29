@@ -1,5 +1,7 @@
 package com.beauty.app.ui.org
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -10,11 +12,13 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.beauty.app.data.api.OrganizationDto
+import com.beauty.app.BuildConfig
 import com.beauty.app.ui.theme.CardSurface
 import com.beauty.app.ui.theme.RoseGoldPrimary
 import com.beauty.app.ui.theme.TextMuted
@@ -39,13 +43,14 @@ import androidx.lifecycle.LifecycleEventObserver
 fun OrganizationScreen(
     viewModel: OrganizationViewModel,
     onDone: (() -> Unit)?,
-    onLogout: () -> Unit
+    onLogout: () -> Unit,
+    onOpenAdmin: (() -> Unit)? = null
 ) {
     val current = viewModel.current
     val lifecycleOwner = LocalLifecycleOwner.current
-    var showCreate by remember { mutableStateOf(false) }
-    var name by remember { mutableStateOf("") }
-    var slug by remember { mutableStateOf("") }
+    val context = LocalContext.current
+    var creationLink by remember { mutableStateOf("") }
+    var creationLinkError by remember { mutableStateOf<String?>(null) }
     var joinSlug by remember { mutableStateOf("") }
     var inviteEmail by remember { mutableStateOf("") }
 
@@ -178,38 +183,37 @@ fun OrganizationScreen(
             // -- Create -----------------------------------------------------
             item { SectionTitle("Create an organization") }
             item {
-                if (!showCreate) {
-                    TextButton(onClick = { showCreate = true }) {
-                        Text("Create a new one", color = RoseGoldPrimary)
-                    }
-                } else {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedTextField(
-                            value = name,
-                            onValueChange = { name = it },
-                            label = { Text("Name") },
-                            singleLine = true,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                        OutlinedTextField(
-                            value = slug,
-                            onValueChange = { slug = it },
-                            label = { Text("Handle (optional)") },
-                            supportingText = {
-                                Text("What colleagues type to request access. Lowercase, numbers, hyphens.")
-                            },
-                            singleLine = true,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                        Button(
-                            onClick = {
-                                viewModel.createOrganization(name, slug)
-                                name = ""; slug = ""; showCreate = false
-                            },
-                            enabled = name.isNotBlank(),
-                            colors = ButtonDefaults.buttonColors(containerColor = RoseGoldPrimary)
-                        ) { Text("Create") }
-                    }
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        "Creating an organization requires a creation link from an administrator. " +
+                            "Paste the link here to continue securely in the web app.",
+                        color = TextMuted,
+                        fontSize = 13.sp
+                    )
+                    OutlinedTextField(
+                        value = creationLink,
+                        onValueChange = {
+                            creationLink = it
+                            creationLinkError = null
+                        },
+                        label = { Text("Organization creation link") },
+                        singleLine = true,
+                        isError = creationLinkError != null,
+                        supportingText = creationLinkError?.let { message -> { Text(message) } },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Button(
+                        onClick = {
+                            val safeLink = creationLinkForBrowser(creationLink)
+                            if (safeLink == null) {
+                                creationLinkError = "Paste a valid creation link for this Aura environment."
+                            } else {
+                                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(safeLink)))
+                            }
+                        },
+                        enabled = creationLink.isNotBlank(),
+                        colors = ButtonDefaults.buttonColors(containerColor = RoseGoldPrimary)
+                    ) { Text("Open in browser") }
                 }
             }
 
@@ -268,9 +272,41 @@ fun OrganizationScreen(
             }
 
             item {
-                TextButton(onClick = onLogout) { Text("Sign out", color = TextMuted) }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    TextButton(onClick = onLogout) { Text("Sign out", color = TextMuted) }
+                    if (viewModel.isSuperAdmin && onOpenAdmin != null) {
+                        TextButton(onClick = onOpenAdmin) { Text("Admin panel", color = RoseGoldPrimary) }
+                    }
+                }
             }
         }
+    }
+}
+
+/**
+ * Only opens an administrator-issued creation link for this deployment's web
+ * origin. This deliberately rejects arbitrary deep links and lookalike hosts.
+ */
+internal fun creationLinkForBrowser(raw: String): String? {
+    val candidate = runCatching { Uri.parse(raw.trim()) }.getOrNull() ?: return null
+    val expected = runCatching { Uri.parse(BuildConfig.API_BASE_URL) }.getOrNull() ?: return null
+    if (candidate.scheme !in setOf("http", "https") || candidate.getQueryParameter("orgToken").isNullOrBlank()) return null
+
+    val expectedPort = when {
+        expected.host == "10.0.2.2" && (expected.port == -1 || expected.port == 8080) -> 5174
+        expected.port != -1 -> expected.port
+        expected.scheme == "https" -> 443
+        else -> 80
+    }
+    val candidatePort = when {
+        candidate.port != -1 -> candidate.port
+        candidate.scheme == "https" -> 443
+        else -> 80
+    }
+    return raw.trim().takeIf {
+        candidate.scheme == expected.scheme &&
+            candidate.host == expected.host &&
+            candidatePort == expectedPort
     }
 }
 
