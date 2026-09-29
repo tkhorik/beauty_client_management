@@ -15,6 +15,10 @@ import io.ktor.client.request.parameter
 import io.ktor.client.request.setBody
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
+import io.ktor.http.Headers
+import io.ktor.http.HttpHeaders
+import io.ktor.client.request.forms.MultiPartFormDataContent
+import io.ktor.client.request.forms.formData
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonObject
 
@@ -383,6 +387,11 @@ interface BeautyApi {
     // compile-time one.
 
     suspend fun getClients(orgId: String): List<ClientDto>
+    suspend fun searchClients(orgId: String, query: String, tag: String?): List<ClientDto>
+    suspend fun createClient(orgId: String, request: UpdateClientRequest): ClientDto
+    suspend fun deleteClient(orgId: String, id: String)
+    suspend fun uploadAttachment(orgId: String, visitId: String, tag: String, bytes: ByteArray): VisitAttachmentDto
+    suspend fun downloadAttachment(orgId: String, id: String): ByteArray
     suspend fun updateClient(orgId: String, id: String, request: UpdateClientRequest): ClientDto
     suspend fun createVisit(orgId: String, request: CreateVisitRequest): VisitDto
     suspend fun getVisitsForClient(orgId: String, clientId: String): List<VisitHistoryDto>
@@ -492,8 +501,51 @@ class KtorBeautyApi(private val client: HttpClient) : BeautyApi {
         }
     }
 
-    override suspend fun getClients(orgId: String): List<ClientDto> =
-        client.get("api/clients") { header(ORG_HEADER, orgId) }.body()
+    override suspend fun getClients(orgId: String): List<ClientDto> = searchClients(orgId, "", null)
+
+    override suspend fun searchClients(orgId: String, query: String, tag: String?): List<ClientDto> {
+        val clients = mutableListOf<ClientDto>()
+        var offset = 0L
+        do {
+            val page: List<ClientDto> = client.get("api/clients") {
+                header(ORG_HEADER, orgId)
+                parameter("limit", 100)
+                parameter("offset", offset)
+                if (query.isNotBlank()) parameter("q", query.trim())
+                if (!tag.isNullOrBlank()) parameter("tag", tag.trim())
+            }.body()
+            clients += page
+            offset += page.size
+        } while (page.size == 100)
+        return clients.distinctBy { it.id }
+    }
+
+    override suspend fun createClient(orgId: String, request: UpdateClientRequest): ClientDto =
+        client.post("api/clients") {
+            header(ORG_HEADER, orgId)
+            contentType(ContentType.Application.Json)
+            setBody(request)
+        }.body()
+
+    override suspend fun deleteClient(orgId: String, id: String) {
+        client.delete("api/clients/$id") { header(ORG_HEADER, orgId) }
+    }
+
+    override suspend fun uploadAttachment(orgId: String, visitId: String, tag: String, bytes: ByteArray): VisitAttachmentDto =
+        client.post("api/attachments/upload") {
+            header(ORG_HEADER, orgId)
+            setBody(MultiPartFormDataContent(formData {
+                append("visitId", visitId)
+                append("tag", tag)
+                append("file", bytes, Headers.build {
+                    append(HttpHeaders.ContentType, "image/jpeg")
+                    append(HttpHeaders.ContentDisposition, "filename=photo.jpg")
+                })
+            }))
+        }.body()
+
+    override suspend fun downloadAttachment(orgId: String, id: String): ByteArray =
+        client.get("api/attachments/$id/file") { header(ORG_HEADER, orgId) }.body()
 
     override suspend fun updateClient(orgId: String, id: String, request: UpdateClientRequest): ClientDto =
         client.put("api/clients/$id") {
@@ -502,12 +554,15 @@ class KtorBeautyApi(private val client: HttpClient) : BeautyApi {
             setBody(request)
         }.body()
 
-    override suspend fun createVisit(orgId: String, request: CreateVisitRequest): VisitDto =
-        client.post("api/visits") {
+    override suspend fun createVisit(orgId: String, request: CreateVisitRequest): VisitDto {
+        val response = client.post("api/visits") {
             header(ORG_HEADER, orgId)
             contentType(ContentType.Application.Json)
             setBody(request)
-        }.body()
+        }
+        check(response.status == HttpStatusCode.Created) { "Visit was not confirmed by the server." }
+        return response.body()
+    }
 
     override suspend fun getVisitsForClient(orgId: String, clientId: String): List<VisitHistoryDto> {
         // `pageLimit()` on the backend caps pages at 100. Continue until its
@@ -624,3 +679,25 @@ class KtorBeautyApi(private val client: HttpClient) : BeautyApi {
         client.delete("api/admin/organization-creation-tokens/$id")
     }
 }
+
+/** User-facing messages never contain URLs, server bodies, tokens, or database details. */
+fun Throwable.safeMessage(fallback: String = "Server could not be reached. Please try again."): String = when {
+    this is PendingVisitsException -> message ?: "Upload pending visits before deleting this client."
+    this is SessionChangedException -> "Your session changed. Please reopen this screen."
+    this is PhotoDraftException -> message ?: "Photo could not be uploaded."
+    this is ResponseException -> when (response.status.value) {
+        401 -> "Your session has expired. Please sign in again."
+        403 -> "This action is not allowed. Check your account verification and organization access."
+        404 -> "This record is no longer available. Refresh and try again."
+        409 -> "This change conflicts with the current record. Refresh and try again."
+        413 -> "This photo is too large. Please select a smaller image."
+        429 -> "Too many requests. Please wait a moment and try again."
+        400, 422 -> "Please check the details and try again."
+        else -> fallback
+    }
+    else -> fallback
+}
+
+class PendingVisitsException(message: String = "Upload pending visits before deleting this client.") : IllegalStateException(message)
+class SessionChangedException : IllegalStateException("Session changed")
+class PhotoDraftException(message: String) : IllegalStateException(message)

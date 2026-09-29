@@ -55,6 +55,8 @@ import com.beauty.app.ui.client.ClientDetailScreen
 import com.beauty.app.ui.client.ClientDetailViewModel
 import com.beauty.app.ui.client.EditClientScreen
 import com.beauty.app.ui.client.EditClientViewModel
+import com.beauty.app.ui.client.ClientDirectoryScreen
+import com.beauty.app.ui.client.ClientDirectoryViewModel
 import com.beauty.app.ui.org.OrganizationScreen
 import com.beauty.app.ui.org.OrganizationViewModel
 import com.beauty.app.ui.settings.SettingsScreen
@@ -94,8 +96,9 @@ fun AppNavHost() {
     val context = LocalContext.current
     val tokenStore = remember { AppContainer.tokenStore(context) }
     val orgStore = remember { AppContainer.orgStore(context) }
-    val repository = remember { AppContainer.repository(context, tokenStore) }
-    val database = remember { BeautyDatabaseProvider.get(context) }
+    val accountId by tokenStore.accountFlow.collectAsState()
+    val repository = remember(accountId) { AppContainer.repository(context, tokenStore) }
+    val database = remember(accountId) { BeautyDatabaseProvider.get(context, accountId) }
 
     val navController = rememberNavController()
     val startDestination = if (tokenStore.getToken() != null) "clients" else "login"
@@ -185,6 +188,7 @@ fun AppNavHost() {
                     OrganizationScreen(
                         viewModel = orgViewModel,
                         onDone = null,
+                        onOpenAdmin = { navController.navigate("admin") },
                         onLogout = {
                             authViewModel.logout {
                                 navController.navigate("login") { popUpTo(0) { inclusive = true } }
@@ -194,35 +198,28 @@ fun AppNavHost() {
                     return@content
                 }
 
-                BeautyAppScreen(
-                    tokenStore = tokenStore,
-                    // Drawn only for a super admin. The flag arrives from the
-                    // profile a moment after the organization list, so this
-                    // recomposes the toolbar rather than being read once.
-                    onOpenAdmin = if (orgViewModel.isSuperAdmin) {
-                        { navController.navigate("admin") }
-                    } else {
-                        null
-                    },
-                    // Keying the screen on the organization means switching salons
-                    // rebuilds it, rather than leaving the previous one's search
-                    // text and selection sitting over the new one's data.
-                    organizationId = activeOrgId ?: return@content,
-                    onClientTap = { clientId ->
-                        navController.navigate("client/$clientId")
-                    },
-                    onOpenSettings = { navController.navigate("settings") },
-                    onOpenOrganizations = { navController.navigate("organizations") },
+                val selectedOrgId = activeOrgId ?: return@content
+
+                val directoryViewModel: ClientDirectoryViewModel = viewModel(
+                    key = "directory_${selectedOrgId}_${accountId}",
+                    factory = object : ViewModelProvider.Factory {
+                        @Suppress("UNCHECKED_CAST")
+                        override fun <T : ViewModel> create(modelClass: Class<T>): T =
+                            ClientDirectoryViewModel(selectedOrgId, repository, database.clientDao()) as T
+                    }
+                )
+                ClientDirectoryScreen(
+                    viewModel = directoryViewModel,
+                    repository = repository,
+                    organizationName = orgViewModel.current?.name ?: "Organization",
+                    onClientTap = { clientId -> navController.navigate("client/$clientId") },
+                    onNewClient = { navController.navigate("new_client") },
+                    onLogVisit = { clientId -> navController.navigate("client/$clientId") },
+                    onSettings = { navController.navigate("settings") },
+                    onOrganizations = { navController.navigate("organizations") },
+                    onAdmin = if (orgViewModel.isSuperAdmin) ({ navController.navigate("admin") }) else null,
                     onLogout = {
-                        // Revokes the refresh token server-side before clearing it
-                        // locally; navigation waits for that so the user is never
-                        // returned to the login screen while still holding a live
-                        // session. Failures still clear locally — see the ViewModel.
-                        authViewModel.logout {
-                            navController.navigate("login") {
-                                popUpTo(0) { inclusive = true }
-                            }
-                        }
+                        authViewModel.logout { navController.navigate("login") { popUpTo(0) { inclusive = true } } }
                     }
                 )
             }
@@ -308,10 +305,24 @@ fun AppNavHost() {
                 )
                 ClientDetailScreen(
                     viewModel = detailViewModel,
+                    repository = repository,
                     onBack = { navController.popBackStack() },
                     onEdit = { navController.navigate("edit_client/$clientId") }
                 )
             }
+        }
+
+        composable("new_client") {
+            val createOrgId = orgViewModel.activeOrgId ?: return@composable
+            val createVm: EditClientViewModel = viewModel(
+                key = "new_${createOrgId}_${accountId}",
+                factory = object : ViewModelProvider.Factory {
+                    @Suppress("UNCHECKED_CAST")
+                    override fun <T : ViewModel> create(modelClass: Class<T>): T =
+                        EditClientViewModel(null, createOrgId, repository, database.clientDao()) as T
+                }
+            )
+            EditClientScreen(viewModel = createVm, onBack = { navController.popBackStack() })
         }
 
         composable(

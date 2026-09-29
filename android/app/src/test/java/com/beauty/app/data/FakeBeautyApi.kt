@@ -24,6 +24,7 @@ import com.beauty.app.data.api.UpdateClientRequest
 import com.beauty.app.data.api.UpdateProfileRequest
 import com.beauty.app.data.api.UpdateUserAdminRequest
 import com.beauty.app.data.api.UserDto
+import com.beauty.app.data.api.VisitAttachmentDto
 import com.beauty.app.data.api.VisitDto
 import com.beauty.app.data.api.VisitHistoryDto
 
@@ -43,6 +44,11 @@ abstract class FakeBeautyApi(private val reason: String = "not used in this test
     override suspend fun logout(request: RefreshRequest): Unit = error(reason)
     override suspend fun forgotPassword(request: ForgotPasswordRequest): Unit = error(reason)
     override suspend fun getClients(orgId: String): List<ClientDto> = error(reason)
+    override suspend fun searchClients(orgId: String, query: String, tag: String?): List<ClientDto> = error(reason)
+    override suspend fun createClient(orgId: String, request: UpdateClientRequest): ClientDto = error(reason)
+    override suspend fun deleteClient(orgId: String, id: String): Unit = error(reason)
+    override suspend fun uploadAttachment(orgId: String, visitId: String, tag: String, bytes: ByteArray): VisitAttachmentDto = error(reason)
+    override suspend fun downloadAttachment(orgId: String, id: String): ByteArray = error(reason)
     override suspend fun updateClient(orgId: String, id: String, request: UpdateClientRequest): ClientDto = error(reason)
     override suspend fun createVisit(orgId: String, request: CreateVisitRequest): VisitDto = error(reason)
     override suspend fun getVisitsForClient(orgId: String, clientId: String): List<VisitHistoryDto> = error(reason)

@@ -94,7 +94,7 @@ class AuthViewModel(
                 val response = api.login(AuthRequest(AuthValidation.normaliseEmail(email), password))
                 // Both halves together: the access token expires in minutes,
                 // and the refresh token is what keeps the user signed in.
-                tokenStore.saveSession(response.token, response.refreshToken)
+                tokenStore.saveSession(response.token, response.refreshToken, response.user.id)
                 LoginState.Success
             } catch (e: ClientRequestException) {
                 if (e.response.status == HttpStatusCode.Unauthorized) {
@@ -139,7 +139,7 @@ class AuthViewModel(
                         fullName = trimmedName
                     )
                 )
-                tokenStore.saveSession(response.token, response.refreshToken)
+                tokenStore.saveSession(response.token, response.refreshToken, response.user.id)
                 RegisterState.Success
             } catch (e: ClientRequestException) {
                 when (e.response.status) {
