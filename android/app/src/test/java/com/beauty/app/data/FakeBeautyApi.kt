@@ -25,6 +25,7 @@ import com.beauty.app.data.api.UpdateProfileRequest
 import com.beauty.app.data.api.UpdateUserAdminRequest
 import com.beauty.app.data.api.UserDto
 import com.beauty.app.data.api.VisitDto
+import com.beauty.app.data.api.VisitHistoryDto
 
 /**
  * A [BeautyApi] where every method fails until a test overrides it.
@@ -44,6 +45,7 @@ abstract class FakeBeautyApi(private val reason: String = "not used in this test
     override suspend fun getClients(orgId: String): List<ClientDto> = error(reason)
     override suspend fun updateClient(orgId: String, id: String, request: UpdateClientRequest): ClientDto = error(reason)
     override suspend fun createVisit(orgId: String, request: CreateVisitRequest): VisitDto = error(reason)
+    override suspend fun getVisitsForClient(orgId: String, clientId: String): List<VisitHistoryDto> = error(reason)
     override suspend fun resendVerificationEmail(): Unit = error(reason)
     override suspend fun getCurrentUser(): UserDto = error(reason)
     override suspend fun updateProfile(request: UpdateProfileRequest): UserDto = error(reason)

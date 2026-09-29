@@ -3,6 +3,7 @@ package com.beauty.app.data
 import com.beauty.app.data.api.ClientDto
 import com.beauty.app.data.api.CreateVisitRequest
 import com.beauty.app.data.api.VisitDto
+import com.beauty.app.data.api.VisitHistoryDto
 import com.beauty.app.data.local.ClientDao
 import com.beauty.app.data.local.VisitDao
 import com.beauty.app.data.local.VisitEntity
@@ -69,6 +70,28 @@ class BeautyRepositoryTest {
 
         assertTrue(result.isFailure)
         org.mockito.kotlin.verifyNoInteractions(clientDao)
+    }
+
+    @Test
+    fun `history pass through preserves the requested organization and client`() = runTest {
+        var requestedOrg: String? = null
+        var requestedClient: String? = null
+        val expected = listOf(
+            VisitHistoryDto("visit-1", "client-1", "2026-09-01T10:00:00", 30, "Treatment", "COMPLETED")
+        )
+        val api = object : FakeBeautyApi() {
+            override suspend fun getVisitsForClient(orgId: String, clientId: String): List<VisitHistoryDto> {
+                requestedOrg = orgId
+                requestedClient = clientId
+                return expected
+            }
+        }
+
+        val history = BeautyRepository(api, clientDao, visitDao).getVisitsForClient(ORG_B, "client-1")
+
+        assertEquals(expected, history)
+        assertEquals(ORG_B, requestedOrg)
+        assertEquals("client-1", requestedClient)
     }
 
     @Test

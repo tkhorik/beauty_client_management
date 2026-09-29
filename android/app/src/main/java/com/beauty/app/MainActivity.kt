@@ -51,6 +51,8 @@ import com.beauty.app.ui.auth.AuthViewModel
 import com.beauty.app.ui.auth.ForgotPasswordScreen
 import com.beauty.app.ui.auth.LoginScreen
 import com.beauty.app.ui.auth.RegisterScreen
+import com.beauty.app.ui.client.ClientDetailScreen
+import com.beauty.app.ui.client.ClientDetailViewModel
 import com.beauty.app.ui.client.EditClientScreen
 import com.beauty.app.ui.client.EditClientViewModel
 import com.beauty.app.ui.org.OrganizationScreen
@@ -68,8 +70,7 @@ data class DirectoryClient(
     val name: String,
     val phone: String,
     val tag: String,
-    val visitsCount: Int,
-    val lastVisit: String
+    val visitsCount: Int
 )
 
 class MainActivity : ComponentActivity() {
@@ -208,7 +209,7 @@ fun AppNavHost() {
                     // text and selection sitting over the new one's data.
                     organizationId = activeOrgId ?: return@content,
                     onClientTap = { clientId ->
-                        navController.navigate("edit_client/$clientId")
+                        navController.navigate("client/$clientId")
                     },
                     onOpenSettings = { navController.navigate("settings") },
                     onOpenOrganizations = { navController.navigate("organizations") },
@@ -284,6 +285,36 @@ fun AppNavHost() {
         }
 
         composable(
+            route = "client/{clientId}",
+            arguments = listOf(navArgument("clientId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val clientId = backStackEntry.arguments!!.getString("clientId")!!
+            val detailOrgId = orgViewModel.activeOrgId ?: return@composable
+            VerificationGate(
+                repository = repository,
+                onLogout = {
+                    authViewModel.logout {
+                        navController.navigate("login") { popUpTo(0) { inclusive = true } }
+                    }
+                }
+            ) {
+                val detailViewModel: ClientDetailViewModel = viewModel(
+                    key = "detail_${detailOrgId}_$clientId",
+                    factory = object : ViewModelProvider.Factory {
+                        @Suppress("UNCHECKED_CAST")
+                        override fun <T : ViewModel> create(modelClass: Class<T>): T =
+                            ClientDetailViewModel(clientId, detailOrgId, repository, database.clientDao(), database.visitDao()) as T
+                    }
+                )
+                ClientDetailScreen(
+                    viewModel = detailViewModel,
+                    onBack = { navController.popBackStack() },
+                    onEdit = { navController.navigate("edit_client/$clientId") }
+                )
+            }
+        }
+
+        composable(
             route = "edit_client/{clientId}",
             arguments = listOf(navArgument("clientId") { type = NavType.StringType })
         ) { backStackEntry ->
@@ -329,7 +360,8 @@ fun BeautyAppScreen(
     onOpenAdmin: (() -> Unit)? = null,
     onLogout: () -> Unit
 ) {
-    var searchQuery by remember { mutableStateOf("") }
+    var searchQuery by remember(organizationId) { mutableStateOf("") }
+    var showVisitClientPicker by remember(organizationId) { mutableStateOf(false) }
     val context = LocalContext.current
     val database = remember { BeautyDatabaseProvider.get(context) }
     val repository = remember { AppContainer.repository(context, tokenStore) }
@@ -364,6 +396,29 @@ fun BeautyAppScreen(
                 isRefreshing = false
             }
         }
+    }
+    if (showVisitClientPicker) {
+        AlertDialog(
+            onDismissRequest = { showVisitClientPicker = false },
+            title = { Text("Choose a client") },
+            text = {
+                if (clients.isEmpty()) {
+                    Text("No clients available. Refresh the directory or create a client on the web first.")
+                } else {
+                    LazyColumn(Modifier.heightIn(max = 360.dp)) {
+                        items(clients, key = { it.id }) { client ->
+                            TextButton(onClick = {
+                                showVisitClientPicker = false
+                                onClientTap(client.id)
+                            }, modifier = Modifier.fillMaxWidth()) {
+                                Text("${client.name} • ${client.phone}")
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = { TextButton(onClick = { showVisitClientPicker = false }) { Text("Cancel") } }
+        )
     }
     val pullRefreshState = rememberPullRefreshState(
         refreshing = isRefreshing,
@@ -451,7 +506,7 @@ fun BeautyAppScreen(
         },
         floatingActionButton = {
             FloatingActionButton(
-                onClick = { /* Visit-entry UI — future work */ },
+                onClick = { showVisitClientPicker = true },
                 containerColor = RoseGoldPrimary,
                 contentColor = Color.Black
             ) {
@@ -610,7 +665,7 @@ fun ClientCardItem(client: DirectoryClient, onClick: () -> Unit) {
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(client.tag, color = TextMuted, fontSize = 12.sp)
-                Text("Last: ${client.lastVisit}", color = ChampagneAccent, fontSize = 12.sp)
+                Text("View visits →", color = ChampagneAccent, fontSize = 12.sp)
             }
         }
     }
@@ -625,7 +680,6 @@ private fun ClientEntity.toDirectoryClient(): DirectoryClient {
         name = name,
         phone = phone,
         tag = tags.ifBlank { "No tags" },
-        visitsCount = totalVisits,
-        lastVisit = "Synced from API"
+        visitsCount = totalVisits
     )
 }

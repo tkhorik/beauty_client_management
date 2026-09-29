@@ -11,6 +11,7 @@ import io.ktor.client.request.post
 import io.ktor.client.request.put
 import io.ktor.client.request.delete
 import io.ktor.client.request.header
+import io.ktor.client.request.parameter
 import io.ktor.client.request.setBody
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
@@ -57,6 +58,38 @@ data class CreateVisitRequest(
 
 @Serializable
 data class VisitDto(val id: String)
+
+/**
+ * A complete visit record returned by the history endpoint.
+ *
+ * This deliberately differs from [VisitDto], which is the minimal response to
+ * creating an offline-queued visit. Keeping those contracts separate means a
+ * future addition to the history response cannot accidentally become required
+ * for the sync path.
+ */
+@Serializable
+data class VisitHistoryDto(
+    val id: String,
+    val clientId: String,
+    val visitDateTime: String,
+    val durationMinutes: Int,
+    val procedureNotes: String,
+    val status: String,
+    val attachments: List<VisitAttachmentDto> = emptyList()
+)
+
+/** Metadata supplied with a history entry; file bytes remain on the attachment endpoint. */
+@Serializable
+data class VisitAttachmentDto(
+    val id: String,
+    val visitId: String,
+    val fileUrl: String,
+    val fileType: String,
+    val fileSize: Long,
+    val caption: String? = null,
+    val tag: String = "PROCEDURE",
+    val uploadedAt: String
+)
 
 @Serializable
 data class AuthRequest(val email: String, val password: String)
@@ -352,6 +385,7 @@ interface BeautyApi {
     suspend fun getClients(orgId: String): List<ClientDto>
     suspend fun updateClient(orgId: String, id: String, request: UpdateClientRequest): ClientDto
     suspend fun createVisit(orgId: String, request: CreateVisitRequest): VisitDto
+    suspend fun getVisitsForClient(orgId: String, clientId: String): List<VisitHistoryDto>
 
     // -- Organizations and membership ------------------------------------
 
@@ -474,6 +508,28 @@ class KtorBeautyApi(private val client: HttpClient) : BeautyApi {
             contentType(ContentType.Application.Json)
             setBody(request)
         }.body()
+
+    override suspend fun getVisitsForClient(orgId: String, clientId: String): List<VisitHistoryDto> {
+        // `pageLimit()` on the backend caps pages at 100. Continue until its
+        // short final page so a long treatment history is never silently cut
+        // off by the default server page size (50).
+        val pageSize = 100
+        var offset = 0L
+        val visits = mutableListOf<VisitHistoryDto>()
+
+        do {
+            val page: List<VisitHistoryDto> = client.get("api/visits") {
+                header(ORG_HEADER, orgId)
+                parameter("clientId", clientId)
+                parameter("limit", pageSize)
+                parameter("offset", offset)
+            }.body()
+            visits += page
+            offset += page.size
+        } while (page.size == pageSize)
+
+        return visits
+    }
 
     override suspend fun getOrganizations(): List<OrganizationDto> =
         client.get("api/organizations").body()

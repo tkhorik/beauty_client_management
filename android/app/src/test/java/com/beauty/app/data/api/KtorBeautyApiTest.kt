@@ -7,12 +7,14 @@ import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.plugins.expectSuccess
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
+import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.headersOf
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class KtorBeautyApiTest {
@@ -55,6 +57,65 @@ class KtorBeautyApiTest {
         KtorBeautyApi(client).getClients("org-b")
 
         assertEquals("org-b", seenHeader)
+    }
+
+    @Test
+    fun `reads every paginated history page scoped to the requested client and organization`() = runTest {
+        val requests = mutableListOf<io.ktor.client.request.HttpRequestData>()
+        val firstPage = List(100) { index ->
+            """{"id":"v-$index","clientId":"client-a","visitDateTime":"2026-09-01T10:00:00","durationMinutes":30,"procedureNotes":"notes","status":"COMPLETED"}"""
+        }.joinToString(prefix = "[", postfix = "]")
+        val finalPage = """[{"id":"v-100","clientId":"client-a","visitDateTime":"2026-09-02T11:00:00","durationMinutes":45,"procedureNotes":"full decode","status":"SCHEDULED","attachments":[{"id":"a-1","visitId":"v-100","fileUrl":"/api/attachments/a-1","fileType":"image/jpeg","fileSize":1234,"caption":"Before","tag":"BEFORE","uploadedAt":"2026-09-02T11:05:00"}]}]"""
+        val engine = MockEngine { request ->
+            requests += request
+            respond(
+                if (requests.size == 1) firstPage else finalPage,
+                HttpStatusCode.OK,
+                headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString())
+            )
+        }
+        val client = HttpClient(engine) { install(ContentNegotiation) { json(Json { ignoreUnknownKeys = true }) } }
+
+        val visits = KtorBeautyApi(client).getVisitsForClient("org-history", "client-a")
+
+        assertEquals(101, visits.size)
+        assertEquals("full decode", visits.last().procedureNotes)
+        assertEquals("a-1", visits.last().attachments.single().id)
+        assertEquals("BEFORE", visits.last().attachments.single().tag)
+        assertEquals(2, requests.size)
+        requests.forEachIndexed { index, request ->
+            assertEquals(HttpMethod.Get, request.method)
+            assertEquals("/api/visits", request.url.encodedPath)
+            assertEquals("org-history", request.headers[ORG_HEADER])
+            assertEquals("client-a", request.url.parameters["clientId"])
+            assertEquals("100", request.url.parameters["limit"])
+            assertEquals((index * 100).toString(), request.url.parameters["offset"])
+        }
+    }
+
+    @Test
+    fun `history request propagates a later pagination failure`() = runTest {
+        var requestCount = 0
+        val fullPage = List(100) {
+            """{"id":"v-$it","clientId":"client-a","visitDateTime":"2026-09-01T10:00:00","durationMinutes":30,"procedureNotes":"notes","status":"COMPLETED"}"""
+        }.joinToString(prefix = "[", postfix = "]")
+        val engine = MockEngine {
+            requestCount++
+            respond(
+                if (requestCount == 1) fullPage else "server unavailable",
+                if (requestCount == 1) HttpStatusCode.OK else HttpStatusCode.ServiceUnavailable,
+                headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString())
+            )
+        }
+        val client = HttpClient(engine) {
+            expectSuccess = true
+            install(ContentNegotiation) { json(Json { ignoreUnknownKeys = true }) }
+        }
+
+        val failure = runCatching { KtorBeautyApi(client).getVisitsForClient("org-history", "client-a") }
+
+        assertTrue(failure.isFailure)
+        assertEquals(2, requestCount)
     }
 
     /**

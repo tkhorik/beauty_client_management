@@ -218,7 +218,9 @@ Android never connects directly to PostgreSQL. Room is an on-device cache and of
 
 - Start the backend before launching Android. The debug emulator build uses `http://10.0.2.2:8080/`, where `10.0.2.2` is the emulator alias for the host machine's loopback interface.
 - On launch (after login), Android refreshes the client directory from `GET /api/clients` with a Bearer token and stores the result in Room. If the backend is unavailable, previously cached clients remain visible.
-- Tapping a client card navigates to the **Edit Client** screen. Changes are sent via `PUT /api/clients/:id` and the Room cache is updated on success.
+- Tapping a client card (including its visit count) opens **Client details** with contact information, attributes, and visit history from `GET /api/visits?clientId=...`. History refreshes on entry, returning from editing, and via the refresh button. Server history is held for the screen session; offline, the screen labels incomplete history and shows visits saved on this device.
+- **Edit Client** is a separate action inside client details. Changes are sent via `PUT /api/clients/:id` and the Room cache is updated on success.
+- **Log Visit** inside client details records date/time, duration, procedure notes, and status. The directory’s plus button first selects a client. Saved visits appear immediately with an upload status; photo attachments and before/after comparison are not yet available on Android.
 - Queued visits are uploaded by unique, network-constrained WorkManager work to `POST /api/visits`. A visit is marked synced only when the backend returns `201 Created`.
 - Debug builds permit local HTTP. Release builds require an HTTPS API URL, supplied with `-PreleaseApiBaseUrl=https://api.example.com/` when building.
 
@@ -277,7 +279,7 @@ uninstall a release build (or vice versa) before testing.
 3. Open the web app, log in, and verify the client directory loads.
 4. Create a client, open its detail panel, and use **Edit Client** to update it.
 5. Build and launch the Android app in the emulator.
-6. Log in with the same credentials on Android, verify the client list loads, tap a card, and save an edit.
+6. Log in with the same credentials on Android, verify the client list loads, tap a card or its visit count to view history, then use **Edit Client** to save an edit. Log a visit and verify its pending-upload indicator clears after sync.
 7. Confirm the change is reflected on both web and Android (both read from the same backend).
 8. Test the password reset: click **Forgot password?** on the web login page, submit the registered address, and copy the link the backend prints to its log. With `MAIL_HOST` unset the app uses `LogMailSender`, so the link appears in the console instead of an inbox — that is the intended local behaviour. Open it, set a new password, then confirm the old one no longer works and the new one does. Clicking the same link a second time must fail.
 9. If PostgreSQL is available, rerun the backend against it for a real database check.
