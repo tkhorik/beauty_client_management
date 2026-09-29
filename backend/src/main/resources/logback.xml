@@ -1,0 +1,24 @@
+<configuration>
+    <!--
+      Without this file logback falls back to DEBUG for every logger. That
+      logged each SQL statement, and the HTTP client under the S3 SDK wrote
+      request headers, including the Authorization header with the access key
+      ID, into the container logs.
+    -->
+    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} -- %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!--
+      Pinned independently of the root level so that lowering root to DEBUG
+      while troubleshooting cannot bring the header and wire dumps back.
+    -->
+    <logger name="org.apache.http.headers" level="WARN"/>
+    <logger name="org.apache.http.wire" level="WARN"/>
+
+    <root level="INFO">
+        <appender-ref ref="STDOUT"/>
+    </root>
+</configuration>
