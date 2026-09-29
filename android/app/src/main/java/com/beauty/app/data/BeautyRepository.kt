@@ -20,6 +20,7 @@ import com.beauty.app.data.api.UpdateClientRequest
 import com.beauty.app.data.api.UpdateProfileRequest
 import com.beauty.app.data.api.UpdateUserAdminRequest
 import com.beauty.app.data.api.UserDto
+import com.beauty.app.data.api.VisitHistoryDto
 import com.beauty.app.data.api.isEmailNotVerified
 import com.beauty.app.data.local.ClientDao
 import com.beauty.app.data.local.ClientEntity
@@ -86,6 +87,10 @@ class BeautyRepository(
         tags: List<String>,
         customFields: JsonObject
     ): ClientDto = api.updateClient(orgId, id, UpdateClientRequest(name, phone, email, tags, customFields))
+
+    /** Read-through history: the backend remains the source of truth for visit records and attachments. */
+    suspend fun getVisitsForClient(orgId: String, clientId: String): List<VisitHistoryDto> =
+        api.getVisitsForClient(orgId, clientId)
 
     // -- Organizations ---------------------------------------------------
 
