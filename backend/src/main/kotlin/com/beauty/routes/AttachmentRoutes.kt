@@ -1,13 +1,14 @@
 package com.beauty.routes
 
 import com.beauty.auth.MembershipService
-import com.beauty.config.AppSettings
 import com.beauty.db.AttachmentsTable
 import com.beauty.db.DatabaseFactory.dbQuery
 import com.beauty.db.VisitsTable
 import com.beauty.models.AttachmentDto
 import com.beauty.plugins.OrgContext
 import com.beauty.plugins.requireOrgAccess
+import com.beauty.storage.FileStorageService
+import com.beauty.storage.StoragePayload
 import io.ktor.http.*
 import io.ktor.http.content.*
 import io.ktor.server.application.*
@@ -39,8 +40,7 @@ private fun OrgContext.visitScope(): Op<Boolean> =
  * missing check would be worse than on the other tables, because these rows
  * point at photographs of other people's clients.
  */
-fun Route.attachmentRoutes() {
-    val uploadDir = AppSettings(application.environment.config).uploadDir
+fun Route.attachmentRoutes(storage: FileStorageService) {
     val memberships = MembershipService()
 
     route("/api/attachments") {
@@ -75,7 +75,7 @@ fun Route.attachmentRoutes() {
                                 } else {
                                     fileName = part.originalFileName ?: "photo.jpg"
                                     contentType = part.contentType?.toString() ?: "image/jpeg"
-                                    temporaryFile = File.createTempFile("upload-", ".tmp", uploadDir)
+                                    temporaryFile = File.createTempFile("upload-", ".tmp")
                                     fileSize = part.streamProvider().use { input ->
                                         temporaryFile!!.outputStream().use { output ->
                                             copyWithLimit(input, output, MAX_UPLOAD_BYTES)
@@ -119,16 +119,14 @@ fun Route.attachmentRoutes() {
                     .takeLast(100)
                     .ifBlank { "upload" }
                 val savedFileName = "${attachmentId}_$safeName"
-                val destFile = File(uploadDir, savedFileName)
-                if (!temporaryFile!!.renameTo(destFile)) {
-                    throw IllegalStateException("Could not finalize attachment upload")
-                }
-                temporaryFile = null
 
                 // This remains an internal storage key. DTOs expose the
                 // authenticated endpoint instead, never this direct path.
                 val storedFileUrl = "/uploads/$savedFileName"
                 val now = LocalDateTime.now()
+
+                // The finally block below removes the temporary file either way.
+                storage.save(storedFileUrl, temporaryFile!!, contentType)
 
                 try {
                     dbQuery {
@@ -144,7 +142,7 @@ fun Route.attachmentRoutes() {
                         }
                     }
                 } catch (e: Exception) {
-                    destFile.delete()
+                    storage.delete(storedFileUrl)
                     throw e
                 }
 
@@ -180,13 +178,22 @@ fun Route.attachmentRoutes() {
                 return@get
             }
 
-            val file = storedAttachmentFile(uploadDir, attachment[AttachmentsTable.fileUrl])
-            if (file == null || !file.isFile) {
-                application.log.warn("Attachment {} exists in the database but its file is unavailable", id)
-                call.respond(HttpStatusCode.NotFound, mapOf("error" to "Attachment file not found"))
-                return@get
+            val storedPath = attachment[AttachmentsTable.fileUrl]
+            when (val payload = storage.resolve(storedPath)) {
+                is StoragePayload.LocalFile -> call.respondFile(payload.file)
+                is StoragePayload.Redirect -> call.respondRedirect(payload.url, permanent = false)
+                is StoragePayload.Stream -> {
+                    payload.contentType?.let { call.response.header(HttpHeaders.ContentType, it) }
+                    payload.contentLength?.let { call.response.header(HttpHeaders.ContentLength, it.toString()) }
+                    call.respondOutputStream {
+                        payload.inputStream.use { input -> input.copyTo(this) }
+                    }
+                }
+                null -> {
+                    application.log.warn("Attachment {} exists in the database but its file is unavailable", id)
+                    call.respond(HttpStatusCode.NotFound, mapOf("error" to "Attachment file not found"))
+                }
             }
-            call.respondFile(file)
         }
 
         delete("/{id}") {
@@ -210,9 +217,7 @@ fun Route.attachmentRoutes() {
                 }
             }
             if (deletedFile != null) {
-                storedAttachmentFile(uploadDir, deletedFile)?.let { file ->
-                    if (file.exists() && !file.delete()) application.log.error("Could not delete attachment file {}", file)
-                }
+                storage.delete(deletedFile)
                 call.respond(HttpStatusCode.OK, mapOf("message" to "Attachment deleted"))
             } else {
                 call.respond(HttpStatusCode.NotFound, mapOf("error" to "Attachment not found"))
