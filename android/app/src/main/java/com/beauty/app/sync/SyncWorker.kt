@@ -42,7 +42,10 @@ class SyncWorker(
 
     override suspend fun doWork(): Result {
         val tokenStore = AppContainer.tokenStore(applicationContext)
-        return VisitSyncCoordinator(AppContainer.repository(applicationContext, tokenStore)).sync()
+        val repository = AppContainer.repository(applicationContext, tokenStore)
+        val visitResult = VisitSyncCoordinator(repository).sync()
+        if (visitResult != Result.success()) return visitResult
+        return if (repository.syncPendingPhotos()) Result.success() else Result.retry()
     }
 
     companion object {

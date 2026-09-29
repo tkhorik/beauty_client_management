@@ -121,10 +121,10 @@ interface ClientDao {
     // that, refreshing one salon's directory would delete every other salon's
     // cached clients — the server snapshot only ever describes one organization,
     // so "not in this snapshot" does not mean "deleted".
-    @Query("DELETE FROM clients WHERE organizationId = :organizationId AND id NOT IN (:serverIds) AND NOT EXISTS (SELECT 1 FROM visits WHERE visits.clientId = clients.id AND visits.isPendingSync = 1)")
+    @Query("DELETE FROM clients WHERE organizationId = :organizationId AND id NOT IN (:serverIds) AND NOT EXISTS (SELECT 1 FROM visits WHERE visits.clientId = clients.id AND visits.isPendingSync = 1) AND NOT EXISTS (SELECT 1 FROM photo_drafts WHERE photo_drafts.clientId = clients.id AND photo_drafts.uploadedAttachmentJson IS NULL)")
     suspend fun deleteClientsMissingFromSnapshot(organizationId: String, serverIds: List<String>)
 
-    @Query("DELETE FROM clients WHERE organizationId = :organizationId AND NOT EXISTS (SELECT 1 FROM visits WHERE visits.clientId = clients.id AND visits.isPendingSync = 1)")
+    @Query("DELETE FROM clients WHERE organizationId = :organizationId AND NOT EXISTS (SELECT 1 FROM visits WHERE visits.clientId = clients.id AND visits.isPendingSync = 1) AND NOT EXISTS (SELECT 1 FROM photo_drafts WHERE photo_drafts.clientId = clients.id AND photo_drafts.uploadedAttachmentJson IS NULL)")
     suspend fun deleteAllClientsWithoutPendingVisits(organizationId: String)
 
     /** Atomically make one organization's local directory match the server's snapshot. */
@@ -141,7 +141,7 @@ interface ClientDao {
 
 @Dao
 interface VisitDao {
-    @Query("SELECT * FROM visits WHERE clientId = :clientId AND organizationId = :organizationId ORDER BY createdAt DESC")
+    @Query("SELECT * FROM visits WHERE clientId = :clientId AND organizationId = :organizationId ORDER BY visitDateTime DESC, createdAt DESC")
     fun getVisitsForClient(clientId: String, organizationId: String): Flow<List<VisitEntity>>
 
     /**
@@ -154,7 +154,13 @@ interface VisitDao {
     @Query("SELECT * FROM visits WHERE isPendingSync = 1 AND remoteId IS NULL ORDER BY createdAt ASC")
     suspend fun getUnsyncedVisits(): List<VisitEntity>
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Query("SELECT * FROM visits WHERE id = :id")
+    suspend fun getVisitById(id: String): VisitEntity?
+
+    @Query("SELECT COUNT(*) FROM visits WHERE clientId = :clientId AND organizationId = :organizationId AND isPendingSync = 1")
+    suspend fun countPendingVisits(organizationId: String, clientId: String): Int
+
+    @Upsert
     suspend fun insertVisit(visit: VisitEntity)
 
     @Query("UPDATE visits SET remoteId = :remoteId, isPendingSync = 0, syncError = NULL WHERE id = :visitId")
@@ -164,12 +170,58 @@ interface VisitDao {
     suspend fun markVisitSyncFailed(visitId: String, error: String)
 }
 
+@Entity(tableName = "history_snapshots", primaryKeys = ["organizationId", "clientId"])
+data class HistorySnapshotEntity(val organizationId: String, val clientId: String, val historyJson: String)
+
+@Entity(tableName = "photo_drafts", indices = [Index(value = ["organizationId", "clientId"])])
+data class PhotoDraftEntity(
+    @PrimaryKey val id: String,
+    val organizationId: String,
+    val clientId: String,
+    val localVisitId: String,
+    val localFilePath: String,
+    val tag: String,
+    val syncError: String? = null,
+    val uploadedAttachmentJson: String? = null
+)
+
+@Dao
+interface ParityDao {
+    @Query("SELECT * FROM history_snapshots WHERE organizationId = :orgId AND clientId = :clientId")
+    suspend fun getHistory(orgId: String, clientId: String): HistorySnapshotEntity?
+
+    @Upsert
+    suspend fun saveHistory(history: HistorySnapshotEntity)
+
+    @Query("DELETE FROM history_snapshots WHERE organizationId = :orgId AND clientId = :clientId")
+    suspend fun deleteHistory(orgId: String, clientId: String)
+
+    @Upsert
+    suspend fun savePhotoDraft(draft: PhotoDraftEntity)
+
+    @Query("SELECT * FROM photo_drafts WHERE organizationId = :orgId AND clientId = :clientId AND uploadedAttachmentJson IS NULL")
+    suspend fun getPhotoDrafts(orgId: String, clientId: String): List<PhotoDraftEntity>
+
+    @Query("SELECT * FROM photo_drafts WHERE uploadedAttachmentJson IS NULL ORDER BY id")
+    suspend fun getAllPendingPhotoDrafts(): List<PhotoDraftEntity>
+
+    @Query("SELECT * FROM photo_drafts WHERE id = :id")
+    suspend fun getPhotoDraft(id: String): PhotoDraftEntity?
+
+    @Query("DELETE FROM photo_drafts WHERE id = :id")
+    suspend fun deletePhotoDraft(id: String)
+
+    @Query("DELETE FROM photo_drafts WHERE organizationId = :orgId AND clientId = :clientId")
+    suspend fun deleteClientPhotoDrafts(orgId: String, clientId: String)
+}
+
 @Database(
-    entities = [ClientEntity::class, VisitEntity::class, AttachmentEntity::class],
-    version = 4,
+    entities = [ClientEntity::class, VisitEntity::class, AttachmentEntity::class, HistorySnapshotEntity::class, PhotoDraftEntity::class],
+    version = 5,
     exportSchema = false
 )
 abstract class BeautyDatabase : RoomDatabase() {
     abstract fun clientDao(): ClientDao
     abstract fun visitDao(): VisitDao
+    abstract fun parityDao(): ParityDao
 }
