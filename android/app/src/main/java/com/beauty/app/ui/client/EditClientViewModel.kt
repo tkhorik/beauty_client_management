@@ -9,10 +9,10 @@ import androidx.lifecycle.viewModelScope
 import com.beauty.app.data.BeautyRepository
 import com.beauty.app.data.local.ClientDao
 import com.beauty.app.data.local.ClientEntity
+import com.beauty.app.data.toEntity
 import com.beauty.app.ui.auth.AuthValidation
 import io.ktor.client.plugins.ClientRequestException
 import kotlinx.coroutines.launch
-import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonElement
@@ -81,6 +81,11 @@ class EditClientViewModel(
     val customFields = mutableStateListOf<CustomField>()
 
     init {
+        // Same starting values as the web app's New Client form.
+        if (clientId == null) {
+            tags.addAll(NEW_CLIENT_DEFAULT_TAGS)
+            customFields.addAll(NEW_CLIENT_DEFAULT_FIELDS.map { (key, value) -> CustomField(key, value) })
+        }
         clientId?.let { existingClientId -> viewModelScope.launch {
             val entity: ClientEntity? = clientDao.getClientById(existingClientId, organizationId)
             entity?.let { e ->
@@ -190,19 +195,7 @@ class EditClientViewModel(
                     customFields = cfJsonObject
                 )
 
-                val updatedEntity = ClientEntity(
-                    id = dto.id,
-                    organizationId = organizationId,
-                    name = dto.name,
-                    phone = dto.phone,
-                    email = dto.email,
-                    tagsJson = Json.encodeToString(dto.tags),
-                    customFieldsJson = dto.customFields.toString(),
-                    totalVisits = dto.totalVisits,
-                    isSynced = true,
-                    updatedAt = System.currentTimeMillis()
-                )
-                repository.upsertClientLocally(updatedEntity)
+                repository.upsertClientLocally(dto.toEntity(organizationId))
                 SaveState.Success
             } catch (e: ClientRequestException) {
                 SaveState.Error("Save failed: ${e.response.status.value}")
@@ -217,4 +210,10 @@ class EditClientViewModel(
 
     private fun displayValue(element: JsonElement): String =
         (element as? JsonPrimitive)?.content ?: element.toString()
+
+    companion object {
+        /** Mirrors `NewClientModal.tsx`'s initial state. */
+        val NEW_CLIENT_DEFAULT_TAGS = listOf("VIP")
+        val NEW_CLIENT_DEFAULT_FIELDS = listOf("Skin Type" to "Sensitive", "Allergies" to "None")
+    }
 }

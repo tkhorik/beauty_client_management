@@ -214,7 +214,7 @@ fun AppNavHost() {
                     organizationName = orgViewModel.current?.name ?: "Organization",
                     onClientTap = { clientId -> navController.navigate("client/$clientId") },
                     onNewClient = { navController.navigate("new_client") },
-                    onLogVisit = { clientId -> navController.navigate("client/$clientId") },
+                    onLogVisit = { clientId -> navController.navigate("client/$clientId?logVisit=true") },
                     onSettings = { navController.navigate("settings") },
                     onOrganizations = { navController.navigate("organizations") },
                     onAdmin = if (orgViewModel.isSuperAdmin) ({ navController.navigate("admin") }) else null,
@@ -282,10 +282,14 @@ fun AppNavHost() {
         }
 
         composable(
-            route = "client/{clientId}",
-            arguments = listOf(navArgument("clientId") { type = NavType.StringType })
+            route = "client/{clientId}?logVisit={logVisit}",
+            arguments = listOf(
+                navArgument("clientId") { type = NavType.StringType },
+                navArgument("logVisit") { type = NavType.BoolType; defaultValue = false }
+            )
         ) { backStackEntry ->
             val clientId = backStackEntry.arguments!!.getString("clientId")!!
+            val logVisit = backStackEntry.arguments!!.getBoolean("logVisit")
             val detailOrgId = orgViewModel.activeOrgId ?: return@composable
             VerificationGate(
                 repository = repository,
@@ -307,7 +311,8 @@ fun AppNavHost() {
                     viewModel = detailViewModel,
                     repository = repository,
                     onBack = { navController.popBackStack() },
-                    onEdit = { navController.navigate("edit_client/$clientId") }
+                    onEdit = { navController.navigate("edit_client/$clientId") },
+                    openVisitForm = logVisit
                 )
             }
         }
