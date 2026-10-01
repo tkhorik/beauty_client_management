@@ -22,9 +22,8 @@ import com.beauty.app.ui.theme.TextMuted
  * Requests a password-reset link.
  *
  * This screen only *starts* the flow. The link it triggers points at the web
- * app, so the new password is typed in a browser rather than here — see
- * `ForgotPasswordRequest` for why an in-app reset form and an Android deep link
- * were both left out.
+ * app; the user can finish there or paste the link into [ResetPasswordScreen].
+ * There is no Android deep link — see `ForgotPasswordRequest`.
  *
  * The confirmation is deliberately non-committal ("if an account exists"). The
  * backend refuses to reveal whether the address is registered, and a screen
@@ -34,7 +33,8 @@ import com.beauty.app.ui.theme.TextMuted
 @Composable
 fun ForgotPasswordScreen(
     viewModel: AuthViewModel,
-    onNavigateBackToLogin: () -> Unit
+    onNavigateBackToLogin: () -> Unit,
+    onEnterResetLink: () -> Unit
 ) {
     var email by remember { mutableStateOf("") }
     val state = viewModel.forgotPasswordState
@@ -71,7 +71,10 @@ fun ForgotPasswordScreen(
                 // structure to the compiler to unwind, and there is no reason
                 // to rely on that when an if/else reads the same.
                 if (state is AuthViewModel.ForgotPasswordState.Sent) {
-                    SentConfirmation(onNavigateBackToLogin = onNavigateBackToLogin)
+                    SentConfirmation(
+                        onNavigateBackToLogin = onNavigateBackToLogin,
+                        onEnterResetLink = onEnterResetLink
+                    )
                 } else {
                     Text(
                         text = "Reset your password",
@@ -139,6 +142,17 @@ fun ForgotPasswordScreen(
                     }
 
                     TextButton(
+                        onClick = onEnterResetLink,
+                        enabled = state !is AuthViewModel.ForgotPasswordState.Loading
+                    ) {
+                        Text(
+                            text = "Already have a reset link?",
+                            color = RoseGoldPrimary,
+                            fontSize = 13.sp
+                        )
+                    }
+
+                    TextButton(
                         onClick = onNavigateBackToLogin,
                         enabled = state !is AuthViewModel.ForgotPasswordState.Loading
                     ) {
@@ -163,7 +177,7 @@ fun ForgotPasswordScreen(
  * an email" would be both a lie and an enumeration oracle.
  */
 @Composable
-private fun ColumnScope.SentConfirmation(onNavigateBackToLogin: () -> Unit) {
+private fun ColumnScope.SentConfirmation(onNavigateBackToLogin: () -> Unit, onEnterResetLink: () -> Unit) {
     Text(
         text = "Check your email",
         color = RoseGoldPrimary,
@@ -172,7 +186,7 @@ private fun ColumnScope.SentConfirmation(onNavigateBackToLogin: () -> Unit) {
     )
     Text(
         text = "If an account exists for that address, a reset link is on its way. " +
-            "Open it on this device or any browser to choose a new password. " +
+            "Open it in any browser, or copy it and paste it here to choose a new password. " +
             "The link works once and expires within the hour.",
         color = TextMuted,
         fontSize = 14.sp,
@@ -187,7 +201,7 @@ private fun ColumnScope.SentConfirmation(onNavigateBackToLogin: () -> Unit) {
     )
 
     Button(
-        onClick = onNavigateBackToLogin,
+        onClick = onEnterResetLink,
         modifier = Modifier
             .fillMaxWidth()
             .height(50.dp),
@@ -195,10 +209,14 @@ private fun ColumnScope.SentConfirmation(onNavigateBackToLogin: () -> Unit) {
         colors = ButtonDefaults.buttonColors(containerColor = RoseGoldPrimary)
     ) {
         Text(
-            text = "Back to sign in",
+            text = "Paste reset link",
             color = Color.Black,
             fontWeight = FontWeight.Bold,
             fontSize = 15.sp
         )
+    }
+
+    TextButton(onClick = onNavigateBackToLogin) {
+        Text(text = "Back to sign in", color = RoseGoldPrimary, fontSize = 13.sp)
     }
 }

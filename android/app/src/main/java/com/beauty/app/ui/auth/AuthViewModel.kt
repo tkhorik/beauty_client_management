@@ -10,6 +10,7 @@ import com.beauty.app.data.api.BeautyApi
 import com.beauty.app.data.api.ForgotPasswordRequest
 import com.beauty.app.data.api.RefreshRequest
 import com.beauty.app.data.api.RegisterRequest
+import com.beauty.app.data.api.ResetPasswordRequest
 import com.beauty.app.data.api.ValidationErrorResponse
 import com.beauty.app.data.local.OrgStore
 import com.beauty.app.data.local.TokenStore
@@ -76,6 +77,23 @@ class AuthViewModel(
         data class Error(val message: String) : ForgotPasswordState
     }
 
+    sealed interface ResetPasswordState {
+        object Idle : ResetPasswordState
+        object Loading : ResetPasswordState
+
+        /** Password changed; every session was revoked and none was issued. */
+        object Done : ResetPasswordState
+
+        /**
+         * [fieldErrors] is keyed `link`, `newPassword` and `confirmPassword`;
+         * [message] is for failures that belong to no single field.
+         */
+        data class Error(
+            val message: String? = null,
+            val fieldErrors: Map<String, String> = emptyMap()
+        ) : ResetPasswordState
+    }
+
     var loginState: LoginState by mutableStateOf(LoginState.Idle)
         private set
 
@@ -83,6 +101,9 @@ class AuthViewModel(
         private set
 
     var forgotPasswordState: ForgotPasswordState by mutableStateOf(ForgotPasswordState.Idle)
+        private set
+
+    var resetPasswordState: ResetPasswordState by mutableStateOf(ResetPasswordState.Idle)
         private set
 
     fun login(email: String, password: String) {
@@ -179,9 +200,8 @@ class AuthViewModel(
      * route. Only a failure that cannot depend on the address at all — the
      * request never left the device, or was rate-limited by IP — is surfaced.
      *
-     * The new password itself is typed on the web app, which is where the
-     * emailed link points. See [ForgotPasswordRequest] for why there is no
-     * in-app reset form.
+     * The new password is set either on the web app, where the emailed link
+     * points, or in-app via [resetPassword] with the pasted link.
      */
     fun forgotPassword(email: String) {
         val normalisedEmail = AuthValidation.normaliseEmail(email)
@@ -207,6 +227,62 @@ class AuthViewModel(
                 ForgotPasswordState.Sent
             } catch (e: Exception) {
                 ForgotPasswordState.Error("Server could not be reached. Please check your connection.")
+            }
+        }
+    }
+
+    /**
+     * Completes a reset with the token from a pasted reset link.
+     *
+     * [token] is null when the pasted text is not a reset link for this
+     * deployment; the screen does that parsing. The password is checked locally
+     * first so a too-short one is caught before the request — the server
+     * validates before spending the token too, so either way the link survives
+     * a rejected password.
+     */
+    fun resetPassword(token: String?, newPassword: String, confirmPassword: String) {
+        val localErrors = buildMap {
+            if (token == null) put("link", "Paste the full reset link from the email.")
+            AuthValidation.passwordError(newPassword)?.let { put("newPassword", it) }
+            AuthValidation.confirmPasswordError(newPassword, confirmPassword)
+                ?.let { put("confirmPassword", it) }
+        }
+        if (localErrors.isNotEmpty() || token == null) {
+            resetPasswordState = ResetPasswordState.Error(fieldErrors = localErrors)
+            return
+        }
+
+        viewModelScope.launch {
+            resetPasswordState = ResetPasswordState.Loading
+            resetPasswordState = try {
+                api.resetPassword(ResetPasswordRequest(token, newPassword))
+                ResetPasswordState.Done
+            } catch (e: ClientRequestException) {
+                when (e.response.status) {
+                    HttpStatusCode.BadRequest -> {
+                        // Field errors mean the password was refused and the
+                        // link is still good. A flat `error` means the token is
+                        // unknown, used or expired — one message for all three.
+                        val parsed = runCatching { e.response.body<ValidationErrorResponse>() }.getOrNull()
+                        if (parsed != null && parsed.errors.isNotEmpty()) {
+                            ResetPasswordState.Error(fieldErrors = parsed.errors)
+                        } else {
+                            ResetPasswordState.Error(
+                                fieldErrors = mapOf(
+                                    "link" to "This reset link is invalid or has expired. Please request a new one."
+                                )
+                            )
+                        }
+                    }
+                    HttpStatusCode.TooManyRequests -> ResetPasswordState.Error(
+                        message = "Too many attempts. Please wait a moment and try again."
+                    )
+                    else -> ResetPasswordState.Error(message = "Could not reset the password. Please try again.")
+                }
+            } catch (e: ResponseException) {
+                ResetPasswordState.Error(message = "Could not reset the password. Please try again.")
+            } catch (e: Exception) {
+                ResetPasswordState.Error(message = "Server could not be reached. Please check your connection.")
             }
         }
     }
@@ -244,5 +320,6 @@ class AuthViewModel(
         loginState = LoginState.Idle
         registerState = RegisterState.Idle
         forgotPasswordState = ForgotPasswordState.Idle
+        resetPasswordState = ResetPasswordState.Idle
     }
 }
