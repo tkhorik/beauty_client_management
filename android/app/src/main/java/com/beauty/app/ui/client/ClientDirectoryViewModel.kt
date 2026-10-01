@@ -6,15 +6,14 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.beauty.app.data.BeautyRepository
-import com.beauty.app.data.api.ClientDto
 import com.beauty.app.data.local.ClientDao
 import com.beauty.app.data.local.ClientEntity
+import com.beauty.app.data.toEntity
 import io.ktor.client.plugins.ResponseException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
 class ClientDirectoryViewModel(
@@ -85,7 +84,7 @@ class ClientDirectoryViewModel(
             delay(250)
             searching = true
             try {
-                results = repository.searchClients(orgId, requestedQuery, requestedTag).map { it.asEntity(orgId) }
+                results = repository.searchClients(orgId, requestedQuery, requestedTag).map { it.toEntity(orgId) }
                 message = null
                 blocked = false
             } catch (cancelled: CancellationException) {
@@ -102,7 +101,3 @@ class ClientDirectoryViewModel(
             else "Could not reach the server — showing cached clients."
     }
 }
-
-private fun ClientDto.asEntity(orgId: String) = ClientEntity(
-    id, orgId, name, phone, email, Json.encodeToString(tags), customFields.toString(), totalVisits
-)

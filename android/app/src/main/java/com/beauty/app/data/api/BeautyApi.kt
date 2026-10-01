@@ -390,7 +390,7 @@ interface BeautyApi {
     suspend fun searchClients(orgId: String, query: String, tag: String?): List<ClientDto>
     suspend fun createClient(orgId: String, request: UpdateClientRequest): ClientDto
     suspend fun deleteClient(orgId: String, id: String)
-    suspend fun uploadAttachment(orgId: String, visitId: String, tag: String, bytes: ByteArray): VisitAttachmentDto
+    suspend fun uploadAttachment(orgId: String, visitId: String, tag: String, bytes: ByteArray, caption: String? = null): VisitAttachmentDto
     suspend fun downloadAttachment(orgId: String, id: String): ByteArray
     suspend fun updateClient(orgId: String, id: String, request: UpdateClientRequest): ClientDto
     suspend fun createVisit(orgId: String, request: CreateVisitRequest): VisitDto
@@ -531,12 +531,13 @@ class KtorBeautyApi(private val client: HttpClient) : BeautyApi {
         client.delete("api/clients/$id") { header(ORG_HEADER, orgId) }
     }
 
-    override suspend fun uploadAttachment(orgId: String, visitId: String, tag: String, bytes: ByteArray): VisitAttachmentDto =
+    override suspend fun uploadAttachment(orgId: String, visitId: String, tag: String, bytes: ByteArray, caption: String?): VisitAttachmentDto =
         client.post("api/attachments/upload") {
             header(ORG_HEADER, orgId)
             setBody(MultiPartFormDataContent(formData {
                 append("visitId", visitId)
                 append("tag", tag)
+                caption?.let { append("caption", it) }
                 append("file", bytes, Headers.build {
                     append(HttpHeaders.ContentType, "image/jpeg")
                     append(HttpHeaders.ContentDisposition, "filename=photo.jpg")
