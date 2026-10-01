@@ -3,6 +3,7 @@ package com.beauty.app.ui.org
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -28,6 +29,7 @@ import com.beauty.app.ui.theme.TextMuted
 internal fun MemberRow(
     member: MemberDto,
     onApprove: () -> Unit,
+    onDecline: () -> Unit,
     onRemove: () -> Unit,
     onToggleRole: () -> Unit
 ) {
@@ -43,11 +45,19 @@ internal fun MemberRow(
                 fontSize = 12.sp
             )
         }
+        // A join request is answered, not "removed": Decline sits next to
+        // Approve, mirroring the web roster. Server-side both are the same
+        // DELETE, so only the wording differs.
         if (member.status == "PENDING") {
             IconButton(onClick = onApprove) {
                 Icon(Icons.Default.Check, contentDescription = "Approve", tint = RoseGoldPrimary)
             }
-        } else if (member.status == "ACTIVE") {
+            IconButton(onClick = onDecline) {
+                Icon(Icons.Default.Close, contentDescription = "Decline", tint = TextMuted)
+            }
+            return@Row
+        }
+        if (member.status == "ACTIVE") {
             TextButton(onClick = onToggleRole) {
                 Text(
                     if (member.role == "ORG_ADMIN") "Demote" else "Promote",

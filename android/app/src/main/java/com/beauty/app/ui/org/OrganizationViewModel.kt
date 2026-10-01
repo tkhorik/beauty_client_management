@@ -219,6 +219,11 @@ class OrganizationViewModel(
         repository.removeMember(orgId, userId)
     }
 
+    /** Answers a join request with no. Same DELETE as [remove]; only the outcome message differs. */
+    fun decline(orgId: String, userId: String) = memberAction(orgId, "Request declined.") {
+        repository.removeMember(orgId, userId)
+    }
+
     fun changeRole(orgId: String, userId: String, role: String) = memberAction(orgId, "Role updated.") {
         repository.changeMemberRole(orgId, userId, role)
     }
