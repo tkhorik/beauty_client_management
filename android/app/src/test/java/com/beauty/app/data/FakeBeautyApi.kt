@@ -58,6 +58,7 @@ abstract class FakeBeautyApi(private val reason: String = "not used in this test
     override suspend fun changePassword(request: ChangePasswordRequest): AuthResponse = error(reason)
     override suspend fun getOrganizations(): List<OrganizationDto> = error(reason)
     override suspend fun createOrganization(request: CreateOrganizationRequest): OrganizationDto = error(reason)
+    override suspend fun validateCreationToken(token: String): Boolean = error(reason)
     override suspend fun requestToJoinOrganization(request: JoinOrganizationRequest): OrganizationDto = error(reason)
     override suspend fun getMembers(orgId: String): List<MemberDto> = error(reason)
     override suspend fun approveMember(orgId: String, userId: String): Unit = error(reason)
