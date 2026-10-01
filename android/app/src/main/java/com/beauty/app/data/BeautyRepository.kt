@@ -139,7 +139,7 @@ class BeautyRepository(
         val visit = visitDao.getVisitById(draft.localVisitId) ?: throw PhotoDraftException("Visit is no longer available.")
         val remoteVisitId = visit.remoteId ?: throw PhotoDraftException("The visit must finish uploading before its photo can upload.")
         val bytes = java.io.File(draft.localFilePath).takeIf { it.exists() }?.readBytes() ?: throw PhotoDraftException("Photo file is no longer available.")
-        val uploaded = api.uploadAttachment(draft.organizationId, remoteVisitId, draft.tag, bytes)
+        val uploaded = api.uploadAttachment(draft.organizationId, remoteVisitId, draft.tag, bytes, defaultPhotoCaption(draft.tag))
         dao.deletePhotoDraft(draft.id)
         return uploaded
     }
@@ -311,7 +311,36 @@ class BeautyRepository(
     }
 }
 
-private fun ClientDto.toEntity(organizationId: String, json: Json) = ClientEntity(
+/**
+ * The captions the web app attaches to its BEFORE/AFTER uploads, so a photo
+ * reads the same whichever client logged it. Derived from the tag at upload
+ * time rather than stored on the draft, which keeps the Room schema unchanged.
+ */
+internal fun defaultPhotoCaption(tag: String): String? = when (tag) {
+    "BEFORE" -> "Baseline before procedure photo"
+    "AFTER" -> "Finished procedure photo result"
+    else -> null
+}
+
+/**
+ * Epoch millis for a backend `LocalDateTime.toString()` value.
+ *
+ * Only the minute prefix is parsed: `LocalDateTime` drops the seconds field
+ * entirely when it is zero, so the full string has no single fixed pattern.
+ * `java.time` is avoided because minSdk 24 predates it without desugaring.
+ */
+internal fun parseServerTimestamp(value: String): Long? = runCatching {
+    java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm", java.util.Locale.US)
+        .apply { isLenient = false }
+        .parse(value.take(16))?.time
+}.getOrNull()
+
+/**
+ * Keeps the server's `updatedAt`, which the directory shows as "Updated …"
+ * and sorts by, as the web app does. Falls back to now only for a value the
+ * backend should never send.
+ */
+internal fun ClientDto.toEntity(organizationId: String, json: Json = Json) = ClientEntity(
     id = id,
     organizationId = organizationId,
     name = name,
@@ -321,7 +350,7 @@ private fun ClientDto.toEntity(organizationId: String, json: Json) = ClientEntit
     customFieldsJson = customFields.toString(),
     totalVisits = totalVisits,
     isSynced = true,
-    updatedAt = System.currentTimeMillis()
+    updatedAt = parseServerTimestamp(updatedAt) ?: System.currentTimeMillis()
 )
 
 private fun VisitEntity.toRequest() = CreateVisitRequest(
