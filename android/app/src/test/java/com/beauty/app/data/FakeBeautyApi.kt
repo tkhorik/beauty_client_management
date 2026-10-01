@@ -20,6 +20,7 @@ import com.beauty.app.data.api.OrganizationCreationTokenDto
 import com.beauty.app.data.api.OrganizationDto
 import com.beauty.app.data.api.RefreshRequest
 import com.beauty.app.data.api.RegisterRequest
+import com.beauty.app.data.api.ResetPasswordRequest
 import com.beauty.app.data.api.UpdateClientRequest
 import com.beauty.app.data.api.UpdateProfileRequest
 import com.beauty.app.data.api.UpdateUserAdminRequest
@@ -43,6 +44,7 @@ abstract class FakeBeautyApi(private val reason: String = "not used in this test
     override suspend fun register(request: RegisterRequest): AuthResponse = error(reason)
     override suspend fun logout(request: RefreshRequest): Unit = error(reason)
     override suspend fun forgotPassword(request: ForgotPasswordRequest): Unit = error(reason)
+    override suspend fun resetPassword(request: ResetPasswordRequest): Unit = error(reason)
     override suspend fun getClients(orgId: String): List<ClientDto> = error(reason)
     override suspend fun searchClients(orgId: String, query: String, tag: String?): List<ClientDto> = error(reason)
     override suspend fun createClient(orgId: String, request: UpdateClientRequest): ClientDto = error(reason)
@@ -58,6 +60,7 @@ abstract class FakeBeautyApi(private val reason: String = "not used in this test
     override suspend fun changePassword(request: ChangePasswordRequest): AuthResponse = error(reason)
     override suspend fun getOrganizations(): List<OrganizationDto> = error(reason)
     override suspend fun createOrganization(request: CreateOrganizationRequest): OrganizationDto = error(reason)
+    override suspend fun validateCreationToken(token: String): Boolean = error(reason)
     override suspend fun requestToJoinOrganization(request: JoinOrganizationRequest): OrganizationDto = error(reason)
     override suspend fun getMembers(orgId: String): List<MemberDto> = error(reason)
     override suspend fun approveMember(orgId: String, userId: String): Unit = error(reason)

@@ -223,6 +223,7 @@ private fun MembersTab(viewModel: AdminViewModel, org: AdminOrganizationDto) {
             MemberRow(
                 member = member,
                 onApprove = { viewModel.approve(org.id, member.userId) },
+                onDecline = { viewModel.decline(org.id, member.userId) },
                 onRemove = { viewModel.remove(org.id, member.userId) },
                 onToggleRole = {
                     viewModel.changeRole(

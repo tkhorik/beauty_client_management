@@ -49,6 +49,7 @@ import com.beauty.app.data.local.ClientEntity
 import com.beauty.app.sync.SyncWorker
 import com.beauty.app.ui.auth.AuthViewModel
 import com.beauty.app.ui.auth.ForgotPasswordScreen
+import com.beauty.app.ui.auth.ResetPasswordScreen
 import com.beauty.app.ui.auth.LoginScreen
 import com.beauty.app.ui.auth.RegisterScreen
 import com.beauty.app.ui.client.ClientDetailScreen
@@ -141,12 +142,28 @@ fun AppNavHost() {
         }
 
         composable("forgot-password") {
-            // Only starts the flow. The emailed link opens the web app, which
-            // is where the new password is actually set, so there is nothing
-            // to navigate to on success — the user comes back and signs in.
+            // Starts the flow. The emailed link opens the web app; a user who
+            // would rather finish here pastes it into the reset screen.
             ForgotPasswordScreen(
                 viewModel = authViewModel,
-                onNavigateBackToLogin = { navController.popBackStack() }
+                onNavigateBackToLogin = { navController.popBackStack() },
+                onEnterResetLink = { navController.navigate("reset-password") }
+            )
+        }
+
+        composable("reset-password") {
+            ResetPasswordScreen(
+                viewModel = authViewModel,
+                onNavigateBackToLogin = {
+                    navController.navigate("login") {
+                        popUpTo("login") { inclusive = true }
+                    }
+                },
+                onRequestNewLink = {
+                    navController.navigate("forgot-password") {
+                        popUpTo("forgot-password") { inclusive = true }
+                    }
+                }
             )
         }
 

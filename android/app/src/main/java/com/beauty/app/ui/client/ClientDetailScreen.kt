@@ -365,6 +365,7 @@ private fun VisitForm(
                 }
                 OutlinedTextField(value = duration, onValueChange = { duration = it }, enabled = !saving,
                     label = { Text("Duration (mins)") }, singleLine = true,
+                    supportingText = { Text("In 15-minute steps") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
                 Text("Visit Status", color = TextMuted, fontSize = 12.sp)
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
