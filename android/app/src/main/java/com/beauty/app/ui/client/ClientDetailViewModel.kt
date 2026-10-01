@@ -7,6 +7,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.beauty.app.data.BeautyRepository
 import com.beauty.app.data.api.safeMessage
+import com.beauty.app.data.toEntity
+import kotlinx.serialization.json.JsonObject
 import com.beauty.app.data.api.VisitHistoryDto
 import com.beauty.app.data.local.ClientDao
 import com.beauty.app.data.local.ClientEntity
@@ -85,7 +87,48 @@ class ClientDetailViewModel(
         }
     }
 
+    var savingAttributes by mutableStateOf(false)
+        private set
+    var attributesError by mutableStateOf<String?>(null)
+        private set
+
     fun clearSaveError() { saveError = null }
+    fun clearAttributesError() { attributesError = null }
+
+    /**
+     * Replaces the client's custom attributes, keeping every other field as the
+     * cache has it — the equivalent of the web's `updateClient(id, { customFields })`.
+     * Requires connectivity, like every other client write.
+     */
+    fun saveAttributes(fields: JsonObject, onSaved: () -> Unit) {
+        val current = client ?: return
+        if (savingAttributes) return
+        savingAttributes = true
+        attributesError = null
+        viewModelScope.launch {
+            try {
+                val dto = repository.updateClient(
+                    orgId = organizationId,
+                    id = current.id,
+                    name = current.name,
+                    phone = current.phone,
+                    email = current.email,
+                    tags = decodeTags(current.tagsJson),
+                    customFields = fields
+                )
+                val entity = dto.toEntity(organizationId)
+                repository.upsertClientLocally(entity)
+                client = entity
+                onSaved()
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                attributesError = error.safeMessage("Could not save attributes. Check your connection and try again.")
+            } finally {
+                savingAttributes = false
+            }
+        }
+    }
 
     fun delete(onDeleted: () -> Unit) {
         if (deleting) return
