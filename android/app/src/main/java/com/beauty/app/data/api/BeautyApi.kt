@@ -163,17 +163,19 @@ data class RefreshRequest(val refreshToken: String)
 /**
  * Body for `POST /api/auth/forgot-password`.
  *
- * There is no matching "reset" request here on purpose. The emailed link points
- * at the web app (`SITE_URL/reset-password?token=…`), which is where the new
- * password is actually typed — see `AccountMailer.sendPasswordReset`. Adding an
- * in-app token field would mean asking the user to copy a 43-character secret
- * out of their mail client, and a deep link cannot be added safely until the
- * host serves an `assetlinks.json` for Android App Links verification: without
- * it, any installed app can register the same URL pattern and intercept reset
- * links.
+ * The emailed link points at the web app (`SITE_URL/reset-password?token=…`,
+ * see `AccountMailer.sendPasswordReset`). The app completes the reset with
+ * [ResetPasswordRequest] when the user pastes that link in, but registers no
+ * deep link for it: until the host serves an `assetlinks.json` for Android App
+ * Links verification, any installed app could register the same URL pattern
+ * and intercept reset links.
  */
 @Serializable
 data class ForgotPasswordRequest(val email: String)
+
+/** Body for `POST /api/auth/reset-password`. The token is spent on success. */
+@Serializable
+data class ResetPasswordRequest(val token: String, val newPassword: String)
 
 /** Body for `PATCH /api/users/me`. Only the display name is editable — email is the login identifier. */
 @Serializable
@@ -390,6 +392,14 @@ interface BeautyApi {
      */
     suspend fun forgotPassword(request: ForgotPasswordRequest)
 
+    /**
+     * Sets a new password with a reset-link token. Public, like [forgotPassword].
+     *
+     * Issues no session and revokes every existing one: the user signs in
+     * again with the new password afterwards.
+     */
+    suspend fun resetPassword(request: ResetPasswordRequest)
+
     // -- Organization-scoped data ----------------------------------------
     //
     // `orgId` is a parameter on every one of these, not an ambient setting.
@@ -511,6 +521,13 @@ class KtorBeautyApi(private val client: HttpClient) : BeautyApi {
 
     override suspend fun forgotPassword(request: ForgotPasswordRequest) {
         client.post("api/auth/forgot-password") {
+            contentType(ContentType.Application.Json)
+            setBody(request)
+        }
+    }
+
+    override suspend fun resetPassword(request: ResetPasswordRequest) {
+        client.post("api/auth/reset-password") {
             contentType(ContentType.Application.Json)
             setBody(request)
         }
