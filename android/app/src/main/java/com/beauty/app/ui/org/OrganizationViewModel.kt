@@ -8,6 +8,7 @@ import androidx.lifecycle.viewModelScope
 import com.beauty.app.data.BeautyRepository
 import com.beauty.app.data.api.MemberDto
 import com.beauty.app.data.api.OrganizationDto
+import com.beauty.app.data.api.ValidationErrorResponse
 import com.beauty.app.data.local.OrgStore
 import io.ktor.client.call.body
 import io.ktor.client.plugins.ClientRequestException
@@ -38,6 +39,21 @@ class OrganizationViewModel(
         private set
     var notice by mutableStateOf<String?>(null)
         private set
+
+    /** Where the pasted organization-creation link stands. */
+    enum class CreationLinkStatus { NONE, CHECKING, VALID, INVALID }
+
+    var creationLinkStatus by mutableStateOf(CreationLinkStatus.NONE)
+        private set
+    var creating by mutableStateOf(false)
+        private set
+
+    /** The backend's per-field 400 messages for the create form (`name`, `slug`). */
+    var createFieldErrors by mutableStateOf<Map<String, String>>(emptyMap())
+        private set
+
+    /** Held here, not in the screen, so it never ends up in saved UI state. */
+    private var creationToken: String? = null
 
     /** The roster of [activeOrgId], loaded on demand and only for administrators. */
     var members by mutableStateOf<List<MemberDto>>(emptyList())
@@ -146,16 +162,57 @@ class OrganizationViewModel(
         members = emptyList()
     }
 
-    fun createOrganization(name: String, slug: String?) {
+    /**
+     * Checks a token taken from a pasted creation link, so the user hears
+     * "invalid link" before filling in a name. Advisory only, like the web
+     * onboarding: the token can still be spent before [createOrganization]
+     * redeems it, and the server has the final word then.
+     */
+    fun checkCreationToken(token: String) {
+        creationToken = token
+        creationLinkStatus = CreationLinkStatus.CHECKING
+        createFieldErrors = emptyMap()
         viewModelScope.launch {
+            val valid = runCatching { repository.validateCreationToken(token) }.getOrDefault(false)
+            // Ignore an answer for a link the user has since replaced.
+            if (creationToken == token) {
+                creationLinkStatus = if (valid) CreationLinkStatus.VALID else CreationLinkStatus.INVALID
+            }
+        }
+    }
+
+    fun clearCreationLink() {
+        creationToken = null
+        creationLinkStatus = CreationLinkStatus.NONE
+        createFieldErrors = emptyMap()
+    }
+
+    fun createOrganization(name: String, slug: String?, onCreated: () -> Unit = {}) {
+        val token = creationToken ?: return
+        if (creating) return
+        viewModelScope.launch {
+            creating = true
             error = null
             notice = null
+            createFieldErrors = emptyMap()
             try {
-                val created = repository.createOrganization(name.trim(), slug?.trim())
+                val created = repository.createOrganization(name.trim(), slug?.trim()?.lowercase(), token)
+                clearCreationLink()
                 select(created.id)
+                notice = "Created ${created.name}. You are its administrator."
                 refresh()
+                onCreated()
             } catch (e: Exception) {
-                error = e.friendlyMessage("Could not create the organization.")
+                val fieldErrors = (e as? ClientRequestException)
+                    ?.let { runCatching { it.response.body<ValidationErrorResponse>() }.getOrNull() }
+                    ?.errors.orEmpty()
+                if (fieldErrors.isNotEmpty()) {
+                    createFieldErrors = fieldErrors
+                } else {
+                    error = e.friendlyMessage("Could not create the organization.")
+                }
+            } finally {
+                creating = false
             }
         }
     }

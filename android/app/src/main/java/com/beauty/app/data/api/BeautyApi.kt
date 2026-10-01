@@ -220,8 +220,20 @@ data class OrganizationDto(
     val isAdmin: Boolean get() = role == "ORG_ADMIN"
 }
 
+/**
+ * `creationToken` is the raw token from an administrator-issued creation link
+ * (`?orgToken=…`). The backend refuses creation without a redeemable one.
+ */
 @Serializable
-data class CreateOrganizationRequest(val name: String, val slug: String? = null)
+data class CreateOrganizationRequest(
+    val name: String,
+    val slug: String? = null,
+    val creationToken: String? = null
+)
+
+/** Advisory only: a valid token can still be spent by the time it is redeemed. */
+@Serializable
+data class ValidateCreationTokenResponse(val valid: Boolean = false)
 
 @Serializable
 data class JoinOrganizationRequest(val slug: String)
@@ -403,6 +415,9 @@ interface BeautyApi {
 
     /** Creates one; the caller becomes its first administrator. */
     suspend fun createOrganization(request: CreateOrganizationRequest): OrganizationDto
+
+    /** Checks a creation-link token without spending a use. */
+    suspend fun validateCreationToken(token: String): Boolean
 
     /** Asks to join by handle, or accepts a standing invitation. */
     suspend fun requestToJoinOrganization(request: JoinOrganizationRequest): OrganizationDto
@@ -595,6 +610,11 @@ class KtorBeautyApi(private val client: HttpClient) : BeautyApi {
             contentType(ContentType.Application.Json)
             setBody(request)
         }.body()
+
+    override suspend fun validateCreationToken(token: String): Boolean =
+        client.get("api/organizations/creation-tokens/validate") {
+            parameter("token", token)
+        }.body<ValidateCreationTokenResponse>().valid
 
     override suspend fun requestToJoinOrganization(request: JoinOrganizationRequest): OrganizationDto =
         client.post("api/organizations/join-requests") {

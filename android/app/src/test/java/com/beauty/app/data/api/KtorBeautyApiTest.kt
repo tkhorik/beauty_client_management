@@ -155,4 +155,33 @@ class KtorBeautyApiTest {
             error.isEmailNotVerified()
         }
     }
+
+    /**
+     * The backend refuses creation without a redeemable token, so a request
+     * body that drops it fails for every user — which is how the Android
+     * create flow used to behave.
+     */
+    @Test
+    fun `organization creation sends the creation token and validation reads the verdict`() = runTest {
+        val requests = mutableListOf<io.ktor.client.request.HttpRequestData>()
+        val engine = MockEngine { request ->
+            requests += request
+            val body = if (request.method == HttpMethod.Get) {
+                """{"valid":true}"""
+            } else {
+                """{"id":"o1","name":"Aura","slug":"aura","role":"ORG_ADMIN","status":"ACTIVE"}"""
+            }
+            respond(body, HttpStatusCode.OK, headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()))
+        }
+        val client = HttpClient(engine) { install(ContentNegotiation) { json(Json { ignoreUnknownKeys = true }) } }
+        val api = KtorBeautyApi(client)
+
+        assertTrue(api.validateCreationToken("tok-1"))
+        api.createOrganization(CreateOrganizationRequest("Aura", "aura", "tok-1"))
+
+        assertEquals("/api/organizations/creation-tokens/validate", requests[0].url.encodedPath)
+        assertEquals("tok-1", requests[0].url.parameters["token"])
+        val sent = (requests[1].body as io.ktor.http.content.TextContent).text
+        assertTrue(sent, sent.contains("\"creationToken\":\"tok-1\""))
+    }
 }
