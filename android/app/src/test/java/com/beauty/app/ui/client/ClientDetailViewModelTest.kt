@@ -111,6 +111,24 @@ class ClientDetailViewModelTest {
         verify(visitDao, never()).insertVisit(any())
     }
 
+    @Test fun `duration follows the web form's 15-minute steps`() {
+        assertNotNull(visitDurationError(null))
+        assertNotNull(visitDurationError(0))
+        assertNotNull(visitDurationError(10))
+        assertNotNull(visitDurationError(20))
+        assertNull(visitDurationError(15))
+        assertNull(visitDurationError(60))
+        assertNull(visitDurationError(90))
+    }
+
+    @Test fun `off-step duration is not queued`() = runTest(dispatcher) {
+        val vm = model(object : FakeBeautyApi() {})
+        vm.saveVisit("2026-09-29T10:00:00", "50", "Notes", "COMPLETED") { fail("Must not save") }
+        advanceUntilIdle()
+        assertNotNull(vm.saveError)
+        verify(visitDao, never()).insertVisit(any())
+    }
+
     @Test fun `history deduplicates synced visits and preserves offline queue`() {
         val synced = queued().copy(remoteId = "remote", isPendingSync = false)
         val pending = queued().copy(id = "pending")

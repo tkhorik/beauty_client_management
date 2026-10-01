@@ -147,9 +147,14 @@ class ClientDetailViewModel(
     fun saveVisitWithPhotos(dateTime: String, duration: String, notes: String, status: String, onSaved: () -> Unit,
                             context: Context? = null, photos: List<Pair<String, Uri>> = emptyList()) {
         if (saving) return
-        val minutes = duration.toIntOrNull()
-        if (minutes == null || minutes <= 0 || notes.isBlank()) {
-            saveError = "Enter procedure notes and a duration greater than zero."
+        val parsed = duration.trim().toIntOrNull()
+        visitDurationError(parsed)?.let {
+            saveError = it
+            return
+        }
+        val minutes = parsed ?: return
+        if (notes.isBlank()) {
+            saveError = "Enter procedure notes."
             return
         }
         saving = true
@@ -190,4 +195,15 @@ fun localHistoryExtras(
     return localVisits.filter {
         (it.isPendingSync || useLocalFallback) && it.id !in remoteIds && it.remoteId !in remoteIds
     }
+}
+
+/** Mirrors the web visit form's `min="15" step="15"` duration input. */
+internal const val VISIT_DURATION_STEP_MINUTES = 15
+
+internal fun visitDurationError(minutes: Int?): String? = when {
+    minutes == null || minutes < VISIT_DURATION_STEP_MINUTES ->
+        "Duration must be at least $VISIT_DURATION_STEP_MINUTES minutes."
+    minutes % VISIT_DURATION_STEP_MINUTES != 0 ->
+        "Duration must be in $VISIT_DURATION_STEP_MINUTES-minute steps (15, 30, 45, 60…)."
+    else -> null
 }

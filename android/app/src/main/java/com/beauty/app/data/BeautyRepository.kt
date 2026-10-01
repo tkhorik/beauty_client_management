@@ -164,8 +164,10 @@ class BeautyRepository(
 
     suspend fun getOrganizations(): List<OrganizationDto> = api.getOrganizations()
 
-    suspend fun createOrganization(name: String, slug: String?): OrganizationDto =
-        api.createOrganization(CreateOrganizationRequest(name, slug?.takeIf { it.isNotBlank() }))
+    suspend fun createOrganization(name: String, slug: String?, creationToken: String): OrganizationDto =
+        api.createOrganization(CreateOrganizationRequest(name, slug?.takeIf { it.isNotBlank() }, creationToken))
+
+    suspend fun validateCreationToken(token: String): Boolean = api.validateCreationToken(token)
 
     suspend fun requestToJoinOrganization(slug: String): OrganizationDto =
         api.requestToJoinOrganization(JoinOrganizationRequest(slug))
