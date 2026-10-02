@@ -14,15 +14,19 @@ import io.ktor.client.plugins.ClientRequestException
 import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.launch
 
+import com.beauty.app.updater.UpdateDistributionMode
+import com.beauty.app.updater.UpdateManager
+
 /**
- * Backs the account-settings screen: viewing/editing the display name and
- * changing the password. Separate from [com.beauty.app.ui.auth.AuthViewModel]
+ * Backs the account-settings screen: viewing/editing the display name,
+ * changing the password, and managing app updates. Separate from [com.beauty.app.ui.auth.AuthViewModel]
  * because these routes require an existing session (`authenticate("auth-jwt")`
  * on the backend), unlike login/register.
  */
 class SettingsViewModel(
     private val repository: BeautyRepository,
-    private val tokenStore: TokenStore
+    private val tokenStore: TokenStore,
+    val updateManager: UpdateManager? = null
 ) : ViewModel() {
 
     sealed interface ProfileState {
@@ -156,5 +160,15 @@ class SettingsViewModel(
 
     fun resetPasswordState() {
         passwordState = PasswordState.Idle
+    }
+
+    fun checkForUpdates() {
+        viewModelScope.launch {
+            updateManager?.checkForUpdates(force = true)
+        }
+    }
+
+    fun setDistributionMode(mode: UpdateDistributionMode) {
+        updateManager?.setDistributionMode(mode)
     }
 }
