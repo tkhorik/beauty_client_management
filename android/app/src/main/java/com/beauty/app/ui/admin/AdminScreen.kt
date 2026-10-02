@@ -87,12 +87,11 @@ fun AdminScreen(viewModel: AdminViewModel, onDone: () -> Unit) {
             viewModel.error?.let { Banner(it, isError = true) }
             viewModel.notice?.let { Banner(it, isError = false) }
 
-            if (viewModel.initialLoading) {
-                Text("Loading…", color = TextMuted, modifier = Modifier.padding(16.dp))
-                return@Column
-            }
-
+            // A branch, not an early `return@Column`: returning out of an inline
+            // composable lambda skips closing its group and crashes the slot table.
             when {
+                viewModel.initialLoading ->
+                    Text("Loading…", color = TextMuted, modifier = Modifier.padding(16.dp))
                 managingOrg != null -> MembersTab(viewModel, managingOrg)
                 tab == AdminTab.USERS -> UsersTab(viewModel)
                 tab == AdminTab.ORGANIZATIONS -> OrganizationsTab(viewModel)
