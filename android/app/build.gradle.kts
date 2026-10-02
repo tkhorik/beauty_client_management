@@ -127,7 +127,6 @@ android {
             buildConfigField("String", "APP_WEB_BASE_URL", "\"${origin.toASCIIString().trimEnd('/')}\"")
             manifestPlaceholders["appLinkHost"] = origin.host
             manifestPlaceholders["appLinkScheme"] = origin.scheme
-            manifestPlaceholders["appLinkPort"] = (if (origin.port == -1) { if (origin.scheme == "https") 443 else 80 } else origin.port).toString()
             manifestPlaceholders["appLinkAutoVerify"] = "false"
 
             // Debug and release used to share one applicationId, which made
@@ -152,7 +151,6 @@ android {
             buildConfigField("String", "APP_WEB_BASE_URL", "\"${origin.toASCIIString().trimEnd('/')}\"")
             manifestPlaceholders["appLinkHost"] = origin.host
             manifestPlaceholders["appLinkScheme"] = "https"
-            manifestPlaceholders["appLinkPort"] = (if (origin.port == -1) 443 else origin.port).toString()
             manifestPlaceholders["appLinkAutoVerify"] = "true"
             isMinifyEnabled = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")

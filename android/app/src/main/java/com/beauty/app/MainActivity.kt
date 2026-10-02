@@ -3,6 +3,7 @@ package com.beauty.app
 import android.os.Bundle
 import android.content.Intent
 import com.beauty.app.ui.AppLink
+import com.beauty.app.ui.AppLinkInbox
 import com.beauty.app.ui.AppLinkViewModel
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -82,24 +83,22 @@ data class DirectoryClient(
 class MainActivity : ComponentActivity() {
     private val links by lazy { ViewModelProvider(this)[AppLinkViewModel::class.java] }
 
-    private fun receiveLink(incoming: Intent, accept: Boolean = true) {
-        val raw = incoming.dataString.takeIf { incoming.action == Intent.ACTION_VIEW }
-        // Navigation must never see a token-bearing Intent; Android Navigation would
-        // otherwise stash it in the back stack and can auto-match deep links.
+    private fun receiveLinks(incoming: Intent) {
+        // The external entry component hands off through memory, never Intent extras.
         incoming.data = null
         incoming.replaceExtras(null as Bundle?)
         intent = incoming
-        if (accept && raw != null) links.receive(raw)
+        AppLinkInbox.drain().forEach(links::receive)
     }
 
     override fun onNewIntent(intent: Intent) {
+        receiveLinks(intent)
         super.onNewIntent(intent)
-        receiveLink(intent)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        receiveLink(intent, savedInstanceState == null)
+        receiveLinks(intent)
         setContent {
             BeautyTheme {
                 Surface(
@@ -123,7 +122,7 @@ internal fun AppNavHost(links: AppLinkViewModel) {
     val database = remember(accountId) { BeautyDatabaseProvider.get(context, accountId) }
 
     val navController = rememberNavController()
-    val startDestination = if (tokenStore.getToken() != null) "clients" else "login"
+    val startDestination = rememberSaveable { if (tokenStore.getToken() != null) "clients" else "login" }
 
     // AuthViewModel factory — uses an auth-capable Ktor client (no token yet, but endpoint is public)
     val authViewModel: AuthViewModel = viewModel(
@@ -233,7 +232,7 @@ internal fun AppNavHost(links: AppLinkViewModel) {
 
         composable("verify-email") {
             Column(Modifier.fillMaxSize().padding(32.dp), verticalArrangement = Arrangement.Center) {
-                Text(if (links.verifying) "Confirming your email…" else links.verificationMessage.orEmpty())
+                Text(if (links.verifying) "Confirming your email…" else links.verificationMessage ?: "Reopen your verification link to continue.")
                 Button(onClick = { openHome() }, enabled = !links.verifying) { Text("Continue") }
             }
         }
@@ -325,7 +324,7 @@ internal fun AppNavHost(links: AppLinkViewModel) {
                 }
                 OrganizationScreen(
                     viewModel = orgViewModel,
-                    onDone = { navController.popBackStack() },
+                    onDone = { if (!navController.popBackStack()) openHome() },
                     onLogout = {
                         authViewModel.logout {
                             navController.navigate("login") { popUpTo(0) { inclusive = true } }

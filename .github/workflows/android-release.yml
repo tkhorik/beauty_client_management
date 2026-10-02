@@ -125,7 +125,7 @@ jobs:
           prerelease: false
           files: android/release-out/*.apk
           body: |
-            Signed release build of the Android app, pointed at `${{ vars.SITE_URL || format('https://{0}', vars.DOMAIN) }}/`.
+            Signed release build of the Android app, pointed at `${{ vars.SITE_URL }}/`.
 
             Install: download the APK below, enable "install unknown apps" for
             your browser/file manager, and open it. Users with an existing
