@@ -1,4 +1,5 @@
 import java.util.Properties
+import java.net.URI
 
 plugins {
     id("com.android.application")
@@ -19,6 +20,28 @@ val keystoreProperties = Properties().apply {
     }
 }
 val hasReleaseSigning = keystoreProperties.getProperty("storeFile") != null
+
+// SITE_URL is independent of the API endpoint. Never derive link trust from API_BASE_URL.
+fun webOrigin(raw: String, production: Boolean): URI {
+    val uri = runCatching { URI(raw) }.getOrNull()
+    require(uri != null && uri.scheme in (if (production) setOf("https") else setOf("http", "https")) &&
+        !uri.host.isNullOrBlank() && uri.rawUserInfo == null && uri.rawQuery == null &&
+        uri.rawFragment == null && uri.rawPath in listOf("", "/") &&
+        (uri.port == -1 || uri.port in 1..65535)) {
+        "appWebBaseUrl must be an HTTPS origin (host and optional port only); debugWebBaseUrl may use HTTP."
+    }
+    return uri
+}
+val productionWebUrl = providers.gradleProperty("appWebBaseUrl").orNull
+val productionOrigin = productionWebUrl?.let { webOrigin(it, true) }
+val validateReleaseWebOrigin = tasks.register("validateReleaseWebOrigin") {
+    doLast {
+        require(productionOrigin != null) { "Release builds require -PappWebBaseUrl=\$SITE_URL (an HTTPS origin)." }
+    }
+}
+tasks.configureEach {
+    if (name.contains("Release") && name != "validateReleaseWebOrigin") dependsOn(validateReleaseWebOrigin)
+}
 
 android {
     namespace = "com.beauty.app"
@@ -99,6 +122,12 @@ android {
                 .orElse("http://10.0.2.2:8080/")
                 .get()
             buildConfigField("String", "API_BASE_URL", "\"$debugApiBaseUrl\"")
+            val webUrl = providers.gradleProperty("debugWebBaseUrl").orElse("http://10.0.2.2:5174").get()
+            val origin = webOrigin(webUrl, false)
+            buildConfigField("String", "APP_WEB_BASE_URL", "\"${origin.toASCIIString().trimEnd('/')}\"")
+            manifestPlaceholders["appLinkHost"] = origin.host
+            manifestPlaceholders["appLinkScheme"] = origin.scheme
+            manifestPlaceholders["appLinkAutoVerify"] = "false"
 
             // Debug and release used to share one applicationId, which made
             // them the same "app" as far as the OS is concerned — but signed
@@ -118,6 +147,11 @@ android {
                 .orElse("https://api.example.invalid/")
                 .get()
             buildConfigField("String", "API_BASE_URL", "\"$releaseApiBaseUrl\"")
+            val origin = productionOrigin ?: URI("https://unconfigured.invalid")
+            buildConfigField("String", "APP_WEB_BASE_URL", "\"${origin.toASCIIString().trimEnd('/')}\"")
+            manifestPlaceholders["appLinkHost"] = origin.host
+            manifestPlaceholders["appLinkScheme"] = "https"
+            manifestPlaceholders["appLinkAutoVerify"] = "true"
             isMinifyEnabled = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
 

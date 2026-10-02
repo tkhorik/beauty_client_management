@@ -19,6 +19,22 @@ import org.junit.Test
 
 class KtorBeautyApiTest {
     @Test
+    fun `verification uses public POST body and never a query credential`() = runTest {
+        val engine = MockEngine { request ->
+            assertEquals(HttpMethod.Post, request.method)
+            assertEquals("/api/auth/verify-email", request.url.encodedPath)
+            assertEquals("", request.url.encodedQuery)
+            val body = request.body as io.ktor.http.content.TextContent
+            assertEquals("{\"token\":\"synthetic-token\"}", body.text)
+            respond("{\"verified\":true}", HttpStatusCode.OK,
+                headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()))
+        }
+        val client = HttpClient(engine) { install(ContentNegotiation) { json() } }
+        KtorBeautyApi(client).verifyEmail("synthetic-token")
+        client.close()
+    }
+
+    @Test
     fun `deserializes client directory response`() = runTest {
         val engine = MockEngine {
             respond(

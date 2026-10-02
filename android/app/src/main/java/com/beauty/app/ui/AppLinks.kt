@@ -1,46 +1,49 @@
 package com.beauty.app.ui
 
-import android.net.Uri
 import com.beauty.app.BuildConfig
+import java.net.URI
+import java.net.URLDecoder
 
-/**
- * Pulls a one-time token out of a link the user pasted from the web app —
- * an organization-creation link (`?orgToken=`) or a password-reset link
- * (`/reset-password?token=`).
- *
- * Pasting rather than a deep link on purpose: without App Links verification
- * (`assetlinks.json` served from the domain) any installed app could register
- * the same URL pattern and intercept these links. Only links for this
- * deployment's own web origin are accepted, so a lookalike host is rejected
- * before its token is sent anywhere.
- *
- * @param path when given, the link's path must match it exactly.
- * @return the token, or null if the link is not one of ours.
- */
+/** Shared by delivered links and manual paste. API configuration never grants link trust. */
+internal fun trustedWebLink(raw: String, webBaseUrl: String = BuildConfig.APP_WEB_BASE_URL): URI? {
+    val link = runCatching { URI(raw.trim()) }.getOrNull() ?: return null
+    val origin = runCatching { URI(webBaseUrl) }.getOrNull() ?: return null
+    fun port(uri: URI) = if (uri.port != -1) uri.port else if (uri.scheme == "https") 443 else 80
+    return link.takeIf {
+        it.scheme in setOf("https", "http") && it.scheme == origin.scheme &&
+            it.host != null && it.host.equals(origin.host, ignoreCase = true) &&
+            port(it) == port(origin) && it.rawUserInfo == null && it.rawFragment == null
+    }
+}
+
+private fun URI.parameter(name: String): String? = runCatching {
+    val values = rawQuery.orEmpty().split('&').map { it.split('=', limit = 2) }
+        .filter { URLDecoder.decode(it[0], "UTF-8") == name }
+    // Ambiguous duplicate parameters and malformed percent encoding are not accepted.
+    values.singleOrNull()?.getOrNull(1)?.let { URLDecoder.decode(it, "UTF-8") }
+        ?.takeIf { it.isNotBlank() && it.length <= 2048 && it.matches(Regex("[A-Za-z0-9_-]+")) }
+}.getOrNull()
+
 internal fun tokenFromWebAppLink(raw: String, queryParam: String, path: String? = null): String? {
-    val candidate = runCatching { Uri.parse(raw.trim()) }.getOrNull() ?: return null
-    val expected = runCatching { Uri.parse(BuildConfig.API_BASE_URL) }.getOrNull() ?: return null
-    if (candidate.scheme !in setOf("http", "https")) return null
+    val link = trustedWebLink(raw) ?: return null
+    if (path != null && link.path.trimEnd('/') != path) return null
+    return link.parameter(queryParam)
+}
 
-    val token = candidate.getQueryParameter(queryParam)?.trim()
-    if (token.isNullOrEmpty()) return null
-    if (path != null && candidate.path?.trimEnd('/') != path) return null
+internal sealed interface AppLink {
+    class ResetPassword(val token: String?) : AppLink
+    object ForgotPassword : AppLink
+    class VerifyEmail(val token: String?, val status: String?) : AppLink
+    class CreateOrganization(val token: String) : AppLink
+    object Home : AppLink
+}
 
-    // Debug builds talk to the backend on the emulator's host alias; the web
-    // dev server that issued the link runs beside it on 5174.
-    val expectedPort = when {
-        expected.host == "10.0.2.2" && (expected.port == -1 || expected.port == 8080) -> 5174
-        expected.port != -1 -> expected.port
-        expected.scheme == "https" -> 443
-        else -> 80
+internal fun parseAppLink(raw: String, webBaseUrl: String = BuildConfig.APP_WEB_BASE_URL): AppLink? {
+    val link = trustedWebLink(raw, webBaseUrl) ?: return null
+    return when (link.path.trimEnd('/')) {
+        "/reset-password" -> AppLink.ResetPassword(link.parameter("token"))
+        "/forgot-password" -> AppLink.ForgotPassword
+        "/api/auth/verify-email", "/verify-email" -> AppLink.VerifyEmail(link.parameter("token"), link.parameter("status"))
+        else -> link.parameter("orgToken")?.let { AppLink.CreateOrganization(it) } ?: AppLink.Home
     }
-    val candidatePort = when {
-        candidate.port != -1 -> candidate.port
-        candidate.scheme == "https" -> 443
-        else -> 80
-    }
-    val sameOrigin = candidate.scheme == expected.scheme &&
-        candidate.host == expected.host &&
-        candidatePort == expectedPort
-    return token.takeIf { sameOrigin }
 }

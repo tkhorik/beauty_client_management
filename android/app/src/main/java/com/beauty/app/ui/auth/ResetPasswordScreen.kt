@@ -26,19 +26,14 @@ import com.beauty.app.ui.theme.TextLight
 import com.beauty.app.ui.theme.TextMuted
 import com.beauty.app.ui.tokenFromWebAppLink
 
-/**
- * Sets a new password from a reset link the user pastes in — the in-app
- * counterpart of the web app's `/reset-password` page.
- *
- * The link is pasted rather than opened through a deep link; see
- * `tokenFromWebAppLink` for why. No session is issued on success, matching the
- * backend: the user signs in with the new password, which proves it works.
- */
+/** Sets a password from an App Link token, with manual pasting as a fallback. */
 @Composable
 fun ResetPasswordScreen(
     viewModel: AuthViewModel,
     onNavigateBackToLogin: () -> Unit,
-    onRequestNewLink: () -> Unit
+    onRequestNewLink: () -> Unit,
+    initialToken: String? = null,
+    onTokenUsed: () -> Unit = {}
 ) {
     var link by remember { mutableStateOf("") }
     var newPassword by remember { mutableStateOf("") }
@@ -48,8 +43,8 @@ fun ResetPasswordScreen(
     val loading = state is AuthViewModel.ResetPasswordState.Loading
     val fieldErrors = (state as? AuthViewModel.ResetPasswordState.Error)?.fieldErrors.orEmpty()
 
-    DisposableEffect(Unit) {
-        onDispose { viewModel.resetState() }
+    LaunchedEffect(state) {
+        if (state is AuthViewModel.ResetPasswordState.Done) onTokenUsed()
     }
 
     Box(
@@ -95,6 +90,7 @@ fun ResetPasswordScreen(
                         fontWeight = FontWeight.Bold,
                         fontSize = 22.sp
                     )
+                    if (initialToken == null) {
                     Text(
                         text = "Copy the reset link from the email (long-press it, then Copy link) " +
                             "and paste it below.",
@@ -111,6 +107,10 @@ fun ResetPasswordScreen(
                         enabled = !loading,
                         keyboardType = KeyboardType.Uri
                     )
+                    } else {
+                        Text("Reset link received. Choose your new password.", color = TextMuted)
+                        fieldErrors["link"]?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                    }
                     ResetField(
                         value = newPassword,
                         onValueChange = { newPassword = it },
@@ -146,7 +146,7 @@ fun ResetPasswordScreen(
 
                     PrimaryButton(text = "Set new password", loading = loading) {
                         viewModel.resetPassword(
-                            token = tokenFromWebAppLink(link, "token", "/reset-password"),
+                            token = initialToken ?: tokenFromWebAppLink(link, "token", "/reset-password"),
                             newPassword = newPassword,
                             confirmPassword = confirmPassword
                         )

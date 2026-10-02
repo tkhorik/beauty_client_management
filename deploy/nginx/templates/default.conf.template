@@ -102,6 +102,14 @@ server {
         include /etc/nginx/proxy_params_aura.conf;
     }
 
+    # Public Android association on the canonical HTTPS origin (443 by default).
+    # The web container's exact location returns JSON or 404, never SPA HTML.
+    location = /.well-known/assetlinks.json {
+        proxy_pass http://web:80;
+        include /etc/nginx/proxy_params_aura.conf;
+        access_log off;
+    }
+
     # --- Everything else: the React SPA ------------------------------------
     location / {
         proxy_pass http://web:80;

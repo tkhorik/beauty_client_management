@@ -91,12 +91,16 @@ jobs:
 
       - name: Build signed release APK
         working-directory: android
+        env:
+          SITE_URL: ${{ vars.SITE_URL }}
         run: |
           chmod +x gradlew
           ./gradlew --no-daemon assembleRelease \
             -PversionCode=${{ steps.tag.outputs.version_code }} \
             -PversionName=${{ steps.tag.outputs.version_name }} \
-            -PreleaseApiBaseUrl=${{ vars.SITE_URL || format('https://{0}', vars.DOMAIN) }}/
+            "-PappWebBaseUrl=${SITE_URL}" \
+            "-PreleaseApiBaseUrl=${SITE_URL%/}/"
+          python3 ../scripts/verify-apk-association.py app/build/outputs/apk/release/app-release.apk
 
       # Shred the decoded key material and property file so nothing signing
       # related lingers in the runner's workspace artifacts/logs.
@@ -121,7 +125,7 @@ jobs:
           prerelease: false
           files: android/release-out/*.apk
           body: |
-            Signed release build of the Android app, pointed at `${{ vars.SITE_URL || format('https://{0}', vars.DOMAIN) }}/`.
+            Signed release build of the Android app, pointed at `${{ vars.SITE_URL }}/`.
 
             Install: download the APK below, enable "install unknown apps" for
             your browser/file manager, and open it. Users with an existing

@@ -165,13 +165,15 @@ data class RefreshRequest(val refreshToken: String)
  *
  * The emailed link points at the web app (`SITE_URL/reset-password?token=…`,
  * see `AccountMailer.sendPasswordReset`). The app completes the reset with
- * [ResetPasswordRequest] when the user pastes that link in, but registers no
- * deep link for it: until the host serves an `assetlinks.json` for Android App
- * Links verification, any installed app could register the same URL pattern
- * and intercept reset links.
+ * [ResetPasswordRequest] from a verified App Link or manual paste. Only the
+ * independently configured website origin is trusted.
  */
 @Serializable
 data class ForgotPasswordRequest(val email: String)
+
+/** Body for public `POST /api/auth/verify-email`. */
+@Serializable
+data class VerifyEmailRequest(val token: String)
 
 /** Body for `POST /api/auth/reset-password`. The token is spent on success. */
 @Serializable
@@ -400,6 +402,8 @@ interface BeautyApi {
      */
     suspend fun resetPassword(request: ResetPasswordRequest)
 
+    suspend fun verifyEmail(token: String)
+
     // -- Organization-scoped data ----------------------------------------
     //
     // `orgId` is a parameter on every one of these, not an ambient setting.
@@ -523,6 +527,13 @@ class KtorBeautyApi(private val client: HttpClient) : BeautyApi {
         client.post("api/auth/forgot-password") {
             contentType(ContentType.Application.Json)
             setBody(request)
+        }
+    }
+
+    override suspend fun verifyEmail(token: String) {
+        client.post("api/auth/verify-email") {
+            contentType(ContentType.Application.Json)
+            setBody(VerifyEmailRequest(token))
         }
     }
 

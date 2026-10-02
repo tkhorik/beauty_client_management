@@ -1,6 +1,10 @@
 package com.beauty.app
 
 import android.os.Bundle
+import android.content.Intent
+import com.beauty.app.ui.AppLink
+import com.beauty.app.ui.AppLinkInbox
+import com.beauty.app.ui.AppLinkViewModel
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
@@ -77,15 +81,31 @@ data class DirectoryClient(
 )
 
 class MainActivity : ComponentActivity() {
+    private val links by lazy { ViewModelProvider(this)[AppLinkViewModel::class.java] }
+
+    private fun receiveLinks(incoming: Intent) {
+        // The external entry component hands off through memory, never Intent extras.
+        incoming.data = null
+        incoming.replaceExtras(null as Bundle?)
+        intent = incoming
+        AppLinkInbox.drain().forEach(links::receive)
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        receiveLinks(intent)
+        super.onNewIntent(intent)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        receiveLinks(intent)
         setContent {
             BeautyTheme {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    AppNavHost()
+                    AppNavHost(links)
                 }
             }
         }
@@ -93,7 +113,7 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun AppNavHost() {
+internal fun AppNavHost(links: AppLinkViewModel) {
     val context = LocalContext.current
     val tokenStore = remember { AppContainer.tokenStore(context) }
     val orgStore = remember { AppContainer.orgStore(context) }
@@ -102,7 +122,7 @@ fun AppNavHost() {
     val database = remember(accountId) { BeautyDatabaseProvider.get(context, accountId) }
 
     val navController = rememberNavController()
-    val startDestination = if (tokenStore.getToken() != null) "clients" else "login"
+    val startDestination = rememberSaveable { if (tokenStore.getToken() != null) "clients" else "login" }
 
     // AuthViewModel factory — uses an auth-capable Ktor client (no token yet, but endpoint is public)
     val authViewModel: AuthViewModel = viewModel(
@@ -119,6 +139,7 @@ fun AppNavHost() {
     // share one instance: switching salons on the second must be visible to the
     // first without a reload.
     val orgViewModel: OrganizationViewModel = viewModel(
+        key = links.organizationKey(accountId),
         factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T =
@@ -126,58 +147,100 @@ fun AppNavHost() {
         }
     )
 
+    val publicApi = remember { com.beauty.app.data.api.KtorBeautyApi(AppContainer.buildLoginClient()) }
+
+    fun openHome() {
+        navController.navigate(if (tokenStore.getToken() == null) "login"
+            else if (links.pendingOrganizationToken != null) "organizations" else "clients") {
+            popUpTo(0) { inclusive = true }
+        }
+    }
+    fun afterSignIn() {
+        navController.navigate(if (links.pendingOrganizationToken != null) "organizations" else "clients") {
+            popUpTo(0) { inclusive = true }
+        }
+    }
+
+    // Consume before dispatch. A recomposition or rotation cannot redeem it again.
+    // Verification deliveries are serialized, while reset/create links can replace a form.
+    LaunchedEffect(links.inbox, links.verifying) {
+        if (!links.verifying) {
+            when (val link = links.take()) {
+                is AppLink.ResetPassword -> {
+                    authViewModel.resetState()
+                    links.reset(link.token)
+                    navController.navigate("reset-password") { popUpTo(0) { inclusive = true } }
+                }
+                AppLink.ForgotPassword -> {
+                    links.clearReset()
+                    navController.navigate("forgot-password") { popUpTo(0) { inclusive = true } }
+                }
+                is AppLink.VerifyEmail -> {
+                    links.verify(link, publicApi) {
+                        if (tokenStore.getToken() != null) repository.getCurrentUser()
+                    }
+                    navController.navigate("verify-email") { popUpTo(0) { inclusive = true } }
+                }
+                is AppLink.CreateOrganization -> {
+                    links.holdOrganization(link.token)
+                    navController.navigate(if (tokenStore.getToken() != null) "organizations" else "login") {
+                        popUpTo(0) { inclusive = true }
+                    }
+                }
+                AppLink.Home -> openHome()
+                null -> Unit
+            }
+        }
+    }
+
     NavHost(navController = navController, startDestination = startDestination) {
 
         composable("login") {
             LoginScreen(
                 viewModel = authViewModel,
-                onLoginSuccess = {
-                    navController.navigate("clients") {
-                        popUpTo("login") { inclusive = true }
-                    }
-                },
+                onLoginSuccess = { afterSignIn() },
                 onNavigateToRegister = { navController.navigate("register") },
                 onNavigateToForgotPassword = { navController.navigate("forgot-password") }
             )
         }
 
         composable("forgot-password") {
-            // Starts the flow. The emailed link opens the web app; a user who
-            // would rather finish here pastes it into the reset screen.
             ForgotPasswordScreen(
                 viewModel = authViewModel,
-                onNavigateBackToLogin = { navController.popBackStack() },
-                onEnterResetLink = { navController.navigate("reset-password") }
+                onNavigateBackToLogin = { openHome() },
+                onEnterResetLink = { links.reset(null); navController.navigate("reset-password") }
             )
         }
 
         composable("reset-password") {
-            ResetPasswordScreen(
+            key(links.resetGeneration) { ResetPasswordScreen(
                 viewModel = authViewModel,
+                initialToken = links.resetToken,
+                onTokenUsed = { links.clearReset() },
                 onNavigateBackToLogin = {
-                    navController.navigate("login") {
-                        popUpTo("login") { inclusive = true }
-                    }
+                    links.clearReset()
+                    openHome()
                 },
                 onRequestNewLink = {
+                    links.clearReset()
                     navController.navigate("forgot-password") {
                         popUpTo("forgot-password") { inclusive = true }
                     }
                 }
-            )
+            ) }
+        }
+
+        composable("verify-email") {
+            Column(Modifier.fillMaxSize().padding(32.dp), verticalArrangement = Arrangement.Center) {
+                Text(if (links.verifying) "Confirming your email…" else links.verificationMessage ?: "Reopen your verification link to continue.")
+                Button(onClick = { openHome() }, enabled = !links.verifying) { Text("Continue") }
+            }
         }
 
         composable("register") {
             RegisterScreen(
                 viewModel = authViewModel,
-                onRegisterSuccess = {
-                    // Registration returns a token, so the new user lands in
-                    // the app already signed in. The whole auth stack is popped
-                    // so Back cannot return to the form.
-                    navController.navigate("clients") {
-                        popUpTo("login") { inclusive = true }
-                    }
-                },
+                onRegisterSuccess = { afterSignIn() },
                 onNavigateToLogin = { navController.popBackStack() }
             )
         }
@@ -190,6 +253,7 @@ fun AppNavHost() {
             // that explains nothing about why.
             VerificationGate(
                 repository = repository,
+                refreshKey = links.profileRevision,
                 onLogout = {
                     authViewModel.logout {
                         navController.navigate("login") { popUpTo(0) { inclusive = true } }
@@ -248,15 +312,19 @@ fun AppNavHost() {
             // either.
             VerificationGate(
                 repository = repository,
+                refreshKey = links.profileRevision,
                 onLogout = {
                     authViewModel.logout {
                         navController.navigate("login") { popUpTo(0) { inclusive = true } }
                     }
                 }
             ) {
+                LaunchedEffect(orgViewModel, links.pendingOrganizationToken) {
+                    links.takeOrganization()?.let { orgViewModel.checkCreationToken(it) }
+                }
                 OrganizationScreen(
                     viewModel = orgViewModel,
-                    onDone = { navController.popBackStack() },
+                    onDone = { if (!navController.popBackStack()) openHome() },
                     onLogout = {
                         authViewModel.logout {
                             navController.navigate("login") { popUpTo(0) { inclusive = true } }
@@ -310,6 +378,7 @@ fun AppNavHost() {
             val detailOrgId = orgViewModel.activeOrgId ?: return@composable
             VerificationGate(
                 repository = repository,
+                refreshKey = links.profileRevision,
                 onLogout = {
                     authViewModel.logout {
                         navController.navigate("login") { popUpTo(0) { inclusive = true } }
