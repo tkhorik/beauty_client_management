@@ -3,6 +3,7 @@ package com.beauty.app.ui.org
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Refresh
@@ -43,6 +44,16 @@ fun OrganizationScreen(
     onLogout: () -> Unit,
     onOpenAdmin: (() -> Unit)? = null
 ) {
+    val listState = rememberLazyListState()
+    LaunchedEffect(viewModel.creationLinkStatus, viewModel.loading) {
+        if (viewModel.creationLinkStatus != OrganizationViewModel.CreationLinkStatus.NONE) {
+            val createIndex = (if (viewModel.error != null) 1 else 0) +
+                (if (viewModel.notice != null) 1 else 0) + (if (viewModel.loading) 1 else 0) +
+                (if (viewModel.activeOrganizations.isNotEmpty()) 1 + viewModel.activeOrganizations.size else 0) +
+                viewModel.organizations.count { !it.isActive }.let { if (it > 0) it + 1 else 0 } + 2
+            listState.scrollToItem(createIndex)
+        }
+    }
     val current = viewModel.current
     val lifecycleOwner = LocalLifecycleOwner.current
     var creationLink by remember { mutableStateOf("") }
@@ -117,6 +128,7 @@ fun OrganizationScreen(
         }
     ) { padding ->
         LazyColumn(
+            state = listState,
             modifier = Modifier.fillMaxSize().padding(padding).padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
@@ -181,8 +193,7 @@ fun OrganizationScreen(
             // -- Create -----------------------------------------------------
             //
             // Gated on an administrator-issued creation link, like the web
-            // onboarding. The link is pasted rather than opened via a deep
-            // link — see tokenFromWebAppLink.
+            // onboarding. Verified links open this form; manual paste remains a fallback.
             item { SectionTitle("Create an organization") }
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {

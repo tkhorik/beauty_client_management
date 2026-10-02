@@ -294,7 +294,8 @@ put the port in `SITE_URL` too: `https://yourdomain.com:8443`. It is kept
 separate from `HTTPS_PORT` deliberately — `HTTPS_PORT` is a server-side port
 binding, `SITE_URL` is the address clients use, and conflating them means the
 origin string gets reassembled in four places instead of stated once. If
-`SITE_URL` is unset, CI falls back to `https://${DOMAIN}`.
+`SITE_URL` is unset, the deploy workflow falls back to `https://${DOMAIN}`;
+Android release builds deliberately require an explicit `SITE_URL`.
 
 `SITE_URL` must be the origin **the web app is served from**, not just any
 public address for the API. The password-reset email links to
@@ -597,7 +598,8 @@ Expected: login succeeds, `GET /api/clients` returns 200, and the Room cache pop
 
 `SITE_URL` is the canonical HTTPS website origin (optional port, no path/query/userinfo).
 Android release CI passes it as `-PappWebBaseUrl`; missing or malformed values fail any release task.
-The same value controls the manifest's host/port and `BuildConfig.APP_WEB_BASE_URL`.
+The same value controls the manifest's host and `BuildConfig.APP_WEB_BASE_URL`;
+the parser validates the effective port (the manifest intentionally has no port restriction).
 API traffic remains separately configured with `-PreleaseApiBaseUrl`.
 For emulator development, links use `http://10.0.2.2:5174`; override with
 `-PdebugWebBaseUrl=http://127.0.0.1:5174` independently of `-PdebugApiBaseUrl`.
@@ -613,12 +615,17 @@ For Play distribution use the **app signing** certificate, not the upload key.
 
 **Non-standard port prerequisite:** Android verifies the host at
 `https://<host>/.well-known/assetlinks.json` (port 443), independently of the
-link's port. The existing :8443 deployment alone is insufficient: arrange the
-same JSON at port 443 in the service owning that endpoint, with valid TLS and
-no redirect. Also keep it at `$SITE_URL/.well-known/assetlinks.json`. This PR
-does not change the unrelated service, merge, deploy, or publish an APK.
+link's port. The current deployment uses `HTTPS_PORT=443` and
+`SITE_URL=https://beautyclient.duckdns.org` (no port suffix), so the association
+is served directly by the existing HTTPS proxy after this web image is deployed.
+The port-443 health endpoint and repository variables were verified during implementation.
+For any future non-standard port, also expose the same association on host:443
+with valid TLS and no redirect. This PR does not merge, deploy, or publish an APK.
+See [Android App Links verification](https://developer.android.com/training/app-links/verify-applinks).
 
-Incoming links are consumed once per delivery, including cold and warm starts.
+A transient, no-history entry activity hands parsed links through memory to the
+main task, whose launch intent never contains a link token. Incoming links are
+consumed once per delivery, including cold and warm starts.
 Reset links open the password form, forgot-password opens a request form, email
 verification is redeemed through public POST JSON and refreshes the signed-in
 profile, creation links survive login and the verification gate, and unrelated

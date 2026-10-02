@@ -94,6 +94,25 @@ jobs:
           chmod +x gradlew
           ./gradlew --no-daemon assembleDebug testDebugUnitTest
 
+      - name: Verify configurable release link origins
+        working-directory: android
+        run: |
+          for origin in https://one.example:8443 https://two.example; do
+            ./gradlew --no-daemon processReleaseMainManifest generateReleaseBuildConfig \
+              "-PappWebBaseUrl=$origin" -PreleaseApiBaseUrl=https://api.independent.example/
+            python3 ../scripts/verify-app-link-config.py "$origin"
+          done
+          if ./gradlew --no-daemon generateReleaseBuildConfig > /tmp/missing-origin.log 2>&1; then
+            echo "Release metadata accepted a missing website origin" >&2
+            exit 1
+          fi
+          grep -q 'Release builds require -PappWebBaseUrl' /tmp/missing-origin.log
+          if ./gradlew --no-daemon generateReleaseBuildConfig -PappWebBaseUrl=http://site.example > /tmp/invalid-origin.log 2>&1; then
+            echo "Release metadata accepted an HTTP website origin" >&2
+            exit 1
+          fi
+          grep -q 'appWebBaseUrl must be an HTTPS origin' /tmp/invalid-origin.log
+
       # Keep the APK that CI just built, so any change can be installed and
       # tried on a real device without cutting a public release or building
       # locally. This is a *debug* build: it points at http://10.0.2.2:8080/

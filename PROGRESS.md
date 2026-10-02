@@ -1,13 +1,18 @@
 # Configurable Android App Links
 
 ## Done
-- Public JSON email verification endpoint sharing browser redemption.
-- Independent website-origin build configuration and verified manifest filter.
-- Activity inbox and token-free navigation for reset, verification, creation, and home links.
-- Public association with certificate extracted from signed v1.4.4 APK; release certificate check.
+- Public JSON verification endpoint shares browser redemption and preserves redirects.
+- SITE_URL-based release origin, independently configured API and development origins.
+- Verified all-path manifest; transient memory-only link entry and clean main task.
+- Reset/forgot/verification/creation/home routing, pending creation through authentication.
+- Association verified against signed v1.4.4 certificate; release certificate guard.
+- Backend build: 127 tests passed first attempt. Web lint/build passed (existing warnings).
+- Android assembleDebug/testDebugUnitTest: 46 tests passed; two release origins verified.
+- Missing, HTTP, path, userinfo, query, fragment and invalid-port production origins rejected.
+- Reproducible origin checks added to CI.
+- Standard HTTPS deployment verified: healthz returns 200 on 443; GitHub SITE_URL has no port and HTTPS_PORT=443.
 
 ## Remaining
-- Automated security/lifecycle coverage and all CI gates.
-- Build two origins and verify generated manifest/BuildConfig.
-- Signed-device domain verification and Telegram external opening require deployment of association on host:443 (production currently uses :8443).
-- Separate PR; no merge, tag, release, or deployment.
+- Finish emulator acceptance checks and verify production-origin release metadata.
+- Separate PR; no automatic merge or deployment.
+- After deploying association: verify a newly signed release APK on-device and Telegram external opening. Local release signing material is unavailable.

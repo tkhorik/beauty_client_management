@@ -35,7 +35,8 @@ internal class AppLinkViewModel : ViewModel() {
         return "organizations_${accountId}_$organizationSession"
     }
 
-    fun receive(raw: String) { parseAppLink(raw)?.let { inbox = inbox + it } }
+    fun receive(raw: String) { parseAppLink(raw)?.let(::receive) }
+    fun receive(link: AppLink) { inbox = inbox + link }
     fun take(): AppLink? = inbox.firstOrNull()?.also { inbox = inbox.drop(1) }
     fun reset(token: String?) { resetToken = token; resetGeneration++ }
     fun clearReset() { resetToken = null }
