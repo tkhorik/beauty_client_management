@@ -31,6 +31,8 @@ class UpdateManager(
 
     val currentVersionName: String = BuildConfig.VERSION_NAME
 
+    val releasesPageUrl: String get() = service.releasesPageUrl
+
     /**
      * Resolves the active distribution mode.
      */

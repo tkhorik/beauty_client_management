@@ -64,6 +64,7 @@ import com.beauty.app.ui.client.ClientDirectoryScreen
 import com.beauty.app.ui.client.ClientDirectoryViewModel
 import com.beauty.app.ui.org.OrganizationScreen
 import com.beauty.app.ui.org.OrganizationViewModel
+import com.beauty.app.ui.about.AboutScreen
 import com.beauty.app.ui.settings.SettingsScreen
 import com.beauty.app.ui.settings.SettingsViewModel
 import com.beauty.app.ui.verification.VerificationBanner
@@ -311,6 +312,7 @@ internal fun AppNavHost(links: AppLinkViewModel) {
                     onNewClient = { navController.navigate("new_client") },
                     onLogVisit = { clientId -> navController.navigate("client/$clientId?logVisit=true") },
                     onSettings = { navController.navigate("settings") },
+                    onAbout = { navController.navigate("about") },
                     onOrganizations = { navController.navigate("organizations") },
                     onAdmin = if (orgViewModel.isSuperAdmin) ({ navController.navigate("admin") }) else null,
                     onLogout = {
@@ -373,13 +375,21 @@ internal fun AppNavHost(links: AppLinkViewModel) {
                 factory = object : ViewModelProvider.Factory {
                     @Suppress("UNCHECKED_CAST")
                     override fun <T : ViewModel> create(modelClass: Class<T>): T =
-                        SettingsViewModel(repository, tokenStore, updateManager) as T
+                        SettingsViewModel(repository, tokenStore) as T
                 }
             )
             SettingsScreen(
                 viewModel = settingsViewModel,
-                onBack = { navController.popBackStack() },
-                onOpenUpdateDialog = { updateManager.reopenUpdateDialog() }
+                onBack = { navController.popBackStack() }
+            )
+        }
+
+        composable("about") {
+            AboutScreen(
+                updateManager = updateManager,
+                onCheckForUpdates = { scope.launch { updateManager.checkForUpdates(force = true) } },
+                onOpenUpdateDialog = { updateManager.reopenUpdateDialog() },
+                onBack = { navController.popBackStack() }
             )
         }
 

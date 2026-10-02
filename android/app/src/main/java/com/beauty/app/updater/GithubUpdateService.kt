@@ -29,6 +29,9 @@ class GithubUpdateService(
     private val client: HttpClient = createClient()
 ) {
 
+    /** Public list of all releases, for "release notes" and manual-download fallbacks. */
+    val releasesPageUrl: String = "https://github.com/$owner/$repo/releases"
+
     /**
      * Checks GitHub for the latest release.
      */
