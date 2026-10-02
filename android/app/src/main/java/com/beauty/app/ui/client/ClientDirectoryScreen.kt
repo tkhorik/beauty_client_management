@@ -44,6 +44,7 @@ fun ClientDirectoryScreen(
     onNewClient: () -> Unit,
     onLogVisit: (String) -> Unit,
     onSettings: () -> Unit,
+    onAbout: () -> Unit,
     onOrganizations: () -> Unit,
     onAdmin: (() -> Unit)?,
     onLogout: () -> Unit,
@@ -78,11 +79,23 @@ fun ClientDirectoryScreen(
         }, actions = {
             IconButton(onClick = refresh, enabled = !viewModel.refreshing) { Icon(Icons.Default.Refresh, "Refresh clients") }
             Box {
-                IconButton(onClick = { menu = true }) { Icon(Icons.Default.MoreVert, "Account and organization menu") }
+                IconButton(onClick = { menu = true }) {
+                    // The dot points at "About" once an update is waiting, so the
+                    // menu is discoverable even after the banner scrolls away.
+                    BadgedBox(badge = { if (hasActiveUpdate) Badge(containerColor = RoseGoldPrimary) }) {
+                        Icon(Icons.Default.MoreVert, if (hasActiveUpdate) "More options, update available" else "More options")
+                    }
+                }
                 DropdownMenu(menu, onDismissRequest = { menu = false }) {
                     DropdownMenuItem(text = { Text("Organizations & members") }, onClick = { menu = false; onOrganizations() })
                     DropdownMenuItem(text = { Text("Account settings") }, onClick = { menu = false; onSettings() })
                     if (onAdmin != null) DropdownMenuItem(text = { Text("Admin panel") }, onClick = { menu = false; onAdmin() })
+                    DropdownMenuItem(
+                        text = { Text("About") },
+                        trailingIcon = if (hasActiveUpdate) ({ Badge(containerColor = RoseGoldPrimary) { Text("New", color = Color.Black) } }) else null,
+                        onClick = { menu = false; onAbout() }
+                    )
+                    HorizontalDivider()
                     DropdownMenuItem(text = { Text("Sign out") }, onClick = { menu = false; onLogout() })
                 }
             }
