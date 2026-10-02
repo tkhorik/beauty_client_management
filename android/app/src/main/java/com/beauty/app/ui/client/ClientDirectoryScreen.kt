@@ -46,7 +46,9 @@ fun ClientDirectoryScreen(
     onSettings: () -> Unit,
     onOrganizations: () -> Unit,
     onAdmin: (() -> Unit)?,
-    onLogout: () -> Unit
+    onLogout: () -> Unit,
+    updateManager: com.beauty.app.updater.UpdateManager? = null,
+    onOpenUpdateDialog: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val owner = LocalLifecycleOwner.current
@@ -61,7 +63,12 @@ fun ClientDirectoryScreen(
         owner.lifecycle.addObserver(observer)
         onDispose { owner.lifecycle.removeObserver(observer) }
     }
+    val updateState by (updateManager?.state ?: kotlinx.coroutines.flow.MutableStateFlow(com.beauty.app.updater.UpdateState.Idle)).collectAsState()
+    val hasActiveUpdate = updateState is com.beauty.app.updater.UpdateState.Available ||
+        updateState is com.beauty.app.updater.UpdateState.Downloading ||
+        updateState is com.beauty.app.updater.UpdateState.ReadyToInstall
     val pull = rememberPullRefreshState(viewModel.refreshing, refresh)
+
     Scaffold(topBar = {
         TopAppBar(title = {
             Column {
@@ -84,6 +91,14 @@ fun ClientDirectoryScreen(
         Box(Modifier.fillMaxSize().padding(padding).pullRefresh(pull)) {
             LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxSize()) {
                 item { VerificationBanner(repository = repository) }
+                if (hasActiveUpdate) {
+                    item {
+                        com.beauty.app.ui.updater.UpdateBanner(
+                            state = updateState,
+                            onTap = onOpenUpdateDialog
+                        )
+                    }
+                }
                 item {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Button(onClick = onNewClient, enabled = !viewModel.blocked, modifier = Modifier.weight(1f)) { Text("New Client") }
