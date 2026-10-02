@@ -140,7 +140,7 @@ internal fun AppNavHost(links: AppLinkViewModel) {
     // share one instance: switching salons on the second must be visible to the
     // first without a reload.
     val orgViewModel: OrganizationViewModel = viewModel(
-        key = "organizations_$accountId",
+        key = links.organizationKey(accountId),
         factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T =
@@ -151,12 +151,12 @@ internal fun AppNavHost(links: AppLinkViewModel) {
     val publicApi = remember { com.beauty.app.data.api.KtorBeautyApi(AppContainer.buildLoginClient()) }
 
     fun openHome() {
-        navController.navigate(if (tokenStore.getToken() != null) "clients" else "login") {
+        navController.navigate(if (tokenStore.getToken() == null) "login"
+            else if (links.pendingOrganizationToken != null) "organizations" else "clients") {
             popUpTo(0) { inclusive = true }
         }
     }
     fun afterSignIn() {
-        orgViewModel.refresh()
         navController.navigate(if (links.pendingOrganizationToken != null) "organizations" else "clients") {
             popUpTo(0) { inclusive = true }
         }
@@ -177,7 +177,9 @@ internal fun AppNavHost(links: AppLinkViewModel) {
                     navController.navigate("forgot-password") { popUpTo(0) { inclusive = true } }
                 }
                 is AppLink.VerifyEmail -> {
-                    links.verify(link, publicApi)
+                    links.verify(link, publicApi) {
+                        if (tokenStore.getToken() != null) repository.getCurrentUser()
+                    }
                     navController.navigate("verify-email") { popUpTo(0) { inclusive = true } }
                 }
                 is AppLink.CreateOrganization -> {
@@ -190,9 +192,6 @@ internal fun AppNavHost(links: AppLinkViewModel) {
                 null -> Unit
             }
         }
-    }
-    LaunchedEffect(accountId, links.pendingOrganizationToken) {
-        if (accountId != null) links.takeOrganization()?.let { orgViewModel.checkCreationToken(it) }
     }
 
     NavHost(navController = navController, startDestination = startDestination) {
@@ -321,6 +320,9 @@ internal fun AppNavHost(links: AppLinkViewModel) {
                     }
                 }
             ) {
+                LaunchedEffect(orgViewModel, links.pendingOrganizationToken) {
+                    links.takeOrganization()?.let { orgViewModel.checkCreationToken(it) }
+                }
                 OrganizationScreen(
                     viewModel = orgViewModel,
                     onDone = { navController.popBackStack() },

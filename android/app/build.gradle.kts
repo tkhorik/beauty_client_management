@@ -40,7 +40,7 @@ val validateReleaseWebOrigin = tasks.register("validateReleaseWebOrigin") {
     }
 }
 tasks.configureEach {
-    if (name == "preReleaseBuild") dependsOn(validateReleaseWebOrigin)
+    if (name.contains("Release") && name != "validateReleaseWebOrigin") dependsOn(validateReleaseWebOrigin)
 }
 
 android {
@@ -127,7 +127,7 @@ android {
             buildConfigField("String", "APP_WEB_BASE_URL", "\"${origin.toASCIIString().trimEnd('/')}\"")
             manifestPlaceholders["appLinkHost"] = origin.host
             manifestPlaceholders["appLinkScheme"] = origin.scheme
-            manifestPlaceholders["appLinkPort"] = (if (origin.port == -1) 80 else origin.port).toString()
+            manifestPlaceholders["appLinkPort"] = (if (origin.port == -1) { if (origin.scheme == "https") 443 else 80 } else origin.port).toString()
             manifestPlaceholders["appLinkAutoVerify"] = "false"
 
             // Debug and release used to share one applicationId, which made

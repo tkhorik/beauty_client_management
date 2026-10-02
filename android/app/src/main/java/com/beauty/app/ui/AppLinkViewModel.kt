@@ -28,6 +28,13 @@ internal class AppLinkViewModel : ViewModel() {
     var profileRevision by mutableStateOf(0)
         private set
 
+    private var boundAccount: String? = null
+    private var organizationSession = 0
+    fun organizationKey(accountId: String?): String {
+        if (boundAccount != accountId) { boundAccount = accountId; organizationSession++ }
+        return "organizations_${accountId}_$organizationSession"
+    }
+
     fun receive(raw: String) { parseAppLink(raw)?.let { inbox = inbox + it } }
     fun take(): AppLink? = inbox.firstOrNull()?.also { inbox = inbox.drop(1) }
     fun reset(token: String?) { resetToken = token; resetGeneration++ }
@@ -35,13 +42,14 @@ internal class AppLinkViewModel : ViewModel() {
     fun holdOrganization(token: String) { pendingOrganizationToken = token }
     fun takeOrganization(): String? = pendingOrganizationToken.also { pendingOrganizationToken = null }
 
-    fun verify(link: AppLink.VerifyEmail, api: BeautyApi) {
+    fun verify(link: AppLink.VerifyEmail, api: BeautyApi, refreshProfile: suspend () -> Unit = {}) {
         verificationMessage = null
         verifying = true
         viewModelScope.launch {
             verificationMessage = try {
                 if (link.token != null) {
                     api.verifyEmail(link.token)
+                    try { refreshProfile() } catch (e: CancellationException) { throw e } catch (_: Exception) { }
                     "Email confirmed."
                 } else if (link.status == "success") {
                     "Email confirmed."

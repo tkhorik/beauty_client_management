@@ -592,3 +592,62 @@ Expected: login succeeds, `GET /api/clients` returns 200, and the Room cache pop
   { "log-driver": "json-file", "log-opts": { "max-size": "10m", "max-file": "3" } }
   ```
 - **Rotate the JWT secret and DB password that are in your git history**, if that repository is or ever becomes public.
+
+## Android verified website links
+
+`SITE_URL` is the canonical HTTPS website origin (optional port, no path/query/userinfo).
+Android release CI passes it as `-PappWebBaseUrl`; missing or malformed values fail any release task.
+The same value controls the manifest's host/port and `BuildConfig.APP_WEB_BASE_URL`.
+API traffic remains separately configured with `-PreleaseApiBaseUrl`.
+For emulator development, links use `http://10.0.2.2:5174`; override with
+`-PdebugWebBaseUrl=http://127.0.0.1:5174` independently of `-PdebugApiBaseUrl`.
+Never include local origins in release verification.
+
+`web/public/.well-known/assetlinks.json` associates **com.beauty.app** with the
+SHA-256 certificate extracted from the published, signed v1.4.4 APK. It is public
+information, not a private key. Vite copies it into the web image; Nginx serves the
+exact path as JSON, without auth, redirects, or SPA fallback. A missing file is 404.
+Release CI checks the actual APK certificate using `scripts/verify-apk-association.py`;
+when rotating signing certificates, update the public fingerprints before releasing.
+For Play distribution use the **app signing** certificate, not the upload key.
+
+**Non-standard port prerequisite:** Android verifies the host at
+`https://<host>/.well-known/assetlinks.json` (port 443), independently of the
+link's port. The existing :8443 deployment alone is insufficient: arrange the
+same JSON at port 443 in the service owning that endpoint, with valid TLS and
+no redirect. Also keep it at `$SITE_URL/.well-known/assetlinks.json`. This PR
+does not change the unrelated service, merge, deploy, or publish an APK.
+
+Incoming links are consumed once per delivery, including cold and warm starts.
+Reset links open the password form, forgot-password opens a request form, email
+verification is redeemed through public POST JSON and refreshes the signed-in
+profile, creation links survive login and the verification gate, and unrelated
+website paths open home with existing gates. Raw credentials are held in
+ViewModel memory, not navigation URLs/logs/saved bundles; process death requires
+reopening the original link. Manual reset/creation link pasting remains available.
+Browser GET verification continues redirecting; website-only users are unchanged.
+
+### Acceptance checks after association deployment
+
+1. `curl --fail --include https://<host>/.well-known/assetlinks.json` and the configured
+   port must both return 200 JSON directly (no `Location` or HTML). Confirm the
+   fingerprint with `ANDROID_HOME=<sdk> python3 scripts/verify-apk-association.py <release.apk>`.
+2. Install a **signed release APK built from this branch**. Do not publish a version
+   tag just to test. `adb shell pm set-app-links --package com.beauty.app 0 all`, then
+   `adb shell pm verify-app-links --re-verify com.beauty.app`; wait for verification,
+   and inspect `adb shell pm get-app-links com.beauty.app` for `verified`.
+3. Send links **without an explicit package/component**, so the test exercises the
+   resolver: `adb shell am start -W -a android.intent.action.VIEW -d '<website URL>'`.
+   Test cold launch, warm launch from another screen, rotation during verification,
+   signed-out/signed-in/restricted accounts, two successive reset/creation links,
+   malformed/expired/used tokens, and rejected HTTP/wrong-host/wrong-port links.
+   Use test-account tokens only and avoid recording credential-bearing device logs.
+4. Creation must land on its form after sign-in (or after confirming a restricted
+   account); reset success must clear the local revoked session. Test manual paste.
+5. With the app absent, reset/verification/creation must still work in the browser.
+   In Telegram test **Open externally**; its embedded browser and Android's
+   user-selected link-opening preferences can prevent automatic app opening.
+
+For a domain migration publish the association on the new domain first, update
+`SITE_URL`, then release the updated APK. Old APKs stay registered to the old
+host; preserve its association and link endpoints throughout migration.
