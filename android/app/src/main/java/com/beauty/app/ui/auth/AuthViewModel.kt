@@ -19,6 +19,8 @@ import io.ktor.client.plugins.ClientRequestException
 import io.ktor.client.plugins.ResponseException
 import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.CancellationException
 
 class AuthViewModel(
     private val api: BeautyApi,
@@ -240,6 +242,8 @@ class AuthViewModel(
      * validates before spending the token too, so either way the link survives
      * a rejected password.
      */
+    private var resetJob: Job? = null
+
     fun resetPassword(token: String?, newPassword: String, confirmPassword: String) {
         val localErrors = buildMap {
             if (token == null) put("link", "Paste the full reset link from the email.")
@@ -252,10 +256,13 @@ class AuthViewModel(
             return
         }
 
-        viewModelScope.launch {
+        resetJob?.cancel()
+        resetJob = viewModelScope.launch {
             resetPasswordState = ResetPasswordState.Loading
             resetPasswordState = try {
                 api.resetPassword(ResetPasswordRequest(token, newPassword))
+                tokenStore.clearToken()
+                orgStore?.clear()
                 ResetPasswordState.Done
             } catch (e: ClientRequestException) {
                 when (e.response.status) {
@@ -281,6 +288,8 @@ class AuthViewModel(
                 }
             } catch (e: ResponseException) {
                 ResetPasswordState.Error(message = "Could not reset the password. Please try again.")
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 ResetPasswordState.Error(message = "Server could not be reached. Please check your connection.")
             }
@@ -317,6 +326,7 @@ class AuthViewModel(
 
     /** Clears transient auth state when moving between the auth screens. */
     fun resetState() {
+        resetJob?.cancel()
         loginState = LoginState.Idle
         registerState = RegisterState.Idle
         forgotPasswordState = ForgotPasswordState.Idle

@@ -175,6 +175,9 @@ data class ForgotPasswordRequest(val email: String)
 
 /** Body for `POST /api/auth/reset-password`. The token is spent on success. */
 @Serializable
+data class VerifyEmailRequest(val token: String)
+
+@Serializable
 data class ResetPasswordRequest(val token: String, val newPassword: String)
 
 /** Body for `PATCH /api/users/me`. Only the display name is editable — email is the login identifier. */
@@ -400,6 +403,8 @@ interface BeautyApi {
      */
     suspend fun resetPassword(request: ResetPasswordRequest)
 
+    suspend fun verifyEmail(token: String)
+
     // -- Organization-scoped data ----------------------------------------
     //
     // `orgId` is a parameter on every one of these, not an ambient setting.
@@ -523,6 +528,13 @@ class KtorBeautyApi(private val client: HttpClient) : BeautyApi {
         client.post("api/auth/forgot-password") {
             contentType(ContentType.Application.Json)
             setBody(request)
+        }
+    }
+
+    override suspend fun verifyEmail(token: String) {
+        client.post("api/auth/verify-email") {
+            contentType(ContentType.Application.Json)
+            setBody(VerifyEmailRequest(token))
         }
     }
 

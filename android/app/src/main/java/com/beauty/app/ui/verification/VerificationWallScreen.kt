@@ -228,6 +228,7 @@ fun VerificationWallScreen(
 fun VerificationGate(
     repository: BeautyRepository,
     onLogout: () -> Unit,
+    refreshKey: Int = 0,
     content: @Composable () -> Unit
 ) {
     var standing by remember { mutableStateOf<VerificationStanding?>(null) }
@@ -242,7 +243,7 @@ fun VerificationGate(
             .onFailure { standing = VerificationStanding.VERIFIED }
     }
 
-    LaunchedEffect(Unit) { load() }
+    LaunchedEffect(repository, refreshKey) { load() }
 
     when (standing) {
         null -> Unit
