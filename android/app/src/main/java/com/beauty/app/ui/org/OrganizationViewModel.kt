@@ -197,7 +197,7 @@ class OrganizationViewModel(
             createFieldErrors = emptyMap()
             try {
                 val created = repository.createOrganization(name.trim(), slug?.trim()?.lowercase(), token)
-                clearCreationLink()
+                if (creationToken == token) clearCreationLink()
                 select(created.id)
                 notice = "Created ${created.name}. You are its administrator."
                 refresh()

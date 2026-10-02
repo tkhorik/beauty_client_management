@@ -43,6 +43,7 @@ abstract class FakeBeautyApi(private val reason: String = "not used in this test
     override suspend fun login(request: AuthRequest): AuthResponse = error(reason)
     override suspend fun register(request: RegisterRequest): AuthResponse = error(reason)
     override suspend fun logout(request: RefreshRequest): Unit = error(reason)
+    override suspend fun verifyEmail(token: String): Unit = error(reason)
     override suspend fun forgotPassword(request: ForgotPasswordRequest): Unit = error(reason)
     override suspend fun resetPassword(request: ResetPasswordRequest): Unit = error(reason)
     override suspend fun getClients(orgId: String): List<ClientDto> = error(reason)
