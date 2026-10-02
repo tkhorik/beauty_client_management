@@ -1,11 +1,14 @@
 package com.beauty.app.ui.settings
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
@@ -13,6 +16,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
@@ -25,11 +30,12 @@ import com.beauty.app.ui.theme.RoseGoldPrimary
 import com.beauty.app.ui.theme.TextLight
 import com.beauty.app.ui.theme.TextMuted
 
-import androidx.compose.material.icons.filled.SystemUpdate
 import com.beauty.app.BuildConfig
+import com.beauty.app.updater.AppRelease
 import com.beauty.app.updater.UpdateDistributionMode
 import com.beauty.app.updater.UpdateState
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -42,6 +48,19 @@ fun SettingsScreen(
     var newPassword by remember { mutableStateOf("") }
     var confirmNewPassword by remember { mutableStateOf("") }
     var showPassword by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    val snackbarHostState = remember { SnackbarHostState() }
+    val coroutineScope = rememberCoroutineScope()
+
+    fun openApkDownload(release: AppRelease) {
+        try {
+            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(release.apkUrl)))
+        } catch (_: Exception) {
+            coroutineScope.launch {
+                snackbarHostState.showSnackbar("Unable to open the APK download link.")
+            }
+        }
+    }
 
     val profileState = viewModel.profileState
     val profileError = profileState as? SettingsViewModel.ProfileState.Error
@@ -64,6 +83,7 @@ fun SettingsScreen(
     }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = {
@@ -210,11 +230,13 @@ fun SettingsScreen(
                 }
             }
 
-            // App & Updates card
+            // About card
             val updateManager = viewModel.updateManager
             val updateState by (updateManager?.state ?: MutableStateFlow(UpdateState.Idle)).collectAsState()
             val distributionMode = updateManager?.getDistributionMode() ?: UpdateDistributionMode.AUTO
             val isChecking = updateState is UpdateState.Checking
+            val canCheckForUpdates = updateManager != null && updateState !is UpdateState.Checking &&
+                updateState !is UpdateState.Downloading && updateState !is UpdateState.ReadyToInstall
 
             Card(
                 shape = RoundedCornerShape(16.dp),
@@ -227,8 +249,8 @@ fun SettingsScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Icon(Icons.Default.SystemUpdate, contentDescription = null, tint = RoseGoldPrimary, modifier = Modifier.size(20.dp))
-                            Text("App & Updates", color = RoseGoldPrimary, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                            Icon(Icons.Default.Info, contentDescription = null, tint = RoseGoldPrimary, modifier = Modifier.size(20.dp))
+                            Text("About", color = RoseGoldPrimary, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                         }
                         Surface(
                             shape = RoundedCornerShape(8.dp),
@@ -243,6 +265,9 @@ fun SettingsScreen(
                             )
                         }
                     }
+
+                    Text("Application version", color = TextLight, fontSize = 13.sp)
+                    Text("v${BuildConfig.VERSION_NAME}", color = TextMuted, fontSize = 13.sp)
 
                     // Distribution source info
                     Row(
@@ -274,80 +299,96 @@ fun SettingsScreen(
                             }
                         }
                         is UpdateState.Available -> {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text("v${state.release.versionName} is available!", color = RoseGoldPrimary, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                                    Text("New features and fixes are ready.", color = TextMuted, fontSize = 11.sp)
-                                }
-                                Button(
-                                    onClick = onOpenUpdateDialog,
-                                    colors = ButtonDefaults.buttonColors(containerColor = RoseGoldPrimary),
-                                    shape = RoundedCornerShape(8.dp),
-                                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Text("Update", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text("v${state.release.versionName} is available!", color = RoseGoldPrimary, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                        Text("New features and fixes are ready.", color = TextMuted, fontSize = 11.sp)
+                                    }
+                                    Button(
+                                        onClick = onOpenUpdateDialog,
+                                        colors = ButtonDefaults.buttonColors(containerColor = RoseGoldPrimary),
+                                        shape = RoundedCornerShape(8.dp),
+                                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
+                                    ) {
+                                        Text("Update", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                    }
                                 }
+                                ApkDownloadLink(state.release, ::openApkDownload)
                             }
                         }
                         is UpdateState.Downloading -> {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text("Downloading update: ${(state.progress * 100).toInt()}%", color = RoseGoldPrimary, fontSize = 13.sp)
-                                    LinearProgressIndicator(
-                                        progress = { state.progress },
-                                        modifier = Modifier.fillMaxWidth().height(4.dp).padding(top = 4.dp),
-                                        color = RoseGoldPrimary,
-                                        trackColor = Color(0x33E5B899)
-                                    )
-                                }
-                                Spacer(modifier = Modifier.width(12.dp))
-                                OutlinedButton(
-                                    onClick = onOpenUpdateDialog,
-                                    shape = RoundedCornerShape(8.dp),
-                                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Text("View", fontSize = 12.sp)
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text("Downloading update: ${(state.progress * 100).toInt()}%", color = RoseGoldPrimary, fontSize = 13.sp)
+                                        LinearProgressIndicator(
+                                            progress = { state.progress },
+                                            modifier = Modifier.fillMaxWidth().height(4.dp).padding(top = 4.dp),
+                                            color = RoseGoldPrimary,
+                                            trackColor = Color(0x33E5B899)
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.width(12.dp))
+                                    OutlinedButton(
+                                        onClick = onOpenUpdateDialog,
+                                        shape = RoundedCornerShape(8.dp),
+                                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                                    ) {
+                                        Text("View", fontSize = 12.sp)
+                                    }
                                 }
+                                ApkDownloadLink(state.release, ::openApkDownload)
                             }
                         }
                         is UpdateState.ReadyToInstall -> {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text("Update downloaded and ready to install.", color = EmeraldStatus, fontSize = 13.sp, modifier = Modifier.weight(1f))
-                                Button(
-                                    onClick = onOpenUpdateDialog,
-                                    colors = ButtonDefaults.buttonColors(containerColor = EmeraldStatus),
-                                    shape = RoundedCornerShape(8.dp),
-                                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Text("Install", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                    Text("Update downloaded and ready to install.", color = EmeraldStatus, fontSize = 13.sp, modifier = Modifier.weight(1f))
+                                    Button(
+                                        onClick = onOpenUpdateDialog,
+                                        colors = ButtonDefaults.buttonColors(containerColor = EmeraldStatus),
+                                        shape = RoundedCornerShape(8.dp),
+                                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
+                                    ) {
+                                        Text("Install", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                    }
                                 }
+                                ApkDownloadLink(state.release, ::openApkDownload)
                             }
                         }
                         is UpdateState.UpToDate -> {
                             Text("Aura Beauty is up to date.", color = EmeraldStatus, fontSize = 13.sp)
                         }
                         is UpdateState.Error -> {
-                            Text(state.message, color = MaterialTheme.colorScheme.error, fontSize = 13.sp)
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Text(state.message, color = MaterialTheme.colorScheme.error, fontSize = 13.sp)
+                                state.release?.let { ApkDownloadLink(it, ::openApkDownload) }
+                            }
                         }
-                        else -> {}
+                        UpdateState.Idle -> Text("Update status not checked yet.", color = TextMuted, fontSize = 13.sp)
+                    }
+
+                    if (updateManager == null) {
+                        Text("Update service is unavailable.", color = TextMuted, fontSize = 13.sp)
                     }
 
                     // Check for Updates action button
                     OutlinedButton(
                         onClick = viewModel::checkForUpdates,
-                        enabled = !isChecking,
+                        enabled = canCheckForUpdates,
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(44.dp),
@@ -363,6 +404,23 @@ fun SettingsScreen(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun ApkDownloadLink(release: AppRelease, onClick: (AppRelease) -> Unit) {
+    TextButton(
+        onClick = { onClick(release) },
+        contentPadding = PaddingValues(0.dp),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Text(
+            text = "Download APK (v${release.versionName})",
+            color = RoseGoldPrimary,
+            fontSize = 13.sp,
+            textDecoration = TextDecoration.Underline,
+            modifier = Modifier.fillMaxWidth()
+        )
     }
 }
 
