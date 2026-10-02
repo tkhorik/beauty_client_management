@@ -31,6 +31,7 @@ import org.jetbrains.exposed.sql.select
 import org.jetbrains.exposed.sql.update
 import java.time.LocalDateTime
 import java.util.UUID
+import kotlinx.serialization.Serializable
 
 /**
  * A pre-computed BCrypt hash of a value no one will ever submit.
@@ -62,6 +63,9 @@ private const val REFRESH_COOKIE = "beauty_refresh"
  */
 private const val TRANSPORT_HEADER = "X-Auth-Transport"
 private const val TRANSPORT_COOKIE = "cookie"
+
+@Serializable
+private data class VerifyEmailRequest(val token: String = "")
 
 internal fun ApplicationCall.usesCookieTransport(): Boolean =
     request.headers[TRANSPORT_HEADER]?.equals(TRANSPORT_COOKIE, ignoreCase = true) == true
@@ -219,6 +223,17 @@ fun Route.authRoutes() {
     val oneTimeTokens = OneTimeTokenService()
     // `application` is the scope the SMTP sends run in — see AccountMailer.
     val accountMailer = AccountMailer(settings, oneTimeTokens, MailSender.from(settings), application)
+
+    suspend fun redeemVerification(token: String): String? {
+        val result = oneTimeTokens.redeem(token, TokenPurpose.EMAIL_VERIFICATION)
+        if (result !is OneTimeTokenService.Redemption.Redeemed) return null
+        dbQuery {
+            UsersTable.update({ UsersTable.id eq result.userId }) {
+                it[emailVerifiedAt] = LocalDateTime.now()
+            }
+        }
+        return result.userId
+    }
     val verification = VerificationPolicy(settings)
 
     /** Reads the refresh token from the cookie, falling back to the request body. */
@@ -457,19 +472,20 @@ fun Route.authRoutes() {
          */
         get("/verify-email") {
             val token = call.request.queryParameters["token"].orEmpty()
-
-            val result = oneTimeTokens.redeem(token, TokenPurpose.EMAIL_VERIFICATION)
-            if (result !is OneTimeTokenService.Redemption.Redeemed) {
+            if (redeemVerification(token) == null) {
                 call.respondRedirect("${settings.publicUrl}/verify-email?status=invalid")
                 return@get
             }
-
-            dbQuery {
-                UsersTable.update({ UsersTable.id eq result.userId }) {
-                    it[emailVerifiedAt] = LocalDateTime.now()
-                }
-            }
             call.respondRedirect("${settings.publicUrl}/verify-email?status=success")
+        }
+
+        post("/verify-email") {
+            val request = runCatching { call.receive<VerifyEmailRequest>() }.getOrNull()
+            if (request == null || redeemVerification(request.token) == null) {
+                call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Invalid verification token"))
+                return@post
+            }
+            call.respond(HttpStatusCode.OK, mapOf("verified" to true))
         }
 
         // -------------------------------------------------------------------

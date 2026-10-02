@@ -1,0 +1,10 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.beauty.app",
+      "sha256_cert_fingerprints": ["4A:6A:22:F6:4A:E8:05:4D:73:94:3C:DF:45:01:0F:AE:45:55:DA:D9:EA:45:69:39:1F:3E:65:E7:3B:81:41:8C"]
+    }
+  }
+]
