@@ -13,6 +13,7 @@
 - Standard HTTPS deployment verified: healthz returns 200 on 443; GitHub SITE_URL has no port and HTTPS_PORT=443.
 
 ## Remaining
-- Finish emulator acceptance checks and verify production-origin release metadata.
+- Production-origin release metadata verified for https://beautyclient.duckdns.org on standard HTTPS/443.
+- User requested no further testing. Earlier emulator acceptance using a synthetic local API reached a blank screen after organization-link sign-in. Root cause is not established; defer final acceptance and keep PR draft.
 - Separate PR; no automatic merge or deployment.
 - After deploying association: verify a newly signed release APK on-device and Telegram external opening. Local release signing material is unavailable.
