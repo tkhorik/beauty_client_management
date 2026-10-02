@@ -69,190 +69,197 @@ fun EditClientScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             when (viewModel.existingClientState) {
-                EditClientViewModel.ExistingClientState.Loading -> {
+                EditClientViewModel.ExistingClientState.Loading ->
                     Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
                         CircularProgressIndicator(color = RoseGoldPrimary)
                     }
-                    return@Column
-                }
-                EditClientViewModel.ExistingClientState.Missing -> {
+                EditClientViewModel.ExistingClientState.Missing ->
                     Text(
                         "This client is no longer available. Return to the directory and refresh it.",
                         color = MaterialTheme.colorScheme.error
                     )
-                    return@Column
-                }
-                else -> Unit
+                // Branches rather than early `return@Column`s: returning out of an
+                // inline composable lambda skips closing its group and crashes the
+                // slot table.
+                else -> ClientForm(viewModel, tagInput, onTagInputChange = { tagInput = it })
             }
+        }
+    }
+}
 
-            // Full Name
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+@Composable
+private fun ColumnScope.ClientForm(
+    viewModel: EditClientViewModel,
+    tagInput: String,
+    onTagInputChange: (String) -> Unit
+) {
+        // Full Name
+        OutlinedTextField(
+            value = viewModel.name,
+            onValueChange = { viewModel.updateName(it) },
+            label = { Text("Full Name *", color = TextMuted) },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+            colors = outlinedColors()
+        )
+
+        // Phone
+        OutlinedTextField(
+            value = viewModel.phone,
+            onValueChange = { viewModel.updatePhone(it) },
+            label = { Text("Phone Number *", color = TextMuted) },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+            colors = outlinedColors()
+        )
+
+        // Email
+        OutlinedTextField(
+            value = viewModel.email,
+            onValueChange = { viewModel.updateEmail(it) },
+            label = { Text("Email (Optional)", color = TextMuted) },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+            colors = outlinedColors()
+        )
+
+        // Tags section
+        Text("Tags", color = RoseGoldPrimary, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             OutlinedTextField(
-                value = viewModel.name,
-                onValueChange = { viewModel.updateName(it) },
-                label = { Text("Full Name *", color = TextMuted) },
+                value = tagInput,
+                onValueChange = onTagInputChange,
+                label = { Text("Add tag", color = TextMuted) },
                 singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.weight(1f),
                 colors = outlinedColors()
             )
-
-            // Phone
-            OutlinedTextField(
-                value = viewModel.phone,
-                onValueChange = { viewModel.updatePhone(it) },
-                label = { Text("Phone Number *", color = TextMuted) },
-                singleLine = true,
+            OutlinedButton(
+                onClick = { viewModel.addTag(tagInput.trim()); onTagInputChange("") },
+                border = ButtonDefaults.outlinedButtonBorder.copy(
+                    brush = androidx.compose.ui.graphics.SolidColor(RoseGoldPrimary)
+                )
+            ) { Text("Add", color = RoseGoldPrimary) }
+        }
+        // Existing tags as chips
+        if (viewModel.tags.isNotEmpty()) {
+            FlowRow(
                 modifier = Modifier.fillMaxWidth(),
-                colors = outlinedColors()
-            )
+                maxItemsInEachRow = 4,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                viewModel.tags.forEach { tag ->
+                    InputChip(
+                        selected = false,
+                        onClick = {},
+                        label = { Text(tag, color = TextLight, fontSize = 12.sp) },
+                        trailingIcon = {
+                            IconButton(
+                                onClick = { viewModel.removeTag(tag) },
+                                modifier = Modifier.size(16.dp)
+                            ) {
+                                Icon(
+                                    Icons.Default.Close,
+                                    contentDescription = "Remove tag",
+                                    tint = TextMuted,
+                                    modifier = Modifier.size(12.dp)
+                                )
+                            }
+                        },
+                        shape = RoundedCornerShape(8.dp),
+                        colors = InputChipDefaults.inputChipColors(
+                            containerColor = Color(0x22E5B899)
+                        )
+                    )
+                }
+            }
+        }
 
-            // Email
-            OutlinedTextField(
-                value = viewModel.email,
-                onValueChange = { viewModel.updateEmail(it) },
-                label = { Text("Email (Optional)", color = TextMuted) },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-                colors = outlinedColors()
-            )
-
-            // Tags section
-            Text("Tags", color = RoseGoldPrimary, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+        // Custom fields section
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text("Custom Attributes", color = RoseGoldPrimary, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+            OutlinedButton(
+                onClick = { viewModel.addCustomField() },
+                border = ButtonDefaults.outlinedButtonBorder.copy(
+                    brush = androidx.compose.ui.graphics.SolidColor(RoseGoldPrimary)
+                )
+            ) { Text("+ Add", color = RoseGoldPrimary, fontSize = 12.sp) }
+        }
+        viewModel.customFields.forEachIndexed { index, field ->
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 OutlinedTextField(
-                    value = tagInput,
-                    onValueChange = { tagInput = it },
-                    label = { Text("Add tag", color = TextMuted) },
+                    value = field.key,
+                    onValueChange = { viewModel.updateCustomField(index, it, field.value) },
+                    label = { Text("Attribute", color = TextMuted) },
                     singleLine = true,
                     modifier = Modifier.weight(1f),
                     colors = outlinedColors()
                 )
-                OutlinedButton(
-                    onClick = { viewModel.addTag(tagInput.trim()); tagInput = "" },
-                    border = ButtonDefaults.outlinedButtonBorder.copy(
-                        brush = androidx.compose.ui.graphics.SolidColor(RoseGoldPrimary)
-                    )
-                ) { Text("Add", color = RoseGoldPrimary) }
-            }
-            // Existing tags as chips
-            if (viewModel.tags.isNotEmpty()) {
-                FlowRow(
-                    modifier = Modifier.fillMaxWidth(),
-                    maxItemsInEachRow = 4,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    viewModel.tags.forEach { tag ->
-                        InputChip(
-                            selected = false,
-                            onClick = {},
-                            label = { Text(tag, color = TextLight, fontSize = 12.sp) },
-                            trailingIcon = {
-                                IconButton(
-                                    onClick = { viewModel.removeTag(tag) },
-                                    modifier = Modifier.size(16.dp)
-                                ) {
-                                    Icon(
-                                        Icons.Default.Close,
-                                        contentDescription = "Remove tag",
-                                        tint = TextMuted,
-                                        modifier = Modifier.size(12.dp)
-                                    )
-                                }
-                            },
-                            shape = RoundedCornerShape(8.dp),
-                            colors = InputChipDefaults.inputChipColors(
-                                containerColor = Color(0x22E5B899)
-                            )
-                        )
-                    }
+                OutlinedTextField(
+                    value = field.value,
+                    onValueChange = { viewModel.updateCustomField(index, field.key, it) },
+                    label = { Text("Value", color = TextMuted) },
+                    singleLine = true,
+                    modifier = Modifier.weight(1f),
+                    colors = outlinedColors()
+                )
+                IconButton(onClick = { viewModel.removeCustomField(index) }) {
+                    Icon(Icons.Default.Close, contentDescription = "Remove", tint = Color(0xFFf87171))
                 }
             }
+        }
 
-            // Custom fields section
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text("Custom Attributes", color = RoseGoldPrimary, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
-                OutlinedButton(
-                    onClick = { viewModel.addCustomField() },
-                    border = ButtonDefaults.outlinedButtonBorder.copy(
-                        brush = androidx.compose.ui.graphics.SolidColor(RoseGoldPrimary)
-                    )
-                ) { Text("+ Add", color = RoseGoldPrimary, fontSize = 12.sp) }
-            }
-            viewModel.customFields.forEachIndexed { index, field ->
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    OutlinedTextField(
-                        value = field.key,
-                        onValueChange = { viewModel.updateCustomField(index, it, field.value) },
-                        label = { Text("Attribute", color = TextMuted) },
-                        singleLine = true,
-                        modifier = Modifier.weight(1f),
-                        colors = outlinedColors()
-                    )
-                    OutlinedTextField(
-                        value = field.value,
-                        onValueChange = { viewModel.updateCustomField(index, field.key, it) },
-                        label = { Text("Value", color = TextMuted) },
-                        singleLine = true,
-                        modifier = Modifier.weight(1f),
-                        colors = outlinedColors()
-                    )
-                    IconButton(onClick = { viewModel.removeCustomField(index) }) {
-                        Icon(Icons.Default.Close, contentDescription = "Remove", tint = Color(0xFFf87171))
-                    }
-                }
-            }
+        // Error
+        if (viewModel.saveState is EditClientViewModel.SaveState.Error) {
+            Text(
+                text = (viewModel.saveState as EditClientViewModel.SaveState.Error).message,
+                color = MaterialTheme.colorScheme.error,
+                fontSize = 13.sp
+            )
+        }
 
-            // Error
-            if (viewModel.saveState is EditClientViewModel.SaveState.Error) {
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Save button
+        Button(
+            onClick = { viewModel.save() },
+            enabled = viewModel.saveState !is EditClientViewModel.SaveState.Loading,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(52.dp),
+            shape = RoundedCornerShape(12.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = RoseGoldPrimary)
+        ) {
+            if (viewModel.saveState is EditClientViewModel.SaveState.Loading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(20.dp),
+                    color = Color.Black,
+                    strokeWidth = 2.dp
+                )
+            } else {
                 Text(
-                    text = (viewModel.saveState as EditClientViewModel.SaveState.Error).message,
-                    color = MaterialTheme.colorScheme.error,
-                    fontSize = 13.sp
+                    text = if (viewModel.isNewClient) "Create Client" else "Save Changes",
+                    color = Color.Black,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 15.sp
                 )
             }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Save button
-            Button(
-                onClick = { viewModel.save() },
-                enabled = viewModel.saveState !is EditClientViewModel.SaveState.Loading,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(52.dp),
-                shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = RoseGoldPrimary)
-            ) {
-                if (viewModel.saveState is EditClientViewModel.SaveState.Loading) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(20.dp),
-                        color = Color.Black,
-                        strokeWidth = 2.dp
-                    )
-                } else {
-                    Text(
-                        text = if (viewModel.isNewClient) "Create Client" else "Save Changes",
-                        color = Color.Black,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 15.sp
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
         }
-    }
+
+        Spacer(modifier = Modifier.height(24.dp))
 }
 
 @Composable
