@@ -21,7 +21,7 @@ private fun URI.parameter(name: String): String? = runCatching {
         .filter { URLDecoder.decode(it[0], "UTF-8") == name }
     // Ambiguous duplicate parameters and malformed percent encoding are not accepted.
     values.singleOrNull()?.getOrNull(1)?.let { URLDecoder.decode(it, "UTF-8") }
-        ?.takeIf { it.isNotBlank() && it.length <= 2048 }
+        ?.takeIf { it.isNotBlank() && it.length <= 2048 && it.matches(Regex("[A-Za-z0-9_-]+")) }
 }.getOrNull()
 
 internal fun tokenFromWebAppLink(raw: String, queryParam: String, path: String? = null): String? {
