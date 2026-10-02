@@ -10,6 +10,7 @@ import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -24,11 +25,18 @@ import com.beauty.app.ui.theme.RoseGoldPrimary
 import com.beauty.app.ui.theme.TextLight
 import com.beauty.app.ui.theme.TextMuted
 
+import androidx.compose.material.icons.filled.SystemUpdate
+import com.beauty.app.BuildConfig
+import com.beauty.app.updater.UpdateDistributionMode
+import com.beauty.app.updater.UpdateState
+import kotlinx.coroutines.flow.MutableStateFlow
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
     viewModel: SettingsViewModel,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onOpenUpdateDialog: () -> Unit = {}
 ) {
     var currentPassword by remember { mutableStateOf("") }
     var newPassword by remember { mutableStateOf("") }
@@ -197,6 +205,159 @@ fun SettingsScreen(
                             CircularProgressIndicator(modifier = Modifier.size(18.dp), color = Color.Black, strokeWidth = 2.dp)
                         } else {
                             Text("Change Password", color = Color.Black, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            }
+
+            // App & Updates card
+            val updateManager = viewModel.updateManager
+            val updateState by (updateManager?.state ?: MutableStateFlow(UpdateState.Idle)).collectAsState()
+            val distributionMode = updateManager?.getDistributionMode() ?: UpdateDistributionMode.AUTO
+            val isChecking = updateState is UpdateState.Checking
+
+            Card(
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = CardSurface)
+            ) {
+                Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Icon(Icons.Default.SystemUpdate, contentDescription = null, tint = RoseGoldPrimary, modifier = Modifier.size(20.dp))
+                            Text("App & Updates", color = RoseGoldPrimary, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                        }
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = Color(0x15E5B899)
+                        ) {
+                            Text(
+                                "v${BuildConfig.VERSION_NAME}",
+                                color = RoseGoldPrimary,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            )
+                        }
+                    }
+
+                    // Distribution source info
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("Update Source", color = TextLight, fontSize = 13.sp)
+                        Text(
+                            when (distributionMode) {
+                                UpdateDistributionMode.PLAY_STORE -> "Google Play Store"
+                                UpdateDistributionMode.GITHUB_DIRECT -> "GitHub Releases"
+                                UpdateDistributionMode.AUTO -> "Auto (GitHub)"
+                            },
+                            color = TextMuted,
+                            fontSize = 13.sp
+                        )
+                    }
+
+                    // Dynamic update status
+                    when (val state = updateState) {
+                        is UpdateState.Checking -> {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                CircularProgressIndicator(modifier = Modifier.size(16.dp), color = RoseGoldPrimary, strokeWidth = 2.dp)
+                                Text("Checking for updates…", color = TextMuted, fontSize = 13.sp)
+                            }
+                        }
+                        is UpdateState.Available -> {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text("v${state.release.versionName} is available!", color = RoseGoldPrimary, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                    Text("New features and fixes are ready.", color = TextMuted, fontSize = 11.sp)
+                                }
+                                Button(
+                                    onClick = onOpenUpdateDialog,
+                                    colors = ButtonDefaults.buttonColors(containerColor = RoseGoldPrimary),
+                                    shape = RoundedCornerShape(8.dp),
+                                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
+                                ) {
+                                    Text("Update", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                }
+                            }
+                        }
+                        is UpdateState.Downloading -> {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text("Downloading update: ${(state.progress * 100).toInt()}%", color = RoseGoldPrimary, fontSize = 13.sp)
+                                    LinearProgressIndicator(
+                                        progress = { state.progress },
+                                        modifier = Modifier.fillMaxWidth().height(4.dp).padding(top = 4.dp),
+                                        color = RoseGoldPrimary,
+                                        trackColor = Color(0x33E5B899)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(12.dp))
+                                OutlinedButton(
+                                    onClick = onOpenUpdateDialog,
+                                    shape = RoundedCornerShape(8.dp),
+                                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                                ) {
+                                    Text("View", fontSize = 12.sp)
+                                }
+                            }
+                        }
+                        is UpdateState.ReadyToInstall -> {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text("Update downloaded and ready to install.", color = EmeraldStatus, fontSize = 13.sp, modifier = Modifier.weight(1f))
+                                Button(
+                                    onClick = onOpenUpdateDialog,
+                                    colors = ButtonDefaults.buttonColors(containerColor = EmeraldStatus),
+                                    shape = RoundedCornerShape(8.dp),
+                                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
+                                ) {
+                                    Text("Install", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                }
+                            }
+                        }
+                        is UpdateState.UpToDate -> {
+                            Text("Aura Beauty is up to date.", color = EmeraldStatus, fontSize = 13.sp)
+                        }
+                        is UpdateState.Error -> {
+                            Text(state.message, color = MaterialTheme.colorScheme.error, fontSize = 13.sp)
+                        }
+                        else -> {}
+                    }
+
+                    // Check for Updates action button
+                    OutlinedButton(
+                        onClick = viewModel::checkForUpdates,
+                        enabled = !isChecking,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(44.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = RoseGoldPrimary)
+                    ) {
+                        if (isChecking) {
+                            CircularProgressIndicator(modifier = Modifier.size(16.dp), color = RoseGoldPrimary, strokeWidth = 2.dp)
+                        } else {
+                            Text("Check for Updates", fontWeight = FontWeight.SemiBold)
                         }
                     }
                 }

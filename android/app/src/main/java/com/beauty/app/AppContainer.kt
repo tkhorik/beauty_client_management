@@ -145,4 +145,15 @@ object AppContainer {
         val client = buildClient(tokenStore)
         return BeautyRepository(KtorBeautyApi(client), database.clientDao(), database.visitDao(), json, database.parityDao())
     }
+
+    @Volatile
+    private var updateManagerInstance: com.beauty.app.updater.UpdateManager? = null
+
+    fun updateManager(context: Context): com.beauty.app.updater.UpdateManager {
+        return updateManagerInstance ?: synchronized(this) {
+            updateManagerInstance ?: com.beauty.app.updater.UpdateManager(context.applicationContext).also {
+                updateManagerInstance = it
+            }
+        }
+    }
 }

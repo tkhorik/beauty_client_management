@@ -120,6 +120,20 @@ internal fun AppNavHost(links: AppLinkViewModel) {
     val accountId by tokenStore.accountFlow.collectAsState()
     val repository = remember(accountId) { AppContainer.repository(context, tokenStore) }
     val database = remember(accountId) { BeautyDatabaseProvider.get(context, accountId) }
+    val updateManager = remember { AppContainer.updateManager(context) }
+    val updateState by updateManager.state.collectAsState()
+    val scope = rememberCoroutineScope()
+    val lifecycleOwner = LocalLifecycleOwner.current
+
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_START) {
+                scope.launch { updateManager.checkForUpdates(force = false) }
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
 
     val navController = rememberNavController()
     val startDestination = rememberSaveable { if (tokenStore.getToken() != null) "clients" else "login" }
@@ -301,7 +315,9 @@ internal fun AppNavHost(links: AppLinkViewModel) {
                     onAdmin = if (orgViewModel.isSuperAdmin) ({ navController.navigate("admin") }) else null,
                     onLogout = {
                         authViewModel.logout { navController.navigate("login") { popUpTo(0) { inclusive = true } } }
-                    }
+                    },
+                    updateManager = updateManager,
+                    onOpenUpdateDialog = { updateManager.reopenUpdateDialog() }
                 )
             }
         }
@@ -357,12 +373,13 @@ internal fun AppNavHost(links: AppLinkViewModel) {
                 factory = object : ViewModelProvider.Factory {
                     @Suppress("UNCHECKED_CAST")
                     override fun <T : ViewModel> create(modelClass: Class<T>): T =
-                        SettingsViewModel(repository, tokenStore) as T
+                        SettingsViewModel(repository, tokenStore, updateManager) as T
                 }
             )
             SettingsScreen(
                 viewModel = settingsViewModel,
-                onBack = { navController.popBackStack() }
+                onBack = { navController.popBackStack() },
+                onOpenUpdateDialog = { updateManager.reopenUpdateDialog() }
             )
         }
 
@@ -438,6 +455,31 @@ internal fun AppNavHost(links: AppLinkViewModel) {
                 onBack = { navController.popBackStack() }
             )
         }
+    }
+
+    val showUpdateDialog = when (val s = updateState) {
+        is com.beauty.app.updater.UpdateState.Available -> !s.dismissed
+        is com.beauty.app.updater.UpdateState.Downloading -> true
+        is com.beauty.app.updater.UpdateState.ReadyToInstall -> true
+        is com.beauty.app.updater.UpdateState.Error -> s.release != null
+        else -> false
+    }
+
+    if (showUpdateDialog) {
+        com.beauty.app.ui.updater.UpdateDialog(
+            state = updateState,
+            currentVersion = updateManager.currentVersionName,
+            distributionMode = updateManager.getDistributionMode(),
+            onDismiss = { updateManager.dismissCurrentUpdate() },
+            onStartDownload = { updateManager.startDownload(scope) },
+            onCancelDownload = { updateManager.cancelDownload() },
+            onInstall = { updateManager.installOrOpenStore(context) },
+            onOpenPlayStore = { com.beauty.app.updater.UpdateInstaller.openGooglePlayStore(context) },
+            onRequestPermission = {
+                context.startActivity(com.beauty.app.updater.UpdateInstaller.createInstallPermissionIntent(context))
+            },
+            needsInstallPermission = !com.beauty.app.updater.UpdateInstaller.canInstallApk(context)
+        )
     }
 }
 
