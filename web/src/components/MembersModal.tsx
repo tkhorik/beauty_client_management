@@ -114,6 +114,30 @@ export const MembersModal: React.FC<MembersModalProps> = ({ orgId, orgName, onCl
     setInviting(false);
   }
 
+  function confirmRemoval(member: OrgMember) {
+    const identity = `${member.fullName} (${member.email})`;
+    const isSelf = member.userId === user?.id;
+    let message: string;
+    let success: string;
+
+    if (member.status === 'PENDING') {
+      message = `Decline ${identity}'s request to join ${orgName}? They will not be granted access.`;
+      success = 'Request declined.';
+    } else if (member.status === 'INVITED') {
+      message = `Withdraw ${identity}'s invitation to ${orgName}? They will no longer be able to accept it.`;
+      success = 'Invitation withdrawn.';
+    } else {
+      message = isSelf
+        ? `Leave ${orgName}? Your access will be revoked immediately. Clients and visits you entered will stay with the organization.`
+        : `Remove ${identity} from ${orgName}? Their access will be revoked immediately. Clients and visits they entered will stay with the organization.`;
+      success = isSelf ? 'You left the organization.' : `${member.fullName} removed.`;
+    }
+
+    if (window.confirm(message)) {
+      void run(() => api.removeMember(orgId, member.userId), success);
+    }
+  }
+
   const pending = members.filter(m => m.status === 'PENDING');
   const invited = members.filter(m => m.status === 'INVITED');
   const active = members.filter(m => m.status === 'ACTIVE');
@@ -185,7 +209,7 @@ export const MembersModal: React.FC<MembersModalProps> = ({ orgId, orgName, onCl
                   </button>
                   <IconButton
                     title="Decline"
-                    onClick={() => run(() => api.removeMember(orgId, m.userId), 'Request declined.')}
+                    onClick={() => confirmRemoval(m)}
                   >
                     <Trash2 size={15} />
                   </IconButton>
@@ -203,7 +227,7 @@ export const MembersModal: React.FC<MembersModalProps> = ({ orgId, orgName, onCl
                 <MemberRow key={m.userId} member={m}>
                   <IconButton
                     title="Withdraw invitation"
-                    onClick={() => run(() => api.removeMember(orgId, m.userId), 'Invitation withdrawn.')}
+                    onClick={() => confirmRemoval(m)}
                   >
                     <Trash2 size={15} />
                   </IconButton>
@@ -237,12 +261,7 @@ export const MembersModal: React.FC<MembersModalProps> = ({ orgId, orgName, onCl
                   </select>
                   <IconButton
                     title={m.userId === user?.id ? 'Leave organization' : 'Remove from organization'}
-                    onClick={() =>
-                      run(
-                        () => api.removeMember(orgId, m.userId),
-                        m.userId === user?.id ? 'You left the organization.' : `${m.fullName} removed.`
-                      )
-                    }
+                    onClick={() => confirmRemoval(m)}
                   >
                     <Trash2 size={15} />
                   </IconButton>
