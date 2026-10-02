@@ -7,6 +7,10 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -33,6 +37,10 @@ internal fun MemberRow(
     onRemove: () -> Unit,
     onToggleRole: () -> Unit
 ) {
+    var pendingAction by remember(member.userId, member.status) {
+        mutableStateOf<MemberDestructiveAction?>(null)
+    }
+
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
@@ -52,22 +60,80 @@ internal fun MemberRow(
             IconButton(onClick = onApprove) {
                 Icon(Icons.Default.Check, contentDescription = "Approve", tint = RoseGoldPrimary)
             }
-            IconButton(onClick = onDecline) {
+            IconButton(onClick = { pendingAction = MemberDestructiveAction.Decline }) {
                 Icon(Icons.Default.Close, contentDescription = "Decline", tint = TextMuted)
             }
-            return@Row
-        }
-        if (member.status == "ACTIVE") {
-            TextButton(onClick = onToggleRole) {
-                Text(
-                    if (member.role == "ORG_ADMIN") "Demote" else "Promote",
-                    color = RoseGoldPrimary,
-                    fontSize = 12.sp
+        } else {
+            if (member.status == "ACTIVE") {
+                TextButton(onClick = onToggleRole) {
+                    Text(
+                        if (member.role == "ORG_ADMIN") "Demote" else "Promote",
+                        color = RoseGoldPrimary,
+                        fontSize = 12.sp
+                    )
+                }
+            }
+            IconButton(
+                onClick = {
+                    pendingAction = if (member.status == "INVITED") {
+                        MemberDestructiveAction.WithdrawInvitation
+                    } else {
+                        MemberDestructiveAction.Remove
+                    }
+                }
+            ) {
+                Icon(
+                    Icons.Default.Delete,
+                    contentDescription = if (member.status == "INVITED") "Withdraw invitation" else "Remove",
+                    tint = TextMuted
                 )
             }
         }
-        IconButton(onClick = onRemove) {
-            Icon(Icons.Default.Delete, contentDescription = "Remove", tint = TextMuted)
-        }
     }
+
+    pendingAction?.let { action ->
+        val (title, message, confirmLabel) = when (action) {
+            MemberDestructiveAction.Decline -> Triple(
+                "Decline request?",
+                "Decline ${member.fullName} (${member.email})'s request to join? They will not gain access to this organization's data.",
+                "Decline"
+            )
+            MemberDestructiveAction.WithdrawInvitation -> Triple(
+                "Withdraw invitation?",
+                "Withdraw the invitation for ${member.fullName} (${member.email})? They will no longer be able to accept it.",
+                "Withdraw"
+            )
+            MemberDestructiveAction.Remove -> Triple(
+                "Remove member?",
+                "Remove ${member.fullName} (${member.email}) from this organization? Their access will be revoked immediately. Clients and visits they entered will stay with the organization.",
+                "Remove"
+            )
+        }
+        AlertDialog(
+            onDismissRequest = { pendingAction = null },
+            title = { Text(title) },
+            text = { Text(message) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        pendingAction = null
+                        when (action) {
+                            MemberDestructiveAction.Decline -> onDecline()
+                            MemberDestructiveAction.WithdrawInvitation,
+                            MemberDestructiveAction.Remove -> onRemove()
+                        }
+                    }
+                ) { Text(confirmLabel) }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingAction = null }) { Text("Cancel") }
+            }
+        )
+    }
+}
+
+private enum class MemberDestructiveAction {
+    Decline,
+    WithdrawInvitation,
+    Remove
 }
