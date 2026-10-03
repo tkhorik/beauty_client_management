@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Star scaled into the 66dp safe zone so circle/squircle masks never clip its points. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group
+        android:pivotX="54"
+        android:pivotY="54"
+        android:scaleX="0.72"
+        android:scaleY="0.72"
+        android:translateY="1.7">
+        <path
+            android:fillColor="#E5B899"
+            android:pathData="M54,16l8.8,27.2h28.6l-23.1,16.8l8.8,27.2l-23.1,-16.8l-23.1,16.8l8.8,-27.2l-23.1,-16.8h28.6z" />
+        <path
+            android:fillColor="#FFFFFF"
+            android:fillAlpha="0.78"
+            android:pathData="M54,34l4.1,12.6h13.2l-10.7,7.8l4.1,12.6l-10.7,-7.8l-10.7,7.8l4.1,-12.6l-10.7,-7.8h13.2z" />
+    </group>
+</vector>
