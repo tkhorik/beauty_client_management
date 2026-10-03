@@ -63,6 +63,7 @@ fun Application.configureRouting(storage: FileStorageService) {
         allowMethod(HttpMethod.Patch)
         allowHeader(HttpHeaders.Authorization)
         allowHeader(HttpHeaders.ContentType)
+        allowHeader(HttpHeaders.AcceptLanguage)
         // Lets a client declare that its refresh token should be delivered as
         // an httpOnly cookie rather than in the response body.
         allowHeader("X-Auth-Transport")
@@ -143,7 +144,7 @@ fun Application.configureRouting(storage: FileStorageService) {
             } else {
                 cause.localizedMessage ?: "Internal Server Error"
             }
-            call.respond(HttpStatusCode.InternalServerError, mapOf("error" to message))
+            call.respond(HttpStatusCode.InternalServerError, mapOf("error" to message, "code" to "INTERNAL_ERROR"))
         }
     }
 

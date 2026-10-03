@@ -1,5 +1,7 @@
 package com.beauty.routes
 
+import com.beauty.i18n.Languages
+
 import com.beauty.auth.AccountStatus
 import com.beauty.auth.GlobalRole
 import com.beauty.auth.OneTimeTokenService
@@ -171,7 +173,9 @@ internal fun userDto(
         // than a guess: a caller with no policy in hand cannot know whether
         // enforcement is on, and inventing a deadline would have clients
         // counting down to a restriction that may not exist.
-        verificationDeadline = policy?.deadlineFor(account)?.toString()
+        verificationDeadline = policy?.deadlineFor(account)?.toString(),
+        languagePreference = row[UsersTable.languagePreference],
+        languageRevision = row[UsersTable.languageRevision]
     )
 }
 
@@ -265,12 +269,16 @@ fun Route.authRoutes() {
             val email = Validation.normaliseEmail(req.email)
             val fullName = req.fullName.trim()
 
-            val errors = Validation.validateRegistration(email, req.password, fullName)
+            val errors = Validation.registrationIssues(email, req.password, fullName)
             if (errors.isNotEmpty()) {
-                call.respond(HttpStatusCode.BadRequest, ValidationErrorResponse(errors = errors))
+                call.respond(HttpStatusCode.BadRequest, ValidationErrorResponse.from(errors))
                 return@post
             }
 
+            if (req.languagePreference !in Languages.preferences) {
+                call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Unsupported language preference", "code" to "INVALID_LANGUAGE"))
+                return@post
+            }
             val id = UUID.randomUUID().toString()
             val hashedPassword = BCrypt.hashpw(req.password, BCrypt.gensalt())
             val createdAt = LocalDateTime.now()
@@ -284,7 +292,7 @@ fun Route.authRoutes() {
                 UsersTable.select { UsersTable.email eq email }.singleOrNull() != null
             }
             if (alreadyExists) {
-                call.respond(HttpStatusCode.Conflict, mapOf("error" to "User with email already exists"))
+                call.respond(HttpStatusCode.Conflict, mapOf("error" to "User with email already exists", "code" to "EMAIL_ALREADY_EXISTS"))
                 return@post
             }
 
@@ -295,6 +303,7 @@ fun Route.authRoutes() {
                         it[UsersTable.email] = email
                         it[UsersTable.passwordHash] = hashedPassword
                         it[UsersTable.fullName] = fullName
+                        it[UsersTable.languagePreference] = req.languagePreference
                         it[UsersTable.createdAt] = createdAt
                     }
                 }
@@ -302,7 +311,7 @@ fun Route.authRoutes() {
                 if ((e.cause as? java.sql.SQLException)?.sqlState == SQLSTATE_UNIQUE_VIOLATION ||
                     e.sqlState == SQLSTATE_UNIQUE_VIOLATION
                 ) {
-                    call.respond(HttpStatusCode.Conflict, mapOf("error" to "User with email already exists"))
+                    call.respond(HttpStatusCode.Conflict, mapOf("error" to "User with email already exists", "code" to "EMAIL_ALREADY_EXISTS"))
                     return@post
                 }
                 throw e
@@ -316,7 +325,7 @@ fun Route.authRoutes() {
             // errors for the same reason, and AccountMailer hands the SMTP call
             // off to the application scope so a slow server does not hold the
             // new user on a spinner.
-            accountMailer.sendVerification(id, email, fullName)
+            accountMailer.sendVerification(id, email, fullName, Languages.resolve(req.languagePreference, call.request.headers[HttpHeaders.AcceptLanguage]))
 
             // One timestamp, used for both the stored row and the response.
             // Computing it twice means the client is told a creation time that
@@ -332,6 +341,7 @@ fun Route.authRoutes() {
                     fullName,
                     createdAt.toString(),
                     emailVerified = false,
+                    languagePreference = req.languagePreference,
                     // Told to them up front, in the same response that signs
                     // them in. A user who learns about the deadline on day one
                     // can act on it; one who first meets it as a refused save
@@ -366,7 +376,7 @@ fun Route.authRoutes() {
             if (row == null || !passwordMatches) {
                 // One message for both cases. Saying "no such account" would
                 // tell an attacker which addresses are worth guessing at.
-                call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Invalid credentials"))
+                call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Invalid credentials", "code" to "INVALID_CREDENTIALS"))
                 return@post
             }
 
@@ -387,7 +397,7 @@ fun Route.authRoutes() {
         post("/refresh") {
             val presented = call.readRefreshToken()
             if (presented == null) {
-                call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "No refresh token provided"))
+                call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "No refresh token provided", "code" to "SESSION_EXPIRED"))
                 return@post
             }
 
@@ -396,7 +406,7 @@ fun Route.authRoutes() {
                     // Clear the cookie so the browser stops resending a token
                     // that will never work again.
                     call.clearRefreshCookie()
-                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Session expired. Please sign in again."))
+                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Session expired. Please sign in again.", "code" to "SESSION_EXPIRED"))
                 }
 
                 is RefreshTokenService.RotationResult.Rotated -> {
@@ -407,7 +417,7 @@ fun Route.authRoutes() {
                         // The token was valid but its user is gone (deleted
                         // account). Nothing to issue.
                         call.clearRefreshCookie()
-                        call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Session expired. Please sign in again."))
+                        call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Session expired. Please sign in again.", "code" to "SESSION_EXPIRED"))
                         return@post
                     }
 
@@ -482,7 +492,7 @@ fun Route.authRoutes() {
         post("/verify-email") {
             val request = runCatching { call.receive<VerifyEmailRequest>() }.getOrNull()
             if (request == null || redeemVerification(request.token) == null) {
-                call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Invalid verification token"))
+                call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Invalid verification token", "code" to "INVALID_VERIFICATION_TOKEN"))
                 return@post
             }
             call.respond(HttpStatusCode.OK, mapOf("verified" to true))
@@ -532,7 +542,8 @@ fun Route.authRoutes() {
                 accountMailer.sendPasswordReset(
                     userId = row[UsersTable.id],
                     email = row[UsersTable.email],
-                    fullName = row[UsersTable.fullName]
+                    fullName = row[UsersTable.fullName],
+                    language = Languages.resolve(row[UsersTable.languagePreference], call.request.headers[HttpHeaders.AcceptLanguage])
                 )
             } else {
                 // Logged server-side only. The requester is told nothing.
@@ -569,10 +580,10 @@ fun Route.authRoutes() {
         post("/reset-password") {
             val req = call.receive<ResetPasswordRequest>()
 
-            Validation.validatePassword(req.newPassword)?.let { message ->
+            Validation.passwordIssue(req.newPassword)?.let { message ->
                 call.respond(
                     HttpStatusCode.BadRequest,
-                    ValidationErrorResponse(errors = mapOf("newPassword" to message))
+                    ValidationErrorResponse.from(mapOf("newPassword" to message))
                 )
                 return@post
             }
@@ -584,7 +595,7 @@ fun Route.authRoutes() {
                 // help someone probing with guessed tokens.
                 call.respond(
                     HttpStatusCode.BadRequest,
-                    mapOf("error" to "This reset link is invalid or has expired. Please request a new one.")
+                    mapOf("error" to "This reset link is invalid or has expired. Please request a new one.", "code" to "INVALID_RESET_TOKEN")
                 )
                 return@post
             }
@@ -609,7 +620,8 @@ fun Route.authRoutes() {
                 // visible to the account's owner.
                 accountMailer.sendPasswordChangedNotice(
                     email = row[UsersTable.email],
-                    fullName = row[UsersTable.fullName]
+                    fullName = row[UsersTable.fullName],
+                    language = Languages.resolve(row[UsersTable.languagePreference], call.request.headers[HttpHeaders.AcceptLanguage])
                 )
             }
 
@@ -654,7 +666,7 @@ fun Route.authenticatedAuthRoutes() {
         post("/resend-verification") {
             val userId = call.userId()
             if (userId == null) {
-                call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Invalid token"))
+                call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Invalid token", "code" to "INVALID_TOKEN"))
                 return@post
             }
 
@@ -663,7 +675,8 @@ fun Route.authenticatedAuthRoutes() {
                 accountMailer.sendVerification(
                     userId = userId,
                     email = row[UsersTable.email],
-                    fullName = row[UsersTable.fullName]
+                    fullName = row[UsersTable.fullName],
+                    language = Languages.resolve(row[UsersTable.languagePreference], call.request.headers[HttpHeaders.AcceptLanguage])
                 )
             }
             call.respond(HttpStatusCode.NoContent)
@@ -681,7 +694,7 @@ fun Route.authenticatedAuthRoutes() {
         post("/logout-all") {
             val userId = call.userId()
             if (userId == null) {
-                call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Invalid token"))
+                call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Invalid token", "code" to "INVALID_TOKEN"))
                 return@post
             }
             refreshTokens.revokeAllForUser(userId)
