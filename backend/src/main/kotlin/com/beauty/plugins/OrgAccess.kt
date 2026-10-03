@@ -99,7 +99,7 @@ suspend fun PipelineContext<Unit, ApplicationCall>.requireOrgAccess(
 ): OrgContext? {
     val userId = call.userId()
     if (userId == null) {
-        call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Invalid token"))
+        call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Invalid token", "code" to "INVALID_TOKEN"))
         return null
     }
 
@@ -253,7 +253,7 @@ suspend fun PipelineContext<Unit, ApplicationCall>.requireWritableAccount(
 ): String? {
     val userId = call.userId()
     if (userId == null) {
-        call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Invalid token"))
+        call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Invalid token", "code" to "INVALID_TOKEN"))
         return null
     }
 
@@ -306,7 +306,7 @@ suspend fun PipelineContext<Unit, ApplicationCall>.requireSuperAdmin(
 ): String? {
     val userId = call.userId()
     if (userId == null) {
-        call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Invalid token"))
+        call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Invalid token", "code" to "INVALID_TOKEN"))
         return null
     }
 
@@ -360,7 +360,7 @@ suspend fun PipelineContext<Unit, ApplicationCall>.requireActiveAccount(
 ): String? {
     val userId = call.userId()
     if (userId == null) {
-        call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Invalid token"))
+        call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Invalid token", "code" to "INVALID_TOKEN"))
         return null
     }
 

@@ -32,16 +32,16 @@ object EmailTemplates {
         .replace("\"", "&quot;")
         .replace("'", "&#39;")
 
-    private fun layout(heading: String, bodyHtml: String, buttonLabel: String, link: String): String = """
+    private fun layout(heading: String, bodyHtml: String, buttonLabel: String, link: String, language: String = "en"): String = """
         <!DOCTYPE html>
-        <html><body style="margin:0;padding:24px;background:#faf7f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#2d2a28;">
+        <html lang="$language"><body style="margin:0;padding:24px;background:#faf7f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#2d2a28;">
           <div style="max-width:520px;margin:0 auto;background:#ffffff;border-radius:12px;padding:32px;">
             <h1 style="margin:0 0 16px;font-size:20px;font-weight:600;">${esc(heading)}</h1>
             $bodyHtml
             <p style="margin:28px 0;">
               <a href="$link" style="display:inline-block;background:#b76e79;color:#ffffff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600;">${esc(buttonLabel)}</a>
             </p>
-            <p style="margin:0 0 8px;font-size:13px;color:#6b625d;">If the button does not work, paste this address into your browser:</p>
+            <p style="margin:0 0 8px;font-size:13px;color:#6b625d;">${if (language == "ru") "Если кнопка не работает, скопируйте этот адрес в браузер:" else "If the button does not work, paste this address into your browser:"}</p>
             <p style="margin:0;font-size:13px;color:#6b625d;word-break:break-all;">$link</p>
             <hr style="border:none;border-top:1px solid #eee;margin:28px 0 16px;">
             <p style="margin:0;font-size:12px;color:#9a918c;">$APP_NAME</p>
@@ -49,7 +49,13 @@ object EmailTemplates {
         </body></html>
     """.trimIndent()
 
-    fun verification(fullName: String, link: String, expiryHours: Long) = Email(
+    fun verification(fullName: String, link: String, expiryHours: Long, language: String = "en"): Email =
+        if (language == "ru") russianEmail(
+            fullName, "Подтвердите адрес электронной почты", "Подтвердите адрес для $APP_NAME",
+            "Подтвердите этот адрес электронной почты, чтобы завершить настройку учётной записи $APP_NAME. Срок действия ссылки: $expiryHours ч. Ссылку можно использовать только один раз.",
+            "Если вы не создавали учётную запись, просто проигнорируйте это письмо.",
+            "Подтвердить адрес", link
+        ) else Email(
         to = "",
         subject = "Confirm your $APP_NAME email address",
         textBody = """
@@ -77,7 +83,13 @@ object EmailTemplates {
         )
     )
 
-    fun passwordReset(fullName: String, link: String, expiryMinutes: Long) = Email(
+    fun passwordReset(fullName: String, link: String, expiryMinutes: Long, language: String = "en"): Email =
+        if (language == "ru") russianEmail(
+            fullName, "Восстановление пароля", "Восстановление пароля $APP_NAME",
+            "Кто-то запросил сброс пароля вашей учётной записи $APP_NAME. Если это были вы, выберите новый пароль по ссылке ниже. Срок действия ссылки: $expiryMinutes мин. Ссылку можно использовать только один раз.",
+            "Если вы не запрашивали сброс, ничего делать не нужно: пароль не изменился, и отправитель запроса не может прочитать это письмо.",
+            "Выбрать новый пароль", link
+        ) else Email(
         to = "",
         subject = "Reset your $APP_NAME password",
         textBody = """
@@ -115,7 +127,13 @@ object EmailTemplates {
      * owner: the first they learn of it is when their own password stops
      * working, by which point the attacker has had free use of the account.
      */
-    fun passwordChanged(fullName: String, whenText: String, supportLink: String) = Email(
+    fun passwordChanged(fullName: String, whenText: String, supportLink: String, language: String = "en"): Email =
+        if (language == "ru") russianEmail(
+            fullName, "Ваш пароль изменён", "Пароль $APP_NAME изменён",
+            "Пароль вашей учётной записи $APP_NAME изменён: $whenText. Выполнен выход из учётной записи на всех устройствах.",
+            "Если это были вы, ничего делать не нужно. Если это были НЕ вы, немедленно сбросьте пароль: тот, кто его изменил, всё ещё знает установленный пароль.",
+            "Сбросить пароль", supportLink
+        ) else Email(
         to = "",
         subject = "Your $APP_NAME password was changed",
         textBody = """
@@ -144,4 +162,20 @@ object EmailTemplates {
             link = supportLink
         )
     )
+    private fun russianEmail(
+        fullName: String, heading: String, subject: String, body: String,
+        notice: String, buttonLabel: String, link: String
+    ): Email {
+        val greeting = if (fullName.isBlank()) "Здравствуйте!" else "Здравствуйте, $fullName!"
+        return Email(
+            to = "", subject = subject,
+            textBody = "$greeting\n\n$body\n\n$link\n\n$notice\n\n— $APP_NAME",
+            htmlBody = layout(
+                heading,
+                "<p>${esc(greeting)}</p><p>${esc(body)}</p><p>${esc(notice)}</p>",
+                buttonLabel, link, "ru"
+            )
+        )
+    }
+
 }
