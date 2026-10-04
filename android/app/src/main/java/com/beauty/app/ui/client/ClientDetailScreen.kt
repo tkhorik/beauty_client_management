@@ -5,10 +5,7 @@ import com.beauty.app.ui.i18n.localizedMessage
 import androidx.compose.ui.res.stringResource
 import android.app.DatePickerDialog
 import android.app.TimePickerDialog
-import android.graphics.BitmapFactory
 import android.net.Uri
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -25,6 +22,8 @@ import androidx.compose.material.icons.filled.AddAPhoto
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.PhotoCamera
+import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -80,6 +79,19 @@ fun ClientDetailScreen(
     var confirmDelete by rememberSaveable { mutableStateOf(false) }
     var editingAttributes by rememberSaveable { mutableStateOf(false) }
     var compareAttachments by remember { mutableStateOf<List<VisitAttachmentDto>?>(null) }
+    // The visit a new photo is for. Saved, along with the source below, because the
+    // system may reclaim the app while its camera is in the foreground.
+    var photoTargetKey by rememberSaveable { mutableStateOf<String?>(null) }
+    var photoTargetRemoteId by rememberSaveable { mutableStateOf<String?>(null) }
+    var photoTargetLocalId by rememberSaveable { mutableStateOf<String?>(null) }
+    var photoTag by rememberSaveable { mutableStateOf("BEFORE") }
+    var choosingPhotoFor by remember { mutableStateOf<HistoryRow?>(null) }
+    val visitPhotoSource = rememberPhotoSource { uri ->
+        val key = photoTargetKey ?: return@rememberPhotoSource
+        viewModel.addPhotoToVisit(context, key, photoTargetRemoteId, photoTargetLocalId, photoTag, uri) {
+            SyncWorker.enqueue(context)
+        }
+    }
     DisposableEffect(lifecycleOwner, viewModel) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) viewModel.refresh()
@@ -163,12 +175,13 @@ fun ClientDetailScreen(
             val extras = localHistoryExtras(viewModel.visits, viewModel.localVisits, !viewModel.historyLoaded || viewModel.error != null)
             // Sort by appointment time, not insertion time: backdated visits belong in their actual place.
             val rows = viewModel.visits.map {
-                HistoryRow("remote_${it.id}", it.visitDateTime, it.durationMinutes, it.procedureNotes, it.status, null, it.attachments)
+                HistoryRow("remote_${it.id}", it.visitDateTime, it.durationMinutes, it.procedureNotes, it.status, null, it.attachments,
+                    remoteVisitId = it.id)
             } + extras.map {
                 HistoryRow("local_${it.id}", it.visitDateTime, it.durationMinutes, it.procedureNotes, it.status,
                     if (it.isPendingSync) {
                         if (it.syncError == null) waitingToUpload else uploadPending
-                    } else savedOnDevice, emptyList())
+                    } else savedOnDevice, emptyList(), remoteVisitId = it.remoteId, localVisitId = it.id)
             }
             if (rows.isEmpty() && !viewModel.loading && viewModel.error == null) item {
                 Card(Modifier.fillMaxWidth()) {
@@ -208,6 +221,26 @@ fun ClientDetailScreen(
                                 Button(onClick = { compareAttachments = row.attachments }) { Text(stringResource(com.beauty.app.R.string.compare_before_after)) }
                             }
                         }
+                        if (viewModel.addingPhotoTo == row.key) {
+                            LinearProgressIndicator(Modifier.fillMaxWidth())
+                            Text(stringResource(com.beauty.app.R.string.uploading_photo), color = TextMuted, fontSize = 12.sp)
+                        } else {
+                            OutlinedButton(
+                                enabled = viewModel.addingPhotoTo == null,
+                                onClick = { viewModel.clearPhotoNotice(); choosingPhotoFor = row }
+                            ) {
+                                Icon(Icons.Default.AddAPhoto, null, Modifier.size(18.dp))
+                                Spacer(Modifier.width(8.dp))
+                                Text(stringResource(com.beauty.app.R.string.add_photo))
+                            }
+                        }
+                        viewModel.photoNotice?.takeIf { it.first == row.key }?.let { (_, code) ->
+                            Text(
+                                localizedMessage(code),
+                                color = if (code == "PHOTO_SAVED_UPLOAD_PENDING") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
+                                fontSize = 12.sp
+                            )
+                        }
                     }
                 }
             }
@@ -234,6 +267,21 @@ fun ClientDetailScreen(
         confirmButton = { TextButton(enabled = !viewModel.deleting, onClick = { viewModel.delete { confirmDelete = false; onDeleted() } }) { Text(stringResource(com.beauty.app.R.string.delete)) } },
         dismissButton = { TextButton(enabled = !viewModel.deleting, onClick = { confirmDelete = false }) { Text(stringResource(com.beauty.app.R.string.cancel)) } }
     )
+    choosingPhotoFor?.let { row ->
+        AddVisitPhotoDialog(
+            initialTag = defaultPhotoTag(row.attachments.map { it.tag }),
+            cameraAvailable = visitPhotoSource.cameraAvailable,
+            onDismiss = { choosingPhotoFor = null },
+            onSource = { tag, useCamera ->
+                photoTargetKey = row.key
+                photoTargetRemoteId = row.remoteVisitId
+                photoTargetLocalId = row.localVisitId
+                photoTag = tag
+                choosingPhotoFor = null
+                if (useCamera) visitPhotoSource.takePhoto() else visitPhotoSource.pickFromGallery()
+            }
+        )
+    }
     compareAttachments?.let { attachments ->
         PhotoCompareDialog(repository, viewModel.organizationId, attachments, onDismiss = { compareAttachments = null })
     }
@@ -241,11 +289,12 @@ fun ClientDetailScreen(
 
 /**
  * The web detail view's "Dynamic Custom Client Attributes" panel: read-only
- * until "Edit Attributes", then removable rows plus an add row.
+ * until "Edit Attributes", then editable/removable rows plus an add row.
  *
  * Unchanged values keep their original JSON element, so a number or boolean
  * written elsewhere is not silently turned into a string by an unrelated edit.
- * New values are strings, as on the web.
+ * A value deliberately changed in this string-based form becomes a string, as
+ * do newly added attributes.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -276,7 +325,7 @@ private fun AttributesCard(
                 }
             }
             if (shown.isEmpty()) Text(stringResource(com.beauty.app.R.string.no_attributes_yet), color = TextMuted, fontSize = 13.sp)
-            shown.forEach { (key, value) ->
+            shown.forEachIndexed { index, (key, value) ->
                 Row(
                     Modifier
                         .fillMaxWidth()
@@ -285,8 +334,27 @@ private fun AttributesCard(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column(Modifier.weight(1f)) {
-                        Text(key.uppercase(), color = TextMuted, fontSize = 11.sp)
-                        Text((value as? JsonPrimitive)?.content ?: value.toString(), fontWeight = FontWeight.SemiBold)
+                        if (editing) {
+                            OutlinedTextField(
+                                value = key,
+                                onValueChange = { updatedKey -> draft[index] = updatedKey to value },
+                                enabled = !saving,
+                                singleLine = true,
+                                label = { Text(stringResource(com.beauty.app.R.string.attribute)) },
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                            OutlinedTextField(
+                                value = (value as? JsonPrimitive)?.content ?: value.toString(),
+                                onValueChange = { updatedValue -> draft[index] = key to JsonPrimitive(updatedValue) },
+                                enabled = !saving,
+                                singleLine = true,
+                                label = { Text(stringResource(com.beauty.app.R.string.value_label)) },
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        } else {
+                            Text(key.uppercase(), color = TextMuted, fontSize = 11.sp)
+                            Text((value as? JsonPrimitive)?.content ?: value.toString(), fontWeight = FontWeight.SemiBold)
+                        }
                     }
                     if (editing) IconButton(enabled = !saving, onClick = { draft.removeAll { it.first == key } }) {
                         Icon(Icons.Default.Delete, stringResource(com.beauty.app.R.string.remove_attribute, key), tint = Color(0xFFF87171))
@@ -308,7 +376,9 @@ private fun AttributesCard(
                 }) { Text(stringResource(com.beauty.app.R.string.add_attribute)) }
                 error?.let { Text(localizedMessage(it), color = MaterialTheme.colorScheme.error, fontSize = 13.sp) }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Button(enabled = !saving, onClick = { onSave(JsonObject(draft.toMap())) }) {
+                    Button(enabled = !saving, onClick = {
+                        onSave(JsonObject(draft.filter { it.first.isNotBlank() }.toMap()))
+                    }) {
                         Text(if (saving) stringResource(com.beauty.app.R.string.saving) else stringResource(com.beauty.app.R.string.save_changes))
                     }
                     OutlinedButton(enabled = !saving, onClick = onCancel) { Text(stringResource(com.beauty.app.R.string.cancel)) }
@@ -318,7 +388,59 @@ private fun AttributesCard(
     }
 }
 
-private data class HistoryRow(val key: String, val dateTime: String, val duration: Int, val notes: String, val status: String, val syncLabel: String?, val attachments: List<VisitAttachmentDto> = emptyList())
+private data class HistoryRow(
+    val key: String,
+    val dateTime: String,
+    val duration: Int,
+    val notes: String,
+    val status: String,
+    val syncLabel: String?,
+    val attachments: List<VisitAttachmentDto> = emptyList(),
+    val remoteVisitId: String? = null,
+    val localVisitId: String? = null
+)
+
+/** Picks what a new photo shows, then where it comes from. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun AddVisitPhotoDialog(
+    initialTag: String,
+    cameraAvailable: Boolean,
+    onDismiss: () -> Unit,
+    onSource: (tag: String, useCamera: Boolean) -> Unit
+) {
+    var tag by rememberSaveable { mutableStateOf(initialTag) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(com.beauty.app.R.string.add_photo_to_visit)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(stringResource(com.beauty.app.R.string.photo_type), color = TextMuted, fontSize = 12.sp)
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    listOf(
+                        "BEFORE" to com.beauty.app.R.string.photo_tag_before,
+                        "AFTER" to com.beauty.app.R.string.photo_tag_after,
+                        "PROCEDURE" to com.beauty.app.R.string.photo_tag_procedure
+                    ).forEach { (option, label) ->
+                        FilterChip(selected = tag == option, onClick = { tag = option }, label = { Text(stringResource(label)) })
+                    }
+                }
+                if (cameraAvailable) Button(onClick = { onSource(tag, true) }, modifier = Modifier.fillMaxWidth()) {
+                    Icon(Icons.Default.PhotoCamera, null, Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text(stringResource(com.beauty.app.R.string.take_photo))
+                }
+                OutlinedButton(onClick = { onSource(tag, false) }, modifier = Modifier.fillMaxWidth()) {
+                    Icon(Icons.Default.PhotoLibrary, null, Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text(stringResource(com.beauty.app.R.string.choose_from_gallery))
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(com.beauty.app.R.string.cancel)) } }
+    )
+}
 
 private fun formatVisitDate(value: String): String = runCatching {
     val parsed = SimpleDateFormat("yyyy-MM-dd'T'HH:mm", Locale.US).parse(value)
@@ -340,11 +462,8 @@ private fun VisitForm(
     var status by rememberSaveable { mutableStateOf("COMPLETED") }
     var before by rememberSaveable { mutableStateOf<Uri?>(null) }
     var after by rememberSaveable { mutableStateOf<Uri?>(null) }
-    var pickingTag by rememberSaveable { mutableStateOf<String?>(null) }
-    val picker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
-        if (uri != null) when (pickingTag) { "BEFORE" -> before = uri; "AFTER" -> after = uri }
-        pickingTag = null
-    }
+    val beforeSource = rememberPhotoSource { before = it }
+    val afterSource = rememberPhotoSource { after = it }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(com.beauty.app.R.string.log_procedure_visit_entry)) },
@@ -388,9 +507,9 @@ private fun VisitForm(
                 Text(stringResource(com.beauty.app.R.string.attach_procedure_media_compressed_before_upload), fontWeight = FontWeight.Bold, fontSize = 13.sp)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     PhotoSlot("BEFORE", RoseGoldPrimary, before, !saving, Modifier.weight(1f),
-                        onPick = { pickingTag = "BEFORE"; picker.launch("image/*") }, onRemove = { before = null })
+                        source = beforeSource, onRemove = { before = null })
                     PhotoSlot("AFTER", EmeraldStatus, after, !saving, Modifier.weight(1f),
-                        onPick = { pickingTag = "AFTER"; picker.launch("image/*") }, onRemove = { after = null })
+                        source = afterSource, onRemove = { after = null })
                 }
             }
         },
@@ -402,7 +521,7 @@ private fun VisitForm(
     )
 }
 
-/** One of the web form's BEFORE/AFTER boxes: a picker until chosen, then a preview with a remove button. */
+/** One of the web form's BEFORE/AFTER boxes: camera and gallery buttons until chosen, then a preview with a remove button. */
 @Composable
 private fun PhotoSlot(
     tag: String,
@@ -410,7 +529,7 @@ private fun PhotoSlot(
     uri: Uri?,
     enabled: Boolean,
     modifier: Modifier,
-    onPick: () -> Unit,
+    source: PhotoSource,
     onRemove: () -> Unit
 ) {
     val context = LocalContext.current
@@ -419,15 +538,8 @@ private fun PhotoSlot(
         preview = uri?.let { selected ->
             withContext(Dispatchers.IO) {
                 runCatching {
-                    // A preview only needs a few hundred pixels; decoding the
-                    // full camera image here would cost tens of megabytes.
-                    val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-                    context.contentResolver.openInputStream(selected)?.use { BitmapFactory.decodeStream(it, null, bounds) }
-                    var sample = 1
-                    while (bounds.outWidth / (sample * 2) >= 300) sample *= 2
-                    context.contentResolver.openInputStream(selected)?.use {
-                        BitmapFactory.decodeStream(it, null, BitmapFactory.Options().apply { inSampleSize = sample })
-                    }?.asImageBitmap()
+                    // A preview only needs a few hundred pixels.
+                    decodeUprightBitmap(context, selected, 300)?.asImageBitmap()
                 }.getOrNull()
             }
         }
@@ -442,12 +554,20 @@ private fun PhotoSlot(
         Text(stringResource(com.beauty.app.R.string.photo_before) .let { if (tag == "BEFORE") it else stringResource(com.beauty.app.R.string.photo_after) }, color = color, fontSize = 11.sp, fontWeight = FontWeight.Bold)
         if (uri == null) {
             Column(
-                Modifier.fillMaxWidth().height(96.dp).clickable(enabled = enabled, onClick = onPick),
+                Modifier.fillMaxWidth().height(96.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
-                Icon(Icons.Default.AddAPhoto, null, tint = color)
-                Text(if (tag == "BEFORE") stringResource(com.beauty.app.R.string.upload_before_photo) else stringResource(com.beauty.app.R.string.upload_after_photo), fontSize = 11.sp, color = TextMuted)
+                if (source.cameraAvailable) TextButton(onClick = source::takePhoto, enabled = enabled) {
+                    Icon(Icons.Default.PhotoCamera, null, Modifier.size(18.dp), tint = color)
+                    Spacer(Modifier.width(6.dp))
+                    Text(stringResource(com.beauty.app.R.string.photo_source_camera), fontSize = 12.sp)
+                }
+                TextButton(onClick = source::pickFromGallery, enabled = enabled) {
+                    Icon(Icons.Default.PhotoLibrary, null, Modifier.size(18.dp), tint = color)
+                    Spacer(Modifier.width(6.dp))
+                    Text(stringResource(com.beauty.app.R.string.photo_source_gallery), fontSize = 12.sp)
+                }
             }
         } else {
             Box(Modifier.fillMaxWidth().height(96.dp).clip(RoundedCornerShape(8.dp))) {

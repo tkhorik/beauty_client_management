@@ -56,6 +56,12 @@ object BeautyDatabaseProvider {
         }
     }
 
+    val migration5To6 = object : Migration(5, 6) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE photo_drafts ADD COLUMN remoteVisitId TEXT")
+        }
+    }
+
     private val instances = mutableMapOf<String, BeautyDatabase>()
 
     /** Legacy beauty_db is retained unchanged, but never assigned to a guessed account. */
@@ -69,7 +75,7 @@ object BeautyDatabaseProvider {
         val name = databaseName(accountId)
         instances.getOrPut(name) {
             Room.databaseBuilder(context.applicationContext, BeautyDatabase::class.java, name)
-                .addMigrations(migration1To2, migration2To3, migration3To4, migration4To5)
+                .addMigrations(migration1To2, migration2To3, migration3To4, migration4To5, migration5To6)
                 .build()
         }
     }

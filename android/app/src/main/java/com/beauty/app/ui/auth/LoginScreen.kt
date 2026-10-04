@@ -4,17 +4,26 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import com.beauty.app.ui.i18n.localizedMessage
 import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.autofill.AutofillType
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
@@ -27,6 +36,7 @@ import com.beauty.app.ui.theme.TextMuted
 import com.beauty.app.ui.i18n.LanguageSelector
 
 @Composable
+@OptIn(ExperimentalComposeUiApi::class)
 fun LoginScreen(
     viewModel: AuthViewModel,
     onLoginSuccess: () -> Unit,
@@ -36,6 +46,10 @@ fun LoginScreen(
     var email by rememberSaveable { mutableStateOf("") }
     var password by viewModel::loginPassword
     var showPassword by remember { mutableStateOf(false) }
+    val passwordFocusRequester = remember { FocusRequester() }
+    val focusManager = LocalFocusManager.current
+    val isLoading = viewModel.loginState is AuthViewModel.LoginState.Loading
+    val signIn = { viewModel.login(email, password) }
 
     // Navigate on success
     LaunchedEffect(viewModel.loginState) {
@@ -53,6 +67,9 @@ fun LoginScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .imePadding()
+            .navigationBarsPadding()
             .padding(24.dp),
         contentAlignment = Alignment.Center
     ) {
@@ -66,12 +83,21 @@ fun LoginScreen(
         ) {
             Column(
                 modifier = Modifier
-                    .padding(32.dp)
+                    .padding(24.dp)
                     .fillMaxWidth(),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // Title
+                Box(modifier = Modifier.fillMaxWidth()) {
+                    // A compact menu keeps a preference out of the sign-in form
+                    // while preserving access before a user has an account.
+                    LanguageSelector(
+                        accountId = null,
+                        compact = true,
+                        modifier = Modifier.align(Alignment.CenterEnd)
+                    )
+                }
+
                 Text(
                     text = stringResource(com.beauty.app.R.string.aura_beauty_log),
                     color = RoseGoldPrimary,
@@ -84,20 +110,29 @@ fun LoginScreen(
                     fontSize = 14.sp
                 )
 
-                LanguageSelector(accountId = null, modifier = Modifier.fillMaxWidth())
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                // Email field
                 OutlinedTextField(
                     value = email,
                     onValueChange = { email = it },
                     label = { Text(stringResource(com.beauty.app.R.string.email), color = TextMuted) },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Email,
+                        autoCorrect = false,
+                        imeAction = ImeAction.Next
+                    ),
+                    keyboardActions = KeyboardActions(
+                        onNext = { passwordFocusRequester.requestFocus() }
+                    ),
                     singleLine = true,
                     modifier = Modifier
                         .fillMaxWidth()
+<<<<<<< HEAD
                         .autofill(AutofillField.Email) { email = it },
+=======
+                        .credentialAutofill(
+                            types = listOf(AutofillType.EmailAddress, AutofillType.Username),
+                            onFill = { email = it }
+                        ),
+>>>>>>> origin/main
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = RoseGoldPrimary,
                         unfocusedBorderColor = Color(0x33E5B899),
@@ -125,11 +160,28 @@ fun LoginScreen(
                             )
                         }
                     },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Password,
+                        imeAction = ImeAction.Done
+                    ),
+                    keyboardActions = KeyboardActions(
+                        onDone = {
+                            focusManager.clearFocus()
+                            if (!isLoading) signIn()
+                        }
+                    ),
                     singleLine = true,
                     modifier = Modifier
                         .fillMaxWidth()
+<<<<<<< HEAD
                         .autofill(AutofillField.Password) { password = it },
+=======
+                        .focusRequester(passwordFocusRequester)
+                        .credentialAutofill(
+                            types = listOf(AutofillType.Password),
+                            onFill = { password = it }
+                        ),
+>>>>>>> origin/main
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = RoseGoldPrimary,
                         unfocusedBorderColor = Color(0x33E5B899),
@@ -149,8 +201,8 @@ fun LoginScreen(
 
                 // Submit button
                 Button(
-                    onClick = { viewModel.login(email, password) },
-                    enabled = viewModel.loginState !is AuthViewModel.LoginState.Loading,
+                    onClick = signIn,
+                    enabled = !isLoading,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(50.dp),
@@ -175,7 +227,7 @@ fun LoginScreen(
 
                 TextButton(
                     onClick = onNavigateToForgotPassword,
-                    enabled = viewModel.loginState !is AuthViewModel.LoginState.Loading
+                    enabled = !isLoading
                 ) {
                     Text(
                         text = stringResource(com.beauty.app.R.string.forgot_password),
@@ -186,7 +238,7 @@ fun LoginScreen(
 
                 TextButton(
                     onClick = onNavigateToRegister,
-                    enabled = viewModel.loginState !is AuthViewModel.LoginState.Loading
+                    enabled = !isLoading
                 ) {
                     Text(
                         text = stringResource(com.beauty.app.R.string.first_time_here_create_an_account),

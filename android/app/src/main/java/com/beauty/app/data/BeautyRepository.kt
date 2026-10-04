@@ -127,8 +127,15 @@ class BeautyRepository(
             parityDao?.saveHistory(HistorySnapshotEntity(orgId, clientId, json.encodeToString(visits)))
         }
 
-    suspend fun addPhotoDraft(orgId: String, clientId: String, localVisitId: String, localFilePath: String, tag: String): PhotoDraftEntity {
-        val draft = PhotoDraftEntity(UUID.randomUUID().toString(), orgId, clientId, localVisitId, localFilePath, tag)
+    suspend fun addPhotoDraft(
+        orgId: String,
+        clientId: String,
+        localVisitId: String,
+        localFilePath: String,
+        tag: String,
+        remoteVisitId: String? = null
+    ): PhotoDraftEntity {
+        val draft = PhotoDraftEntity(UUID.randomUUID().toString(), orgId, clientId, localVisitId, localFilePath, tag, remoteVisitId = remoteVisitId)
         requireNotNull(parityDao) { "Photo drafts require the current database" }.savePhotoDraft(draft)
         return draft
     }
@@ -138,11 +145,15 @@ class BeautyRepository(
     suspend fun uploadPhotoDraft(draftId: String): VisitAttachmentDto {
         val dao = requireNotNull(parityDao) { "Photo drafts require the current database" }
         val draft = dao.getPhotoDraft(draftId) ?: throw PhotoDraftException("Photo draft is no longer available.")
-        val visit = visitDao.getVisitById(draft.localVisitId) ?: throw PhotoDraftException("Visit is no longer available.")
-        val remoteVisitId = visit.remoteId ?: throw PhotoDraftException("The visit must finish uploading before its photo can upload.")
-        val bytes = java.io.File(draft.localFilePath).takeIf { it.exists() }?.readBytes() ?: throw PhotoDraftException("Photo file is no longer available.")
+        val remoteVisitId = draft.remoteVisitId ?: run {
+            val visit = visitDao.getVisitById(draft.localVisitId) ?: throw PhotoDraftException("Visit is no longer available.")
+            visit.remoteId ?: throw PhotoDraftException("The visit must finish uploading before its photo can upload.")
+        }
+        val file = java.io.File(draft.localFilePath)
+        val bytes = file.takeIf { it.exists() }?.readBytes() ?: throw PhotoDraftException("Photo file is no longer available.")
         val uploaded = api.uploadAttachment(draft.organizationId, remoteVisitId, draft.tag, bytes, defaultPhotoCaption(draft.tag))
         dao.deletePhotoDraft(draft.id)
+        file.delete()
         return uploaded
     }
 

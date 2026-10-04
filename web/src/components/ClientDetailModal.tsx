@@ -1,9 +1,12 @@
 import { useAppTranslation, useLocale } from '../i18n/LocaleProvider';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import type { Client, Visit, Attachment } from '../types';
-import { X, Calendar, Clock, Plus, Trash2, Edit3, Edit2, Camera, FileText, Sliders } from 'lucide-react';
+import { X, Calendar, Clock, Plus, Trash2, Edit3, Edit2, Camera, FileText, Sliders, ImagePlus } from 'lucide-react';
 import { api, writeErrorMessage } from '../services/api';
 import { EditClientModal } from './EditClientModal';
+import { PhotoSourcePicker } from './PhotoSourcePicker';
+import { compressImage } from '../utils/imageCompressor';
+import { defaultPhotoTag } from '../utils/photoTags';
 
 interface ClientDetailModalProps {
   client: Client;
@@ -13,6 +16,11 @@ interface ClientDetailModalProps {
   onOpenNewVisit: (client: Client) => void;
   onOpenPhotoCompare: (attachments: Attachment[]) => void;
 }
+
+type CustomField = { key: string; value: string | number | boolean };
+
+const fieldsFromClient = (client: Client): CustomField[] =>
+  Object.entries(client.customFields ?? {}).map(([key, value]) => ({ key, value }));
 
 export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
   client,
@@ -24,32 +32,68 @@ export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
 }) => {
   const { t } = useAppTranslation();
   const { formatDate } = useLocale();
-  const [customFields, setCustomFields] = useState<Record<string, string | number | boolean>>(client.customFields || {});
+  const [customFields, setCustomFields] = useState<CustomField[]>(() => fieldsFromClient(client));
   const [newKey, setNewKey] = useState('');
   const [newValue, setNewValue] = useState('');
   const [isEditingFields, setIsEditingFields] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isEditClientOpen, setIsEditClientOpen] = useState(false);
+  // Adding a photo to a visit that was already logged, e.g. the AFTER shot once the procedure is done.
+  const [photoVisitId, setPhotoVisitId] = useState<string | null>(null);
+  const [photoTag, setPhotoTag] = useState<Attachment['tag']>('BEFORE');
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+
+  useEffect(() => {
+    if (!isEditingFields) setCustomFields(fieldsFromClient(client));
+  }, [client, isEditingFields]);
 
   const handleAddField = () => {
     if (!newKey.trim()) return;
-    setCustomFields(prev => ({ ...prev, [newKey.trim()]: newValue.trim() }));
+    const key = newKey.trim();
+    setCustomFields(prev => {
+      const index = prev.findIndex(field => field.key === key);
+      const field = { key, value: newValue.trim() };
+      return index < 0 ? [...prev, field] : prev.map((item, i) => i === index ? field : item);
+    });
     setNewKey('');
     setNewValue('');
   };
 
-  const handleRemoveField = (key: string) => {
-    setCustomFields(prev => {
-      const copy = { ...prev };
-      delete copy[key];
-      return copy;
-    });
+  const openAddPhoto = (visitId: string, attachments: Attachment[]) => {
+    setPhotoVisitId(visitId);
+    setPhotoTag(defaultPhotoTag(attachments));
+  };
+
+  const handleAddPhoto = async (visitId: string, file: File) => {
+    setUploadingPhoto(true);
+    try {
+      const compressedDataUrl = await compressImage(file, 1200, 0.85);
+      await api.addAttachment(visitId, compressedDataUrl, photoTag);
+      setPhotoVisitId(null);
+      onRefresh();
+    } catch (err) {
+      alert(writeErrorMessage(err, t('photoPicker.failedToAddPhoto')));
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
+
+  const handleRemoveField = (index: number) => setCustomFields(prev => prev.filter((_, i) => i !== index));
+
+  const handleFieldChange = (index: number, field: keyof CustomField, value: string) => {
+    setCustomFields(prev => prev.map((item, i) =>
+      i === index ? { ...item, [field]: value } : item
+    ));
   };
 
   const handleSaveFields = async () => {
     setIsSaving(true);
     try {
-      await api.updateClient(client.id, { customFields });
+      const customFieldsMap = customFields.reduce<Record<string, string | number | boolean>>((fields, field) => {
+        if (field.key.trim()) fields[field.key.trim()] = field.value;
+        return fields;
+      }, {});
+      await api.updateClient(client.id, { customFields: customFieldsMap });
       setIsEditingFields(false);
       onRefresh();
     } catch (err) {
@@ -152,7 +196,7 @@ export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
                   <button className="btn-rose" style={{ padding: '4px 12px', fontSize: '12px' }} onClick={handleSaveFields} disabled={isSaving}>
                     {isSaving ?t('clientDetailModal.saving') :t('clientDetailModal.saveChanges')}
                   </button>
-                  <button className="btn-secondary" style={{ padding: '4px 10px', fontSize: '12px' }} onClick={() => setIsEditingFields(false)}>
+                  <button className="btn-secondary" style={{ padding: '4px 10px', fontSize: '12px' }} onClick={() => { setCustomFields(fieldsFromClient(client)); setIsEditingFields(false); }}>
                     {t('clientDetailModal.cancel')}
                   </button>
                 </div>
@@ -161,14 +205,21 @@ export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
 
             {/* Display / Edit Custom Fields */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '12px' }}>
-              {Object.keys(customFields).map(key => (
-                <div key={key} style={{ background: 'rgba(15,14,19,0.7)', padding: '10px 14px', borderRadius: '10px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div>
-                    <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block', textTransform: 'uppercase' }}>{key}</span>
-                    <span style={{ fontSize: '13px', color: '#fff', fontWeight: 600 }}>{String(customFields[key])}</span>
-                  </div>
+              {customFields.map((field, index) => (
+                <div key={`${field.key}-${index}`} style={{ background: 'rgba(15,14,19,0.7)', padding: '10px 14px', borderRadius: '10px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
+                  {isEditingFields ? (
+                    <div style={{ display: 'flex', flex: 1, gap: '8px' }}>
+                      <input type="text" aria-label={t('clientDetailModal.attributeNameEGSkinToneDyeRatio')} className="input-field" value={field.key} onChange={(e) => handleFieldChange(index, 'key', e.target.value)} />
+                      <input type="text" aria-label={t('clientDetailModal.valueEGWarmOlive11')} className="input-field" value={String(field.value)} onChange={(e) => handleFieldChange(index, 'value', e.target.value)} />
+                    </div>
+                  ) : (
+                    <div>
+                      <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block', textTransform: 'uppercase' }}>{field.key}</span>
+                      <span style={{ fontSize: '13px', color: '#fff', fontWeight: 600 }}>{String(field.value)}</span>
+                    </div>
+                  )}
                   {isEditingFields && (
-                    <button aria-label={t('common.remove')} onClick={() => handleRemoveField(key)} style={{ background: 'none', border: 'none', color: '#f87171', cursor: 'pointer' }}>
+                    <button aria-label={t('common.remove')} onClick={() => handleRemoveField(index)} style={{ background: 'none', border: 'none', color: '#f87171', cursor: 'pointer' }}>
                       <Trash2 size={14} />
                     </button>
                   )}
@@ -267,6 +318,47 @@ export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
                             ))}
                           </div>
                         </div>
+                      )}
+
+                      {photoVisitId === visit.id ? (
+                        <div style={{ marginTop: '14px', padding: '12px', border: '1px dashed var(--border-color)', borderRadius: '10px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                          <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: 600 }}>{t('photoPicker.photoType')}</span>
+                          <div role="group" aria-label={t('photoPicker.photoType')} style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                            {(['BEFORE', 'AFTER', 'PROCEDURE'] as const).map(tag => (
+                              <button
+                                key={tag}
+                                type="button"
+                                aria-pressed={photoTag === tag}
+                                className={photoTag === tag ? 'btn-rose' : 'btn-secondary'}
+                                style={{ padding: '6px 12px', fontSize: '12px' }}
+                                disabled={uploadingPhoto}
+                                onClick={() => setPhotoTag(tag)}
+                              >
+                                {t(tag === 'BEFORE' ? 'newVisitModal.before' : tag === 'AFTER' ? 'newVisitModal.after' : 'attachment.procedure')}
+                              </button>
+                            ))}
+                          </div>
+                          {uploadingPhoto ? (
+                            <span role="status" style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{t('photoPicker.uploading')}</span>
+                          ) : (
+                            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+                              <PhotoSourcePicker onFile={(file) => handleAddPhoto(visit.id, file)} />
+                              <button type="button" className="btn-secondary" style={{ padding: '8px 12px', fontSize: '12px' }} onClick={() => setPhotoVisitId(null)}>
+                                {t('newVisitModal.cancel')}
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          className="btn-secondary"
+                          style={{ marginTop: '14px', padding: '6px 12px', fontSize: '12px' }}
+                          disabled={uploadingPhoto}
+                          onClick={() => openAddPhoto(visit.id, attachments)}
+                        >
+                          <ImagePlus size={14} /> {t('photoPicker.addPhoto')}
+                        </button>
                       )}
                     </div>
                   );
