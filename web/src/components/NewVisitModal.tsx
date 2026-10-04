@@ -3,7 +3,8 @@ import React, { useState } from 'react';
 import type { Client, Visit } from '../types';
 import { api, writeErrorMessage } from '../services/api';
 import { compressImage } from '../utils/imageCompressor';
-import { X, Calendar, Camera } from 'lucide-react';
+import { PhotoSourcePicker } from './PhotoSourcePicker';
+import { X, Calendar } from 'lucide-react';
 
 interface NewVisitModalProps {
   client?: Client;
@@ -30,9 +31,7 @@ export const NewVisitModal: React.FC<NewVisitModalProps> = ({
   const [afterPhoto, setAfterPhoto] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>, tag: 'BEFORE' | 'AFTER') => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const handlePhotoFile = async (file: File, tag: 'BEFORE' | 'AFTER') => {
     try {
       // Client-side auto compression before payload dispatch
       const compressedDataUrl = await compressImage(file, 1200, 0.85);
@@ -221,11 +220,9 @@ export const NewVisitModal: React.FC<NewVisitModalProps> = ({
                     </button>
                   </div>
                 ) : (
-                  <label style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', marginTop: '12px', cursor: 'pointer' }}>
-                    <Camera size={24} color="var(--rose-gold-primary)" />
-                    <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{t('newVisitModal.uploadBeforePhoto')}</span>
-                    <input type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => handlePhotoUpload(e, 'BEFORE')} />
-                  </label>
+                  <div style={{ marginTop: '12px' }}>
+                    <PhotoSourcePicker color="var(--rose-gold-primary)" disabled={isSubmitting} onFile={(file) => handlePhotoFile(file, 'BEFORE')} />
+                  </div>
                 )}
               </div>
 
@@ -247,11 +244,9 @@ export const NewVisitModal: React.FC<NewVisitModalProps> = ({
                     </button>
                   </div>
                 ) : (
-                  <label style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', marginTop: '12px', cursor: 'pointer' }}>
-                    <Camera size={24} color="#2dd4bf" />
-                    <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{t('newVisitModal.uploadAfterPhoto')}</span>
-                    <input type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => handlePhotoUpload(e, 'AFTER')} />
-                  </label>
+                  <div style={{ marginTop: '12px' }}>
+                    <PhotoSourcePicker color="#2dd4bf" disabled={isSubmitting} onFile={(file) => handlePhotoFile(file, 'AFTER')} />
+                  </div>
                 )}
               </div>
 

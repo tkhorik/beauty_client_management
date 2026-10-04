@@ -21,9 +21,8 @@ import kotlinx.coroutines.launch
 import android.content.Context
 import android.net.Uri
 import java.io.File
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
-import java.io.FileOutputStream
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 class ClientDetailViewModel(
     private val clientId: String,
@@ -164,13 +163,8 @@ class ClientDetailViewModel(
                 val localVisitId = repository.enqueueVisit(organizationId, clientId, dateTime, minutes, notes.trim(), status)
                 if (context != null) photos.forEach { (tag, uri) ->
                     val file = File(context.filesDir, "photo_${localVisitId}_${tag.lowercase()}_${System.nanoTime()}.jpg")
-                    val compressed = context.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it) }
-                    if (compressed == null) throw IllegalStateException("COULD_NOT_READ_PHOTO")
-                    val scale = minOf(1f, 1200f / compressed.width.toFloat())
-                    val output = if (scale < 1f) Bitmap.createScaledBitmap(compressed, (compressed.width * scale).toInt(), (compressed.height * scale).toInt(), true) else compressed
-                    FileOutputStream(file).use { output.compress(Bitmap.CompressFormat.JPEG, 85, it) }
-                    if (output !== compressed) output.recycle()
-                    compressed.recycle()
+                    withContext(Dispatchers.IO) { compressPhotoForUpload(context, uri, file) }
+                    deleteCapturedPhoto(context, uri)
                     repository.addPhotoDraft(organizationId, clientId, localVisitId, file.absolutePath, tag)
                 }
                 onSaved()
@@ -180,6 +174,68 @@ class ClientDetailViewModel(
                 saveError = "COULD_NOT_SAVE_VISIT"
             } finally {
                 saving = false
+            }
+        }
+    }
+
+    /** Key of the history row whose photo is being prepared or uploaded. */
+    var addingPhotoTo by mutableStateOf<String?>(null)
+        private set
+    /** History row key and message code for the outcome of the last photo added to an existing visit. */
+    var photoNotice by mutableStateOf<Pair<String, String>?>(null)
+        private set
+
+    fun clearPhotoNotice() { photoNotice = null }
+
+    /**
+     * Adds a photo to a visit after it was logged — typically the AFTER shot,
+     * taken once the procedure is done.
+     *
+     * The photo becomes a draft first, so a dropped connection never loses it:
+     * the upload is tried at once, and on failure `onPending` lets the caller
+     * hand the draft to `SyncWorker`. A visit still waiting in the offline queue
+     * has no server id yet; its draft uploads once the visit does.
+     */
+    fun addPhotoToVisit(
+        context: Context,
+        rowKey: String,
+        remoteVisitId: String?,
+        localVisitId: String?,
+        tag: String,
+        uri: Uri,
+        onPending: () -> Unit
+    ) {
+        if (addingPhotoTo != null) return
+        addingPhotoTo = rowKey
+        photoNotice = null
+        viewModelScope.launch {
+            try {
+                val file = File(context.filesDir, "photo_${remoteVisitId ?: localVisitId}_${tag.lowercase()}_${System.nanoTime()}.jpg")
+                try {
+                    withContext(Dispatchers.IO) { compressPhotoForUpload(context, uri, file) }
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (_: Exception) {
+                    photoNotice = rowKey to "COULD_NOT_READ_PHOTO"
+                    return@launch
+                }
+                deleteCapturedPhoto(context, uri)
+                val draft = repository.addPhotoDraft(organizationId, clientId, localVisitId.orEmpty(), file.absolutePath, tag, remoteVisitId)
+                try {
+                    repository.uploadPhotoDraft(draft.id)
+                    refresh()
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (_: Exception) {
+                    photoNotice = rowKey to "PHOTO_SAVED_UPLOAD_PENDING"
+                    onPending()
+                }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                photoNotice = rowKey to "COULD_NOT_SAVE_PHOTO"
+            } finally {
+                addingPhotoTo = null
             }
         }
     }

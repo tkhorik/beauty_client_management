@@ -100,7 +100,8 @@ fun RegisterScreen(
                     onValueChange = { fullName = it },
                     label = stringResource(com.beauty.app.R.string.full_name),
                     error = fieldErrors["fullName"],
-                    keyboardType = KeyboardType.Text
+                    keyboardType = KeyboardType.Text,
+                    autofillField = AutofillField.FullName
                 )
 
                 AuthTextField(
@@ -108,7 +109,8 @@ fun RegisterScreen(
                     onValueChange = { email = it },
                     label = stringResource(com.beauty.app.R.string.email),
                     error = fieldErrors["email"],
-                    keyboardType = KeyboardType.Email
+                    keyboardType = KeyboardType.Email,
+                    autofillField = AutofillField.Email
                 )
 
                 AuthTextField(
@@ -120,6 +122,7 @@ fun RegisterScreen(
                     // only by having the form rejected.
                     helper = stringResource(com.beauty.app.R.string.password_minimum, AuthValidation.PASSWORD_MIN_LENGTH),
                     keyboardType = KeyboardType.Password,
+                    autofillField = AutofillField.NewPassword,
                     isPassword = true,
                     showPassword = showPassword,
                     onToggleShowPassword = { showPassword = !showPassword }
@@ -131,6 +134,7 @@ fun RegisterScreen(
                     label = stringResource(com.beauty.app.R.string.confirm_password),
                     error = fieldErrors["confirmPassword"],
                     keyboardType = KeyboardType.Password,
+                    autofillField = AutofillField.NewPassword,
                     isPassword = true,
                     showPassword = showPassword,
                     onToggleShowPassword = { showPassword = !showPassword }
@@ -195,6 +199,7 @@ private fun AuthTextField(
     error: String? = null,
     helper: String? = null,
     keyboardType: KeyboardType = KeyboardType.Text,
+    autofillField: AutofillField? = null,
     isPassword: Boolean = false,
     showPassword: Boolean = false,
     onToggleShowPassword: (() -> Unit)? = null
@@ -225,7 +230,11 @@ private fun AuthTextField(
             },
             keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
             singleLine = true,
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .then(
+                    autofillField?.let { Modifier.autofill(it, onFill = onValueChange) } ?: Modifier
+                ),
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = RoseGoldPrimary,
                 unfocusedBorderColor = Color(0x33E5B899),

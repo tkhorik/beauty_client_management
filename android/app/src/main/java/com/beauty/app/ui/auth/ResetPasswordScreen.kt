@@ -121,6 +121,7 @@ fun ResetPasswordScreen(
                         helper = stringResource(com.beauty.app.R.string.password_minimum, AuthValidation.PASSWORD_MIN_LENGTH),
                         enabled = !loading,
                         keyboardType = KeyboardType.Password,
+                        autofillField = AutofillField.NewPassword,
                         hidden = !showPassword,
                         trailingIcon = {
                             IconButton(onClick = { showPassword = !showPassword }) {
@@ -139,6 +140,7 @@ fun ResetPasswordScreen(
                         error = fieldErrors["confirmPassword"],
                         enabled = !loading,
                         keyboardType = KeyboardType.Password,
+                        autofillField = AutofillField.NewPassword,
                         hidden = !showPassword
                     )
 
@@ -176,6 +178,7 @@ private fun ResetField(
     error: String?,
     enabled: Boolean,
     keyboardType: KeyboardType,
+    autofillField: AutofillField? = null,
     helper: String? = null,
     hidden: Boolean = false,
     trailingIcon: (@Composable () -> Unit)? = null
@@ -191,7 +194,11 @@ private fun ResetField(
         keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
         singleLine = true,
         enabled = enabled,
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(
+                autofillField?.let { Modifier.autofill(it, onFill = onValueChange) } ?: Modifier
+            ),
         colors = OutlinedTextFieldDefaults.colors(
             focusedBorderColor = RoseGoldPrimary,
             unfocusedBorderColor = Color(0x33E5B899),

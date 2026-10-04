@@ -101,6 +101,8 @@ fun localizedMessage(raw: String): String {
         "RECORD_CONFLICT" -> R.string.error_record_conflict
         "PHOTO_TOO_LARGE" -> R.string.error_photo_too_large
         "PHOTO_UPLOAD_PENDING" -> R.string.error_photo_upload_pending
+        "PHOTO_SAVED_UPLOAD_PENDING" -> R.string.photo_saved_upload_pending
+        "COULD_NOT_SAVE_PHOTO" -> R.string.error_could_not_save_photo
         "MAX_USES_TOO_SMALL" -> R.string.error_max_uses_too_small
         "EXPIRY_TOO_SHORT" -> R.string.error_expiry_too_short
         "EXPIRY_TOO_LONG" -> R.string.error_expiry_too_long

@@ -17,7 +17,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.autofill.AutofillType
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
@@ -125,10 +124,7 @@ fun LoginScreen(
                     singleLine = true,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .credentialAutofill(
-                            types = listOf(AutofillType.EmailAddress, AutofillType.Username),
-                            onFill = { email = it }
-                        ),
+                        .autofill(AutofillField.Email) { email = it },
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = RoseGoldPrimary,
                         unfocusedBorderColor = Color(0x33E5B899),
@@ -170,10 +166,7 @@ fun LoginScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .focusRequester(passwordFocusRequester)
-                        .credentialAutofill(
-                            types = listOf(AutofillType.Password),
-                            onFill = { password = it }
-                        ),
+                        .autofill(AutofillField.Password) { password = it },
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = RoseGoldPrimary,
                         unfocusedBorderColor = Color(0x33E5B899),
