@@ -55,4 +55,5 @@ common/*
 docs/
 # Local AI project memory — not for the remote
 CLAUDE.md
+AGENTS.md
 deploy_strategy.md
