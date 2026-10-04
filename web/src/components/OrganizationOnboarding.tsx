@@ -70,9 +70,11 @@ interface OrganizationOnboardingProps {
    * this is threaded down here rather than only living in `Header`.
    */
   onOpenAdmin: () => void;
+  onCreated?: () => void;
+  onCancel?: () => void;
 }
 
-export const OrganizationOnboarding: React.FC<OrganizationOnboardingProps> = ({ onOpenAdmin }) => {
+export const OrganizationOnboarding: React.FC<OrganizationOnboardingProps> = ({ onOpenAdmin, onCreated, onCancel }) => {
   const { t } = useAppTranslation();
   const { logout, user } = useAuth();
   const { organizations, refresh } = useOrg();
@@ -118,6 +120,7 @@ export const OrganizationOnboarding: React.FC<OrganizationOnboardingProps> = ({ 
       // `refresh` re-reads the list and selects the new organization, which
       // unmounts this screen.
       await refresh();
+      onCreated?.();
     } catch (err) {
       if (err instanceof ApiError && err.body.fieldErrors) setCreateErrors(translatedFieldErrors(err.body));
       else if (err instanceof ApiError) setCreateErrors({ name: writeErrorMessage(err, t('organizationOnboarding.couldNotCreateTheOrganizationPleaseTryAgain')) });
@@ -156,6 +159,11 @@ export const OrganizationOnboarding: React.FC<OrganizationOnboardingProps> = ({ 
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
       <div className="glass-panel-glow" style={{ width: '560px', maxWidth: '95vw', borderRadius: '20px', padding: '32px' }}>
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '10px' }}><LanguageSelector compact /></div>
+        {onCancel && (
+          <button className="btn-secondary" onClick={onCancel} style={{ marginBottom: '16px' }}>
+            {t('common.cancel')}
+          </button>
+        )}
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
           <Building2 size={24} color="var(--rose-gold-primary)" />

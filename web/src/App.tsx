@@ -21,6 +21,9 @@ import { useAppTranslation } from './i18n/LocaleProvider';
 export function App() {
   const { token, initialising, logout } = useAuth();
   const [isAdminPanelOpen, setIsAdminPanelOpen] = useState(false);
+  const [creationLinkOpen, setCreationLinkOpen] = useState(
+    () => new URLSearchParams(window.location.search).has('orgToken')
+  );
 
   // Listen for 401 responses emitted by authFetch and force logout.
   // authFetch only emits this after a refresh attempt has already failed, so
@@ -51,7 +54,11 @@ export function App() {
         OrganizationGate's onboarding screen and, once an organization exists,
         from the header — see `onOpenAdmin` below.
       */}
-      <OrganizationGate onOpenAdmin={() => setIsAdminPanelOpen(true)} />
+      <OrganizationGate
+        onOpenAdmin={() => setIsAdminPanelOpen(true)}
+        creationLinkOpen={creationLinkOpen}
+        onCloseCreationLink={() => setCreationLinkOpen(false)}
+      />
       {isAdminPanelOpen && <AdminPanel onClose={() => setIsAdminPanelOpen(false)} />}
     </>
   );
@@ -65,7 +72,15 @@ export function App() {
  * `MISSING_ORGANIZATION`. Rather than let the user watch an empty grid fail to
  * load, send them somewhere they can actually do something about it.
  */
-function OrganizationGate({ onOpenAdmin }: { onOpenAdmin: () => void }) {
+function OrganizationGate({
+  onOpenAdmin,
+  creationLinkOpen,
+  onCloseCreationLink,
+}: {
+  onOpenAdmin: () => void;
+  creationLinkOpen: boolean;
+  onCloseCreationLink: () => void;
+}) {
   const { current, loading } = useOrg();
 
   // Same reasoning as `initialising` above: a brief null while the list loads
@@ -79,11 +94,15 @@ function OrganizationGate({ onOpenAdmin }: { onOpenAdmin: () => void }) {
   // available, and have no idea why unless the notice is on this screen as
   // well. An already-restricted user never reaches this component at all —
   // `VerificationGate` in `main.tsx` replaces the whole tree with the wall.
-  if (!current) {
+  if (!current || creationLinkOpen) {
     return (
       <div style={{ padding: '24px 32px', maxWidth: '1400px', margin: '0 auto' }}>
         <VerificationBanner />
-        <OrganizationOnboarding onOpenAdmin={onOpenAdmin} />
+        <OrganizationOnboarding
+          onOpenAdmin={onOpenAdmin}
+          onCreated={onCloseCreationLink}
+          onCancel={current ? onCloseCreationLink : undefined}
+        />
       </div>
     );
   }

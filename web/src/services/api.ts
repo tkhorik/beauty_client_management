@@ -813,6 +813,14 @@ class ApiService {
     return this.orgJson<AdminOrganization[]>('/admin/organizations');
   }
 
+  async archiveOrganization(id: string, confirmationSlug: string): Promise<void> {
+    await this.orgJson(`/admin/organizations/${id}/archive`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ confirmationSlug }),
+    });
+  }
+
   async getCreationLinks(): Promise<OrganizationCreationLink[]> {
     return this.orgJson<OrganizationCreationLink[]>('/admin/organization-creation-tokens');
   }

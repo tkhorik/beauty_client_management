@@ -5,6 +5,7 @@ import type { AdminUser, AdminOrganization, OrganizationCreationLink } from '../
 import { api, writeErrorMessage } from '../services/api';
 import { MembersModal } from './MembersModal';
 import { useAuth } from '../auth/AuthContext';
+import { useOrg } from '../auth/OrgContext';
 
 interface AdminPanelProps {
   onClose: () => void;
@@ -39,6 +40,7 @@ const bannerStyle = (kind: 'error' | 'success') =>
 export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
   const { t } = useAppTranslation();
   const { user } = useAuth();
+  const { select, refresh: refreshOrganizations } = useOrg();
   const [tab, setTab] = useState<Tab>('users');
 
   const [users, setUsers] = useState<AdminUser[]>([]);
@@ -168,7 +170,18 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
           ) : tab === 'users' ? (
             <UsersTab users={users} selfId={user?.id} onRun={run} />
           ) : tab === 'organizations' ? (
-            <OrganizationsTab orgs={orgs} onManageMembers={setManagingOrg} />
+            <OrganizationsTab
+              orgs={orgs}
+              onManageMembers={setManagingOrg}
+              onOpen={org => {
+                select(org.id);
+                onClose();
+              }}
+              onArchive={(org, confirmationSlug) => run(async () => {
+                await api.archiveOrganization(org.id, confirmationSlug);
+                await refreshOrganizations();
+              }, t('adminPanel.organizationArchived'))}
+            />
           ) : (
             <LinksTab links={links} onRun={run} freshLink={freshLink} onFreshLink={setFreshLink} />
           )}
@@ -305,8 +318,12 @@ const UsersTab: React.FC<{
 const OrganizationsTab: React.FC<{
   orgs: AdminOrganization[];
   onManageMembers: (org: AdminOrganization) => void;
-}> = ({ orgs, onManageMembers }) => {
+  onOpen: (org: AdminOrganization) => void;
+  onArchive: (org: AdminOrganization, confirmationSlug: string) => void;
+}> = ({ orgs, onManageMembers, onOpen, onArchive }) => {
   const { t } = useAppTranslation();
+  const [confirming, setConfirming] = useState<AdminOrganization | null>(null);
+  const [confirmationSlug, setConfirmationSlug] = useState('');
   return (
   <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
     {orgs.map(o => (
@@ -327,6 +344,7 @@ const OrganizationsTab: React.FC<{
           <div style={{ fontSize: '14px' }}>{o.name}</div>
           <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
             {o.slug} {t('adminPanel.createdBy')} {o.createdByEmail ?? t('adminPanel.unknown')}
+            {o.archivedAt && <> · {t('adminPanel.archived')}</>}
           </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -335,15 +353,66 @@ const OrganizationsTab: React.FC<{
           </span>
           <button
             className="btn-secondary"
+            disabled={!!o.archivedAt}
+            style={{ padding: '6px 12px', fontSize: '12px' }}
+            onClick={() => onOpen(o)}
+          >
+            {t('adminPanel.openOrganization')}
+          </button>
+          <button
+            className="btn-secondary"
             style={{ padding: '6px 12px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}
+            disabled={!!o.archivedAt}
             onClick={() => onManageMembers(o)}
             title={t('adminPanel.manageOrganization', { name: o.name })}
           >
             <UserCog size={13} /> {t('adminPanel.manageMembers')}
           </button>
+          <button
+            className="btn-secondary"
+            disabled={!!o.archivedAt}
+            style={{ padding: '6px 12px', fontSize: '12px', color: '#e87c8a' }}
+            onClick={() => {
+              setConfirming(o);
+              setConfirmationSlug('');
+            }}
+          >
+            <Trash2 size={13} /> {t('adminPanel.archive')}
+          </button>
         </div>
       </div>
     ))}
+    {confirming && (
+      <div style={{ padding: '14px', border: '1px solid rgba(220, 50, 80, 0.35)', borderRadius: '10px' }}>
+        <strong>{t('adminPanel.archiveOrganization')}: {confirming.name}</strong>
+        <p style={{ color: 'var(--text-muted)', fontSize: '12px' }}>{t('adminPanel.archiveHelp')}</p>
+        <input
+          className="input-field"
+          value={confirmationSlug}
+          onChange={event => setConfirmationSlug(event.target.value)}
+          placeholder={t('adminPanel.archivePrompt', { slug: confirming.slug })}
+        />
+        <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
+          <button
+            className="btn-secondary"
+            onClick={() => { setConfirming(null); setConfirmationSlug(''); }}
+          >
+            {t('common.cancel')}
+          </button>
+          <button
+            className="btn-rose"
+            disabled={confirmationSlug !== confirming.slug}
+            onClick={() => {
+              onArchive(confirming, confirmationSlug);
+              setConfirming(null);
+              setConfirmationSlug('');
+            }}
+          >
+            {t('adminPanel.archiveOrganization')}
+          </button>
+        </div>
+      </div>
+    )}
     {orgs.length === 0 && <p style={{ color: 'var(--text-muted)', fontSize: '13px' }}>{t('adminPanel.noOrganizationsYet')}</p>}
   </div>
   );
@@ -380,8 +449,7 @@ const LinksTab: React.FC<{
     setIssuing(true);
     try {
       const result = await api.createCreationLink(label.trim() || undefined, maxUses, expiresInHours);
-      const url = `${window.location.origin}/?orgToken=${encodeURIComponent(result.token)}`;
-      onFreshLink({ url, token: result.token });
+      onFreshLink({ url: result.url, token: result.token });
       setLabel('');
       await onRun(async () => {},t('adminPanel.linkCreated'));
     } catch (err) {

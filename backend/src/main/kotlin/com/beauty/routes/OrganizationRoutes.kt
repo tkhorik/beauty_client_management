@@ -2,6 +2,7 @@ package com.beauty.routes
 
 import com.beauty.auth.MembershipService
 import com.beauty.auth.MembershipStatus
+import com.beauty.auth.GlobalRole
 import com.beauty.auth.OrgCreationTokenService
 import com.beauty.auth.OrgRole
 import com.beauty.db.DatabaseFactory.dbQuery
@@ -23,6 +24,8 @@ import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import org.jetbrains.exposed.exceptions.ExposedSQLException
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
+import org.jetbrains.exposed.sql.SortOrder
+import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.select
 import java.time.LocalDateTime
@@ -67,6 +70,25 @@ fun Route.organizationRoutes() {
          */
         get {
             val userId = requireActiveAccount(memberships) ?: return@get
+
+            if (memberships.accountStatus(userId).globalRole == GlobalRole.SUPER_ADMIN) {
+                val organizations = dbQuery {
+                    OrganizationsTable
+                        .select { OrganizationsTable.archivedAt.isNull() }
+                        .orderBy(OrganizationsTable.name to SortOrder.ASC)
+                        .toList()
+                }
+                call.respond(organizations.map {
+                    OrganizationDto(
+                        id = it[OrganizationsTable.id],
+                        name = it[OrganizationsTable.name],
+                        slug = it[OrganizationsTable.slug],
+                        role = OrgRole.ORG_ADMIN.name,
+                        status = MembershipStatus.ACTIVE.name
+                    )
+                })
+                return@get
+            }
 
             call.respond(
                 memberships.organizationsForUser(userId).map {
@@ -232,7 +254,9 @@ fun Route.organizationRoutes() {
 
             val slug = call.receive<JoinOrganizationRequest>().slug.trim().lowercase()
             val org = dbQuery {
-                OrganizationsTable.select { OrganizationsTable.slug eq slug }.singleOrNull()
+                OrganizationsTable.select {
+                    (OrganizationsTable.slug eq slug) and OrganizationsTable.archivedAt.isNull()
+                }.singleOrNull()
             }
             if (org == null) {
                 call.respond(HttpStatusCode.NotFound, mapOf("error" to "No organization with that handle.", "code" to "ORGANIZATION_NOT_FOUND"))

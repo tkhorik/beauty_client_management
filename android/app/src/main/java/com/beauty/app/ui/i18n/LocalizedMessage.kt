@@ -48,6 +48,7 @@ fun localizedMessage(raw: String): String {
         "ACCESS_DENIED" -> R.string.error_access_denied
         "NETWORK_ERROR" -> R.string.error_network_error
         "ACTION_FAILED" -> R.string.error_action_failed
+        "ORGANIZATION_ARCHIVED" -> R.string.organization_archived
         "TOO_MANY_ATTEMPTS" -> R.string.error_too_many_attempts
         "RESET_FAILED" -> R.string.error_reset_failed
         "LOGIN_FAILED" -> R.string.error_login_failed

@@ -28,10 +28,9 @@ const val ORG_HEADER = "X-Org-Id"
 /**
  * The authorization facts for one request, resolved fresh from the database.
  *
- * @property organizationId The organization to scope every query to, or null
- *   for a super admin who named no organization — meaning "all of them". Route
- *   code must treat null as "apply no organization filter", which is only ever
- *   reachable via [isSuperAdmin]; see [scopedTo].
+ * @property organizationId The active organization every query is scoped to.
+ *   The nullable type is retained for compatibility with older route helpers,
+ *   but [requireOrgAccess] never returns a context without an organization.
  * @property role The caller's capability *within* [organizationId]. A super
  *   admin always gets [OrgRole.ORG_ADMIN] here, so admin-only route bodies need
  *   no separate super-admin branch.
@@ -44,15 +43,6 @@ data class OrgContext(
 ) {
     /** True when the caller may perform organization-management actions. */
     val isAdmin: Boolean get() = isSuperAdmin || role == OrgRole.ORG_ADMIN
-
-    /**
-     * The organization id a query should filter on, or null for unrestricted.
-     *
-     * Exists so the intent reads clearly at the call site: a bare nullable
-     * field invites `?: someDefault`, and any default here is a cross-tenant
-     * leak waiting to happen.
-     */
-    val scopedTo: String? get() = organizationId
 }
 
 /**
@@ -84,9 +74,6 @@ data class OrgContext(
  *    [passesVerificationGate].
  *
  * @param requireAdmin gate the route to `org_admin`/`super_admin`.
- * @param allowGlobal let a super admin omit the header and operate across all
- *   organizations. Off by default so that a route which forgets to think about
- *   the unscoped case cannot accidentally get it.
  * @param requireVerified opt this route out of the email-verification gate by
  *   passing false. Null — the default — gates it. There is deliberately no way
  *   to express "gate this one only": see [passesVerificationGate].
@@ -94,7 +81,6 @@ data class OrgContext(
 suspend fun PipelineContext<Unit, ApplicationCall>.requireOrgAccess(
     memberships: MembershipService,
     requireAdmin: Boolean = false,
-    allowGlobal: Boolean = false,
     requireVerified: Boolean? = null
 ): OrgContext? {
     val userId = call.userId()
@@ -124,19 +110,24 @@ suspend fun PipelineContext<Unit, ApplicationCall>.requireOrgAccess(
     val requestedOrg = call.request.headers[ORG_HEADER]?.trim()?.takeIf { it.isNotEmpty() }
 
     if (requestedOrg == null) {
-        // A super admin with no header is asking about the whole system. Anyone
-        // else simply has not told us what they want, and guessing — "use their
-        // only organization", "use the first one" — is how a user with two
-        // salons writes a client into the wrong one.
-        if (isSuperAdmin && allowGlobal) {
-            return OrgContext(userId, null, OrgRole.ORG_ADMIN, isSuperAdmin = true)
-        }
+        // Even a super admin selects one organization explicitly. This keeps
+        // reads and writes inside the same active-organization boundary.
         call.respond(
             HttpStatusCode.BadRequest,
             mapOf(
                 "error" to "No organization selected. Send the $ORG_HEADER header.",
                 "code" to "MISSING_ORGANIZATION"
             )
+        )
+        return null
+    }
+
+    // Archive is an authorization boundary, including for SUPER_ADMIN. Check
+    // it before the role bypass so retaining an id cannot reopen old data.
+    if (!memberships.organizationIsActive(requestedOrg)) {
+        call.respond(
+            HttpStatusCode.Forbidden,
+            mapOf("error" to "You do not have access to this organization.", "code" to "NOT_A_MEMBER")
         )
         return null
     }

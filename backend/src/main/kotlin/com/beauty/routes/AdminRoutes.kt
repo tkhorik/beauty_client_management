@@ -17,7 +17,11 @@ import io.ktor.server.routing.*
 import org.jetbrains.exposed.sql.Op
 import org.jetbrains.exposed.sql.SortOrder
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
+import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.select
+import org.jetbrains.exposed.sql.update
+import java.net.URLEncoder
+import java.nio.charset.StandardCharsets
 import java.time.LocalDateTime
 
 /**
@@ -133,10 +137,42 @@ fun Route.adminRoutes() {
                         slug = row[OrganizationsTable.slug],
                         createdByEmail = row[UsersTable.email],
                         memberCount = memberships.activeMemberCount(orgId).toInt(),
+                        archivedAt = row[OrganizationsTable.archivedAt]?.toString(),
                         createdAt = row[OrganizationsTable.createdAt].toString()
                     )
                 }
             )
+        }
+
+        /** Soft-archives a tenant after an exact, server-verified slug confirmation. */
+        post("/organizations/{id}/archive") {
+            requireSuperAdmin(memberships) ?: return@post
+            val organizationId = call.parameters["id"]!!
+            val request = call.receive<ArchiveOrganizationRequest>()
+
+            val organization = dbQuery {
+                OrganizationsTable.select { OrganizationsTable.id eq organizationId }.singleOrNull()
+            }
+            if (organization == null) {
+                call.respond(HttpStatusCode.NotFound, mapOf("error" to "No such organization.", "code" to "ORGANIZATION_NOT_FOUND"))
+                return@post
+            }
+            if (request.confirmationSlug != organization[OrganizationsTable.slug]) {
+                call.respond(
+                    HttpStatusCode.BadRequest,
+                    mapOf("error" to "Type the organization handle exactly to confirm.", "code" to "CONFIRMATION_MISMATCH")
+                )
+                return@post
+            }
+
+            dbQuery {
+                OrganizationsTable.update({
+                    (OrganizationsTable.id eq organizationId) and OrganizationsTable.archivedAt.isNull()
+                }) {
+                    it[archivedAt] = LocalDateTime.now()
+                }
+            }
+            call.respond(HttpStatusCode.OK, MessageResponse("Organization archived."))
         }
 
         route("/organization-creation-tokens") {
@@ -194,6 +230,7 @@ fun Route.adminRoutes() {
                     HttpStatusCode.Created,
                     CreateOrganizationCreationTokenResponse(
                         token = rawToken,
+                        url = "${settings.publicUrl}/?orgToken=${URLEncoder.encode(rawToken, StandardCharsets.UTF_8)}",
                         info = OrganizationCreationTokenDto(
                             id = issued.id,
                             label = issued.label,

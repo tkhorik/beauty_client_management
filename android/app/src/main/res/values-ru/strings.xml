@@ -126,6 +126,13 @@
     <string name="send_invitation" formatted="false">Отправить приглашение</string>
     <string name="loading" formatted="false">Загрузка…</string>
     <string name="no_organizations_yet" formatted="false">Организаций пока нет.</string>
+    <string name="open_organization" formatted="false">Открыть</string>
+    <string name="archive" formatted="false">Архивировать</string>
+    <string name="archived" formatted="false">Архивирована</string>
+    <string name="archive_organization" formatted="false">Архивировать организацию</string>
+    <string name="organization_archived" formatted="false">Организация архивирована.</string>
+    <string name="archive_organization_help" formatted="false">Данные сохранятся, но после архивации доступ к организации будет закрыт для всех.</string>
+    <string name="type_handle_to_confirm">Введите %1$s для подтверждения</string>
     <string name="new_link_copy_it_now" formatted="false">Новая ссылка — скопируйте её сейчас</string>
     <string name="issue_a_link" formatted="false">Создать ссылку</string>
     <string name="label_optional" formatted="false">Название (необязательно)</string>

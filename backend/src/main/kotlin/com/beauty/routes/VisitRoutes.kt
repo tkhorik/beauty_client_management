@@ -28,7 +28,7 @@ import java.util.UUID
  * whereas a missing `WHERE` here is visibly a missing `WHERE`.
  */
 private fun OrgContext.visitScope(): Op<Boolean> =
-    scopedTo?.let { VisitsTable.organizationId eq it } ?: Op.TRUE
+    VisitsTable.organizationId eq organizationId!!
 
 /** Reads a visit's attachments. Callers must have already scoped the visit itself. */
 private fun attachmentsFor(visitId: String): List<AttachmentDto> =
@@ -64,7 +64,7 @@ fun Route.visitRoutes(storage: FileStorageService) {
 
     route("/api/visits") {
         get {
-            val ctx = requireOrgAccess(memberships, allowGlobal = true) ?: return@get
+            val ctx = requireOrgAccess(memberships) ?: return@get
             val clientId = call.request.queryParameters["clientId"]
             val limit = call.pageLimit()
             val offset = call.pageOffset()
@@ -104,7 +104,7 @@ fun Route.visitRoutes(storage: FileStorageService) {
         }
 
         get("/{id}") {
-            val ctx = requireOrgAccess(memberships, allowGlobal = true) ?: return@get
+            val ctx = requireOrgAccess(memberships) ?: return@get
             val id = call.parameters["id"] ?: return@get call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Missing ID", "code" to "MISSING_ID"))
 
             val visit = dbQuery {
@@ -191,7 +191,7 @@ fun Route.visitRoutes(storage: FileStorageService) {
         }
 
         put("/{id}") {
-            val ctx = requireOrgAccess(memberships, allowGlobal = true) ?: return@put
+            val ctx = requireOrgAccess(memberships) ?: return@put
             val id = call.parameters["id"] ?: return@put call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Missing ID", "code" to "MISSING_ID"))
             val req = call.receive<UpdateVisitRequest>()
 
@@ -237,7 +237,7 @@ fun Route.visitRoutes(storage: FileStorageService) {
         }
 
         delete("/{id}") {
-            val ctx = requireOrgAccess(memberships, allowGlobal = true) ?: return@delete
+            val ctx = requireOrgAccess(memberships) ?: return@delete
             val id = call.parameters["id"] ?: return@delete call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Missing ID", "code" to "MISSING_ID"))
 
             val deletedFiles = dbQuery {

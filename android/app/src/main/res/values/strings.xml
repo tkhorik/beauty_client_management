@@ -126,6 +126,13 @@
     <string name="send_invitation" formatted="false">Send invitation</string>
     <string name="loading" formatted="false">Loading…</string>
     <string name="no_organizations_yet" formatted="false">No organizations yet.</string>
+    <string name="open_organization" formatted="false">Open</string>
+    <string name="archive" formatted="false">Archive</string>
+    <string name="archived" formatted="false">Archived</string>
+    <string name="archive_organization" formatted="false">Archive organization</string>
+    <string name="organization_archived" formatted="false">Organization archived.</string>
+    <string name="archive_organization_help" formatted="false">Records are retained, but nobody can access this organization after archiving.</string>
+    <string name="type_handle_to_confirm">Type %1$s to confirm</string>
     <string name="new_link_copy_it_now" formatted="false">New link — copy it now</string>
     <string name="issue_a_link" formatted="false">Issue a link</string>
     <string name="label_optional" formatted="false">Label (optional)</string>

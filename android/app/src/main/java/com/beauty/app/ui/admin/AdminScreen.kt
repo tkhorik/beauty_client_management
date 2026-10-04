@@ -46,7 +46,11 @@ private enum class AdminTab(val label: Int) {
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AdminScreen(viewModel: AdminViewModel, onDone: () -> Unit) {
+fun AdminScreen(
+    viewModel: AdminViewModel,
+    onDone: () -> Unit,
+    onOpenOrganization: (AdminOrganizationDto) -> Unit
+) {
     var tab by remember { mutableStateOf(AdminTab.USERS) }
     val managingOrg = viewModel.managingOrg
 
@@ -97,7 +101,7 @@ fun AdminScreen(viewModel: AdminViewModel, onDone: () -> Unit) {
                     Text(stringResource(com.beauty.app.R.string.loading), color = TextMuted, modifier = Modifier.padding(16.dp))
                 managingOrg != null -> MembersTab(viewModel, managingOrg)
                 tab == AdminTab.USERS -> UsersTab(viewModel)
-                tab == AdminTab.ORGANIZATIONS -> OrganizationsTab(viewModel)
+                tab == AdminTab.ORGANIZATIONS -> OrganizationsTab(viewModel, onOpenOrganization)
                 else -> LinksTab(viewModel)
             }
         }
@@ -184,7 +188,46 @@ private fun UserRow(user: AdminUserDto, isSelf: Boolean, onToggleSuspended: () -
 // ---------------------------------------------------------------------------
 
 @Composable
-private fun OrganizationsTab(viewModel: AdminViewModel) {
+private fun OrganizationsTab(
+    viewModel: AdminViewModel,
+    onOpenOrganization: (AdminOrganizationDto) -> Unit
+) {
+    var confirming by remember { mutableStateOf<AdminOrganizationDto?>(null) }
+    var confirmationSlug by remember { mutableStateOf("") }
+
+    confirming?.let { org ->
+        AlertDialog(
+            onDismissRequest = { confirming = null; confirmationSlug = "" },
+            title = { Text(stringResource(com.beauty.app.R.string.archive_organization)) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(stringResource(com.beauty.app.R.string.archive_organization_help))
+                    OutlinedTextField(
+                        value = confirmationSlug,
+                        onValueChange = { confirmationSlug = it },
+                        label = { Text(stringResource(com.beauty.app.R.string.type_handle_to_confirm, org.slug)) },
+                        singleLine = true
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    enabled = confirmationSlug == org.slug,
+                    onClick = {
+                        viewModel.archiveOrganization(org, confirmationSlug)
+                        confirming = null
+                        confirmationSlug = ""
+                    }
+                ) { Text(stringResource(com.beauty.app.R.string.archive)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirming = null; confirmationSlug = "" }) {
+                    Text(stringResource(com.beauty.app.R.string.cancel))
+                }
+            }
+        )
+    }
+
     LazyColumn(
         modifier = Modifier.fillMaxSize().padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
@@ -194,16 +237,26 @@ private fun OrganizationsTab(viewModel: AdminViewModel) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(org.name, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
                     Text(
-                        stringResource(com.beauty.app.R.string.organization_created_by, org.slug, org.createdByEmail ?: stringResource(com.beauty.app.R.string.unknown)) + " · " + pluralStringResource(com.beauty.app.R.plurals.members_count, org.memberCount, org.memberCount),
+                        stringResource(com.beauty.app.R.string.organization_created_by, org.slug, org.createdByEmail ?: stringResource(com.beauty.app.R.string.unknown)) +
+                            " · " + pluralStringResource(com.beauty.app.R.plurals.members_count, org.memberCount, org.memberCount) +
+                            if (org.isArchived) " · " + stringResource(com.beauty.app.R.string.archived) else "",
                         color = TextMuted,
                         fontSize = 12.sp
                     )
                 }
-                // Reaches organizations this account has never joined, which
-                // the organization switcher cannot: that list is built from
-                // memberships, while the backend's permission is not.
-                TextButton(onClick = { viewModel.manageMembers(org) }) {
+                // SUPER_ADMIN receives every active organization from the
+                // organization list and can reopen any one repeatedly.
+                TextButton(enabled = !org.isArchived, onClick = { onOpenOrganization(org) }) {
+                    Text(stringResource(com.beauty.app.R.string.open_organization), color = RoseGoldPrimary, fontSize = 12.sp)
+                }
+                TextButton(enabled = !org.isArchived, onClick = { viewModel.manageMembers(org) }) {
                     Text(stringResource(com.beauty.app.R.string.members), color = RoseGoldPrimary, fontSize = 12.sp)
+                }
+                TextButton(
+                    enabled = !org.isArchived,
+                    onClick = { confirming = org; confirmationSlug = "" }
+                ) {
+                    Text(stringResource(com.beauty.app.R.string.archive), color = MaterialTheme.colorScheme.error, fontSize = 12.sp)
                 }
             }
         }
@@ -261,7 +314,7 @@ private fun LinksTab(viewModel: AdminViewModel) {
     ) {
         // The freshly issued token first, and impossible to miss: this is the
         // only moment it exists in readable form anywhere.
-        viewModel.freshToken?.let { token ->
+        viewModel.freshLink?.let { link ->
             item {
                 Surface(color = CardSurface, modifier = Modifier.fillMaxWidth()) {
                     Column(
@@ -269,10 +322,10 @@ private fun LinksTab(viewModel: AdminViewModel) {
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Text(stringResource(com.beauty.app.R.string.new_link_copy_it_now), color = RoseGoldPrimary, fontSize = 13.sp)
-                        Text(token, fontSize = 12.sp)
+                        Text(link, fontSize = 12.sp)
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             Button(
-                                onClick = { clipboard.setText(AnnotatedString(token)) },
+                                onClick = { clipboard.setText(AnnotatedString(link)) },
                                 colors = ButtonDefaults.buttonColors(containerColor = RoseGoldPrimary)
                             ) { Text(stringResource(com.beauty.app.R.string.copy)) }
                             TextButton(onClick = { viewModel.dismissFreshToken() }) {
