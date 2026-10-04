@@ -11,6 +11,8 @@ export const newClientEn = {
   'newClientModal.attributePlaceholder': 'Attribute (e.g. Skin Type)',
   'newClientModal.valuePlaceholder': 'Value (e.g. Combination)',
   'newClientModal.cancel': 'Cancel',
+  'attributes.duplicateKey': 'The attribute "{{key}}" is listed more than once.',
+  'attributes.none': 'No attributes yet.',
 } as const;
 export const newClientRu: { [K in keyof typeof newClientEn]: string } = {
   'newClientModal.createNewClientProfile': 'Создать карточку клиента',
@@ -25,5 +27,7 @@ export const newClientRu: { [K in keyof typeof newClientEn]: string } = {
   'newClientModal.attributePlaceholder': 'Атрибут (например, тип кожи)',
   'newClientModal.valuePlaceholder': 'Значение (например, комбинированная)',
   'newClientModal.cancel': 'Отмена',
+  'attributes.duplicateKey': 'Атрибут «{{key}}» указан несколько раз.',
+  'attributes.none': 'Атрибутов пока нет.',
 };
 export type NewClientKey = keyof typeof newClientEn;

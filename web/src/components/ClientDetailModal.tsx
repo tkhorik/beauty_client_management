@@ -1,7 +1,9 @@
 import { useAppTranslation, useLocale } from '../i18n/LocaleProvider';
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import type { Client, Visit, Attachment } from '../types';
 import { X, Calendar, Clock, Plus, Trash2, Edit3, Edit2, Camera, FileText, Sliders } from 'lucide-react';
+import { AttributeEditor } from './AttributeEditor';
+import { duplicateAttributeKey, toAttributeRecord, toAttributeRows, type AttributeRow } from './attributes';
 import { api, writeErrorMessage } from '../services/api';
 import { EditClientModal } from './EditClientModal';
 
@@ -14,11 +16,6 @@ interface ClientDetailModalProps {
   onOpenPhotoCompare: (attachments: Attachment[]) => void;
 }
 
-type CustomField = { key: string; value: string | number | boolean };
-
-const fieldsFromClient = (client: Client): CustomField[] =>
-  Object.entries(client.customFields ?? {}).map(([key, value]) => ({ key, value }));
-
 export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
   client,
   visits,
@@ -29,46 +26,26 @@ export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
 }) => {
   const { t } = useAppTranslation();
   const { formatDate } = useLocale();
-  const [customFields, setCustomFields] = useState<CustomField[]>(() => fieldsFromClient(client));
-  const [newKey, setNewKey] = useState('');
-  const [newValue, setNewValue] = useState('');
-  const [isEditingFields, setIsEditingFields] = useState(false);
+  // Null while viewing. The draft is seeded from the current record each time
+  // editing starts, so Cancel discards it and a refreshed record is never
+  // overwritten by values captured when the modal opened.
+  const [draftFields, setDraftFields] = useState<AttributeRow[] | null>(null);
+  const isEditingFields = draftFields !== null;
   const [isSaving, setIsSaving] = useState(false);
   const [isEditClientOpen, setIsEditClientOpen] = useState(false);
-
-  useEffect(() => {
-    if (!isEditingFields) setCustomFields(fieldsFromClient(client));
-  }, [client, isEditingFields]);
-
-  const handleAddField = () => {
-    if (!newKey.trim()) return;
-    const key = newKey.trim();
-    setCustomFields(prev => {
-      const index = prev.findIndex(field => field.key === key);
-      const field = { key, value: newValue.trim() };
-      return index < 0 ? [...prev, field] : prev.map((item, i) => i === index ? field : item);
-    });
-    setNewKey('');
-    setNewValue('');
-  };
-
-  const handleRemoveField = (index: number) => setCustomFields(prev => prev.filter((_, i) => i !== index));
-
-  const handleFieldChange = (index: number, field: keyof CustomField, value: string) => {
-    setCustomFields(prev => prev.map((item, i) =>
-      i === index ? { ...item, [field]: value } : item
-    ));
-  };
+  const savedFields = Object.entries(client.customFields ?? {});
 
   const handleSaveFields = async () => {
+    if (!draftFields) return;
+    const duplicate = duplicateAttributeKey(draftFields);
+    if (duplicate) {
+      alert(t('attributes.duplicateKey', { key: duplicate }));
+      return;
+    }
     setIsSaving(true);
     try {
-      const customFieldsMap = customFields.reduce<Record<string, string | number | boolean>>((fields, field) => {
-        if (field.key.trim()) fields[field.key.trim()] = field.value;
-        return fields;
-      }, {});
-      await api.updateClient(client.id, { customFields: customFieldsMap });
-      setIsEditingFields(false);
+      await api.updateClient(client.id, { customFields: toAttributeRecord(draftFields) });
+      setDraftFields(null);
       onRefresh();
     } catch (err) {
       alert(writeErrorMessage(err,t('clientDetailModal.failedToSaveCustomFields')));
@@ -162,7 +139,7 @@ export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
                 <Sliders size={18} /> {t('clientDetailModal.dynamicCustomClientAttributesJSONB')}
               </h3>
               {!isEditingFields ? (
-                <button className="btn-secondary" style={{ padding: '4px 10px', fontSize: '12px' }} onClick={() => setIsEditingFields(true)}>
+                <button className="btn-secondary" style={{ padding: '4px 10px', fontSize: '12px' }} onClick={() => setDraftFields(toAttributeRows(client.customFields))}>
                   <Edit3 size={14} /> {t('clientDetailModal.editAttributes')}
                 </button>
               ) : (
@@ -170,59 +147,27 @@ export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
                   <button className="btn-rose" style={{ padding: '4px 12px', fontSize: '12px' }} onClick={handleSaveFields} disabled={isSaving}>
                     {isSaving ?t('clientDetailModal.saving') :t('clientDetailModal.saveChanges')}
                   </button>
-                  <button className="btn-secondary" style={{ padding: '4px 10px', fontSize: '12px' }} onClick={() => { setCustomFields(fieldsFromClient(client)); setIsEditingFields(false); }}>
+                  <button className="btn-secondary" style={{ padding: '4px 10px', fontSize: '12px' }} disabled={isSaving} onClick={() => setDraftFields(null)}>
                     {t('clientDetailModal.cancel')}
                   </button>
                 </div>
               )}
             </div>
 
-            {/* Display / Edit Custom Fields */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '12px' }}>
-              {customFields.map((field, index) => (
-                <div key={`${field.key}-${index}`} style={{ background: 'rgba(15,14,19,0.7)', padding: '10px 14px', borderRadius: '10px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
-                  {isEditingFields ? (
-                    <div style={{ display: 'flex', flex: 1, gap: '8px' }}>
-                      <input type="text" aria-label={t('clientDetailModal.attributeNameEGSkinToneDyeRatio')} className="input-field" value={field.key} onChange={(e) => handleFieldChange(index, 'key', e.target.value)} />
-                      <input type="text" aria-label={t('clientDetailModal.valueEGWarmOlive11')} className="input-field" value={String(field.value)} onChange={(e) => handleFieldChange(index, 'value', e.target.value)} />
+            {draftFields ? (
+              <AttributeEditor rows={draftFields} onChange={setDraftFields} disabled={isSaving} addLabel={t('clientDetailModal.addAttribute')} />
+            ) : savedFields.length === 0 ? (
+              <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>{t('attributes.none')}</p>
+            ) : (
+              <div className="attribute-grid">
+                {savedFields.map(([key, value]) => (
+                  <div key={key} className="attribute-tile">
+                    <div style={{ minWidth: 0 }}>
+                      <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{key}</span>
+                      <span style={{ fontSize: '14px', color: '#fff', fontWeight: 600, overflowWrap: 'anywhere' }}>{String(value)}</span>
                     </div>
-                  ) : (
-                    <div>
-                      <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block', textTransform: 'uppercase' }}>{field.key}</span>
-                      <span style={{ fontSize: '13px', color: '#fff', fontWeight: 600 }}>{String(field.value)}</span>
-                    </div>
-                  )}
-                  {isEditingFields && (
-                    <button aria-label={t('common.remove')} onClick={() => handleRemoveField(index)} style={{ background: 'none', border: 'none', color: '#f87171', cursor: 'pointer' }}>
-                      <Trash2 size={14} />
-                    </button>
-                  )}
-                </div>
-              ))}
-            </div>
-
-            {/* Add New Custom Field Row */}
-            {isEditingFields && (
-              <div style={{ display: 'flex', gap: '10px', marginTop: '16px', paddingTop: '14px', borderTop: '1px dashed var(--border-color)' }}>
-                <input
-                  type="text"
-                  placeholder={t('clientDetailModal.attributeNameEGSkinToneDyeRatio')}
-                  className="input-field"
-                  value={newKey}
-                  onChange={(e) => setNewKey(e.target.value)}
-                  style={{ flex: '1 1 200px' }}
-                />
-                <input
-                  type="text"
-                  placeholder={t('clientDetailModal.valueEGWarmOlive11')}
-                  className="input-field"
-                  value={newValue}
-                  onChange={(e) => setNewValue(e.target.value)}
-                  style={{ flex: '1 1 200px' }}
-                />
-                <button className="btn-secondary" onClick={handleAddField}>
-                  <Plus size={16} /> {t('clientDetailModal.addAttribute')}
-                </button>
+                  </div>
+                ))}
               </div>
             )}
           </div>

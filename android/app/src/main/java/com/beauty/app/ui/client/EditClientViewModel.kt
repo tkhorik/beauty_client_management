@@ -76,7 +76,9 @@ class EditClientViewModel(
     data class CustomField(
         val key: String,
         val value: String,
-        val originalValue: JsonElement? = null
+        val originalValue: JsonElement? = null,
+        /** Stable row identity for Compose; survives `copy()` on every keystroke. */
+        val id: Long = nextFieldId++
     )
 
     val customFields = mutableStateListOf<CustomField>()
@@ -213,6 +215,8 @@ class EditClientViewModel(
         (element as? JsonPrimitive)?.content ?: element.toString()
 
     companion object {
+        private var nextFieldId = 0L
+
         /** Mirrors `NewClientModal.tsx`'s initial state. */
         val NEW_CLIENT_DEFAULT_TAGS = listOf("VIP")
         val NEW_CLIENT_DEFAULT_FIELDS = listOf("Skin Type" to "Sensitive", "Allergies" to "None")

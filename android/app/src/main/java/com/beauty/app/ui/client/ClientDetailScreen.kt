@@ -24,7 +24,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddAPhoto
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -241,14 +240,13 @@ fun ClientDetailScreen(
 
 /**
  * The web detail view's "Dynamic Custom Client Attributes" panel: read-only
- * until "Edit Attributes", then editable/removable rows plus an add row.
+ * until "Edit Attributes", then every attribute is editable in place, plus an
+ * add button.
  *
  * Unchanged values keep their original JSON element, so a number or boolean
  * written elsewhere is not silently turned into a string by an unrelated edit.
- * A value deliberately changed in this string-based form becomes a string, as
- * do newly added attributes.
+ * New and edited values are strings, as on the web.
  */
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun AttributesCard(
     customFieldsJson: String,
@@ -262,11 +260,12 @@ private fun AttributesCard(
     val original = remember(customFieldsJson) {
         runCatching { Json.parseToJsonElement(customFieldsJson).jsonObject }.getOrDefault(JsonObject(emptyMap()))
     }
-    // Draft state lives while editing and is re-seeded from the saved record each time editing starts.
-    val draft = remember(customFieldsJson, editing) { mutableStateListOf<Pair<String, JsonElement>>().apply { addAll(original.entries.map { it.key to it.value }) } }
-    var newKey by rememberSaveable(editing) { mutableStateOf("") }
-    var newValue by rememberSaveable(editing) { mutableStateOf("") }
-    val shown = if (editing) draft.toList() else original.entries.map { it.key to it.value }
+    // Seeded from the saved record when editing starts. Keyed on `editing` only:
+    // an ON_RESUME refresh that re-reads the record must not wipe a draft in progress.
+    val draft = remember(editing) {
+        mutableStateListOf<AttributeDraft>().apply { addAll(original.map { (k, v) -> AttributeDraft(k, displayValue(v), v) }) }
+    }
+    var draftError by remember(editing) { mutableStateOf<String?>(null) }
 
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -276,69 +275,69 @@ private fun AttributesCard(
                     TextButton(onClick = onStartEditing) { Text(stringResource(com.beauty.app.R.string.edit_attributes)) }
                 }
             }
-            if (shown.isEmpty()) Text(stringResource(com.beauty.app.R.string.no_attributes_yet), color = TextMuted, fontSize = 13.sp)
-            shown.forEachIndexed { index, (key, value) ->
-                Row(
-                    Modifier
-                        .fillMaxWidth()
-                        .border(1.dp, Color(0x33E5B899), RoundedCornerShape(10.dp))
-                        .padding(horizontal = 12.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(Modifier.weight(1f)) {
-                        if (editing) {
-                            OutlinedTextField(
-                                value = key,
-                                onValueChange = { updatedKey -> draft[index] = updatedKey to value },
-                                enabled = !saving,
-                                singleLine = true,
-                                label = { Text(stringResource(com.beauty.app.R.string.attribute)) },
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                            OutlinedTextField(
-                                value = (value as? JsonPrimitive)?.content ?: value.toString(),
-                                onValueChange = { updatedValue -> draft[index] = key to JsonPrimitive(updatedValue) },
-                                enabled = !saving,
-                                singleLine = true,
-                                label = { Text(stringResource(com.beauty.app.R.string.value_label)) },
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                        } else {
-                            Text(key.uppercase(), color = TextMuted, fontSize = 11.sp)
-                            Text((value as? JsonPrimitive)?.content ?: value.toString(), fontWeight = FontWeight.SemiBold)
-                        }
-                    }
-                    if (editing) IconButton(enabled = !saving, onClick = { draft.removeAll { it.first == key } }) {
-                        Icon(Icons.Default.Delete, stringResource(com.beauty.app.R.string.remove_attribute, key), tint = Color(0xFFF87171))
+            if (editing) {
+                draft.forEachIndexed { index, field ->
+                    key(field.id) {
+                        AttributeTile(
+                            name = field.key,
+                            value = field.value,
+                            enabled = !saving,
+                            onNameChange = { draft[index] = field.copy(key = it); draftError = null },
+                            onValueChange = { draft[index] = field.copy(value = it) },
+                            onRemove = { draft.removeAt(index); draftError = null }
+                        )
                     }
                 }
-            }
-            if (editing) {
-                OutlinedTextField(value = newKey, onValueChange = { newKey = it }, enabled = !saving, singleLine = true,
-                    label = { Text(stringResource(com.beauty.app.R.string.attribute_name_e_g_skin_tone)) }, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(value = newValue, onValueChange = { newValue = it }, enabled = !saving, singleLine = true,
-                    label = { Text(stringResource(com.beauty.app.R.string.value_e_g_warm_olive)) }, modifier = Modifier.fillMaxWidth())
-                OutlinedButton(enabled = !saving && newKey.isNotBlank(), onClick = {
-                    val key = newKey.trim()
-                    val index = draft.indexOfFirst { it.first == key }
-                    val entry = key to JsonPrimitive(newValue.trim())
-                    if (index >= 0) draft[index] = entry else draft.add(entry)
-                    newKey = ""
-                    newValue = ""
-                }) { Text(stringResource(com.beauty.app.R.string.add_attribute)) }
-                error?.let { Text(localizedMessage(it), color = MaterialTheme.colorScheme.error, fontSize = 13.sp) }
+                OutlinedButton(enabled = !saving, onClick = { draft.add(AttributeDraft("", "")) }) {
+                    Text(stringResource(com.beauty.app.R.string.add_attribute))
+                }
+                (draftError ?: error)?.let { Text(localizedMessage(it), color = MaterialTheme.colorScheme.error, fontSize = 13.sp) }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(enabled = !saving, onClick = {
-                        onSave(JsonObject(draft.filter { it.first.isNotBlank() }.toMap()))
+                        val named = draft.filter { it.key.isNotBlank() }
+                        val duplicate = named.groupingBy { it.key.trim() }.eachCount().entries.firstOrNull { it.value > 1 }?.key
+                        if (duplicate != null) {
+                            draftError = "DUPLICATE_FIELD:$duplicate"
+                        } else {
+                            onSave(JsonObject(named.associate { it.key.trim() to it.toJson() }))
+                        }
                     }) {
                         Text(if (saving) stringResource(com.beauty.app.R.string.saving) else stringResource(com.beauty.app.R.string.save_changes))
                     }
                     OutlinedButton(enabled = !saving, onClick = onCancel) { Text(stringResource(com.beauty.app.R.string.cancel)) }
                 }
+            } else if (original.isEmpty()) {
+                Text(stringResource(com.beauty.app.R.string.no_attributes_yet), color = TextMuted, fontSize = 13.sp)
+            } else {
+                original.forEach { (key, value) ->
+                    Column(
+                        Modifier
+                            .fillMaxWidth()
+                            .border(1.dp, Color(0x33E5B899), RoundedCornerShape(10.dp))
+                            .padding(horizontal = 14.dp, vertical = 10.dp)
+                    ) {
+                        Text(key.uppercase(), color = TextMuted, fontSize = 11.sp)
+                        Text(displayValue(value), fontWeight = FontWeight.SemiBold)
+                    }
+                }
             }
         }
     }
 }
+
+private var nextAttributeDraftId = 0L
+
+private data class AttributeDraft(
+    val key: String,
+    val value: String,
+    val original: JsonElement? = null,
+    val id: Long = nextAttributeDraftId++
+) {
+    fun toJson(): JsonElement =
+        if (original != null && value == displayValue(original)) original else JsonPrimitive(value.trim())
+}
+
+private fun displayValue(element: JsonElement): String = (element as? JsonPrimitive)?.content ?: element.toString()
 
 private data class HistoryRow(val key: String, val dateTime: String, val duration: Int, val notes: String, val status: String, val syncLabel: String?, val attachments: List<VisitAttachmentDto> = emptyList())
 

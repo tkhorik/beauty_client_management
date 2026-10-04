@@ -197,30 +197,14 @@ private fun ColumnScope.ClientForm(
             ) { Text(stringResource(com.beauty.app.R.string.add), color = RoseGoldPrimary, fontSize = 12.sp) }
         }
         viewModel.customFields.forEachIndexed { index, field ->
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                OutlinedTextField(
-                    value = field.key,
-                    onValueChange = { viewModel.updateCustomField(index, it, field.value) },
-                    label = { Text(stringResource(com.beauty.app.R.string.attribute), color = TextMuted) },
-                    singleLine = true,
-                    modifier = Modifier.weight(1f),
-                    colors = outlinedColors()
-                )
-                OutlinedTextField(
+            key(field.id) {
+                AttributeTile(
+                    name = field.key,
                     value = field.value,
+                    onNameChange = { viewModel.updateCustomField(index, it, field.value) },
                     onValueChange = { viewModel.updateCustomField(index, field.key, it) },
-                    label = { Text(stringResource(com.beauty.app.R.string.value_label), color = TextMuted) },
-                    singleLine = true,
-                    modifier = Modifier.weight(1f),
-                    colors = outlinedColors()
+                    onRemove = { viewModel.removeCustomField(index) }
                 )
-                IconButton(onClick = { viewModel.removeCustomField(index) }) {
-                    Icon(Icons.Default.Close, contentDescription = stringResource(com.beauty.app.R.string.remove), tint = Color(0xFFf87171))
-                }
             }
         }
 
