@@ -396,7 +396,18 @@ internal fun AppNavHost(links: AppLinkViewModel) {
                         AdminViewModel(repository) as T
                 }
             )
-            AdminScreen(viewModel = adminViewModel, onDone = { navController.popBackStack() })
+            AdminScreen(
+                viewModel = adminViewModel,
+                onDone = {
+                    orgViewModel.refresh()
+                    navController.popBackStack()
+                },
+                onOpenOrganization = { organization ->
+                    orgViewModel.select(organization.id)
+                    orgViewModel.refresh()
+                    navController.navigate("clients") { popUpTo("admin") { inclusive = true } }
+                }
+            )
         }
 
         composable("settings") {

@@ -90,6 +90,9 @@ object OrganizationsTable : Table("organizations") {
     /** The user who created it. Nullable so deleting a founder never orphans the org. */
     val createdBy = varchar("created_by", 64).references(UsersTable.id).nullable()
 
+    /** Soft deletion marker. Archived organizations keep their tenant data but grant no access. */
+    val archivedAt = datetime("archived_at").nullable().index()
+
     val createdAt = datetime("created_at")
 
     override val primaryKey = PrimaryKey(id)

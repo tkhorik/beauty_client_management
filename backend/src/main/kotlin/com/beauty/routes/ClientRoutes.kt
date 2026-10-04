@@ -23,14 +23,10 @@ import java.util.UUID
 /**
  * Restricts a query to the caller's organization.
  *
- * Returns `Op.TRUE` only for a super admin operating with no organization
- * selected — the one case where unrestricted really is intended. Written as a
- * helper so that every query in this file scopes itself the same way, and so a
- * missing filter shows up as a missing call rather than as a subtly different
- * `select {}` body.
+ * Every caller, including a super admin, selects one active organization.
  */
 private fun OrgContext.clientScope(): Op<Boolean> =
-    scopedTo?.let { ClientsTable.organizationId eq it } ?: Op.TRUE
+    ClientsTable.organizationId eq organizationId!!
 
 /**
  * Client records, scoped to one organization.
@@ -51,9 +47,7 @@ fun Route.clientRoutes(storage: FileStorageService) {
 
     route("/api/clients") {
         get {
-            // allowGlobal: a super admin auditing the whole system can omit the
-            // header and get everything. No ordinary user can reach that branch.
-            val ctx = requireOrgAccess(memberships, allowGlobal = true) ?: return@get
+            val ctx = requireOrgAccess(memberships) ?: return@get
 
             val q = call.request.queryParameters["q"]?.lowercase()?.trim()
             val tag = call.request.queryParameters["tag"]?.lowercase()?.trim()
@@ -104,7 +98,7 @@ fun Route.clientRoutes(storage: FileStorageService) {
         }
 
         get("/{id}") {
-            val ctx = requireOrgAccess(memberships, allowGlobal = true) ?: return@get
+            val ctx = requireOrgAccess(memberships) ?: return@get
             val id = call.parameters["id"] ?: return@get call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Missing ID", "code" to "MISSING_ID"))
 
             val client = dbQuery {
@@ -139,9 +133,8 @@ fun Route.clientRoutes(storage: FileStorageService) {
         }
 
         post {
-            // No allowGlobal: a write has to land in exactly one organization,
-            // and "all of them" is not an answer. Even a super admin must say
-            // which one.
+            // A write has to land in exactly one active organization. Even a
+            // super admin must select it explicitly.
             val ctx = requireOrgAccess(memberships) ?: return@post
             val organizationId = ctx.organizationId!!
 
@@ -182,7 +175,7 @@ fun Route.clientRoutes(storage: FileStorageService) {
         }
 
         put("/{id}") {
-            val ctx = requireOrgAccess(memberships, allowGlobal = true) ?: return@put
+            val ctx = requireOrgAccess(memberships) ?: return@put
             val id = call.parameters["id"] ?: return@put call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Missing ID", "code" to "MISSING_ID"))
             val req = call.receive<UpdateClientRequest>()
             val now = LocalDateTime.now()
@@ -234,7 +227,7 @@ fun Route.clientRoutes(storage: FileStorageService) {
         }
 
         delete("/{id}") {
-            val ctx = requireOrgAccess(memberships, allowGlobal = true) ?: return@delete
+            val ctx = requireOrgAccess(memberships) ?: return@delete
             val id = call.parameters["id"] ?: return@delete call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Missing ID", "code" to "MISSING_ID"))
 
             val deletedFiles = dbQuery {

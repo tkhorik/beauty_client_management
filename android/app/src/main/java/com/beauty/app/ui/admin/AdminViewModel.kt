@@ -47,7 +47,7 @@ class AdminViewModel(private val repository: BeautyRepository) : ViewModel() {
      * Every reload after an action re-uses [loadAll], and flipping a shared
      * loading flag there would replace the list with a placeholder on every
      * suspend or revoke — including, in the past, throwing away
-     * [freshToken] mid-flight.
+     * [freshLink] mid-flight.
      */
     var initialLoading by mutableStateOf(true)
         private set
@@ -57,14 +57,14 @@ class AdminViewModel(private val repository: BeautyRepository) : ViewModel() {
         private set
 
     /**
-     * The raw token from the link just issued.
+     * The full URL from the link just issued.
      *
      * Held here rather than in the composable that displays it because it is
      * recoverable **exactly once**: the server stores only a hash. A
      * recomposition that dropped it would lose the link for good, with no way
      * to get it back other than issuing another.
      */
-    var freshToken by mutableStateOf<String?>(null)
+    var freshLink by mutableStateOf<String?>(null)
         private set
 
     /** The organization whose roster is open, and that roster. */
@@ -108,7 +108,7 @@ class AdminViewModel(private val repository: BeautyRepository) : ViewModel() {
             try {
                 val issued = repository.createCreationToken(label, maxUses, expiresInHours)
                 // Set before the reload, and never cleared by it.
-                freshToken = issued.token
+                freshLink = issued.url
                 notice = "LINK_ISSUED"
                 loadAll()
             } catch (e: Exception) {
@@ -119,8 +119,13 @@ class AdminViewModel(private val repository: BeautyRepository) : ViewModel() {
 
     fun revokeLink(id: String) = globalAction("LINK_REVOKED") { repository.revokeCreationToken(id) }
 
+    fun archiveOrganization(org: AdminOrganizationDto, confirmationSlug: String) =
+        globalAction("ORGANIZATION_ARCHIVED") {
+            repository.archiveOrganization(org.id, confirmationSlug)
+        }
+
     fun dismissFreshToken() {
-        freshToken = null
+        freshLink = null
     }
 
     // -- Membership of an arbitrary organization -----------------------------

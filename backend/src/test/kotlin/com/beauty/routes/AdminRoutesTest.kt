@@ -82,7 +82,10 @@ class AdminRoutesTest {
             setBody("""{"maxUses":$maxUses,"expiresInHours":24}""")
         }
         assertEquals(HttpStatusCode.Created, response.status, response.bodyAsText())
-        return Json.parseToJsonElement(response.bodyAsText()).jsonObject["token"]!!.jsonPrimitive.content
+        val body = Json.parseToJsonElement(response.bodyAsText()).jsonObject
+        val token = body["token"]!!.jsonPrimitive.content
+        assertEquals("http://127.0.0.1:5174/?orgToken=$token", body["url"]!!.jsonPrimitive.content)
+        return token
     }
 
     // -----------------------------------------------------------------------
@@ -106,6 +109,57 @@ class AdminRoutesTest {
 
         val links = client.get("/api/admin/organization-creation-tokens") { bearerAuth(alice) }
         assertEquals(HttpStatusCode.Forbidden, links.status)
+    }
+
+    @Test
+    fun `archiving requires the exact slug and immediately blocks organization access`() = testApplication {
+        startApp()
+        val (adminToken, _) = registerSuperAdmin("admin@example.com")
+        val alice = register("alice@example.com")
+        val creationToken = mintCreationToken(adminToken)
+        val created = client.post("/api/organizations") {
+            bearerAuth(alice)
+            contentType(ContentType.Application.Json)
+            setBody("""{"name":"Aura","slug":"aura","creationToken":"$creationToken"}""")
+        }
+        val orgId = Json.parseToJsonElement(created.bodyAsText()).jsonObject["id"]!!.jsonPrimitive.content
+
+        val wrong = client.post("/api/admin/organizations/$orgId/archive") {
+            bearerAuth(adminToken)
+            contentType(ContentType.Application.Json)
+            setBody("""{"confirmationSlug":"Aura"}""")
+        }
+        assertEquals(HttpStatusCode.BadRequest, wrong.status, wrong.bodyAsText())
+        assertEquals(HttpStatusCode.OK, client.get("/api/clients") {
+            bearerAuth(alice)
+            header(ORG_HEADER, orgId)
+        }.status)
+
+        val archived = client.post("/api/admin/organizations/$orgId/archive") {
+            bearerAuth(adminToken)
+            contentType(ContentType.Application.Json)
+            setBody("""{"confirmationSlug":"aura"}""")
+        }
+        assertEquals(HttpStatusCode.OK, archived.status, archived.bodyAsText())
+
+        val formerMemberAccess = client.get("/api/clients") {
+            bearerAuth(alice)
+            header(ORG_HEADER, orgId)
+        }
+        assertEquals(HttpStatusCode.Forbidden, formerMemberAccess.status)
+
+        val superAdminAccess = client.get("/api/clients") {
+            bearerAuth(adminToken)
+            header(ORG_HEADER, orgId)
+        }
+        assertEquals(HttpStatusCode.Forbidden, superAdminAccess.status)
+
+        val activeOrganizations = client.get("/api/organizations") { bearerAuth(adminToken) }
+        assertTrue(activeOrganizations.bodyAsText().contains("aura").not())
+
+        val inventory = client.get("/api/admin/organizations") { bearerAuth(adminToken) }
+        val archivedOrg = Json.parseToJsonElement(inventory.bodyAsText()).jsonArray.single().jsonObject
+        assertTrue(archivedOrg["archivedAt"]?.jsonPrimitive?.content?.isNotBlank() == true)
     }
 
     @Test

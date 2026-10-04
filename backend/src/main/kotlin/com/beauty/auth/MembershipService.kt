@@ -120,6 +120,16 @@ class MembershipService {
             ?.toMembership()
     }
 
+    /** Whether a tenant exists and has not been archived. */
+    suspend fun organizationIsActive(organizationId: String): Boolean = dbQuery {
+        OrganizationsTable
+            .select {
+                (OrganizationsTable.id eq organizationId) and
+                    OrganizationsTable.archivedAt.isNull()
+            }
+            .count() > 0
+    }
+
     /**
      * Every account-level fact an authorization decision needs, resolved in a
      * single query: role, suspension, and email verification.
@@ -210,7 +220,9 @@ class MembershipService {
      */
     suspend fun organizationsForUser(userId: String): List<MembershipWithOrg> = dbQuery {
         (UserOrganizationsTable innerJoin OrganizationsTable)
-            .select { UserOrganizationsTable.userId eq userId }
+            .select {
+                (UserOrganizationsTable.userId eq userId) and OrganizationsTable.archivedAt.isNull()
+            }
             .orderBy(OrganizationsTable.name to SortOrder.ASC)
             .map {
                 MembershipWithOrg(

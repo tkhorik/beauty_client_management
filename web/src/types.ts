@@ -139,6 +139,7 @@ export interface AdminOrganization {
   slug: string;
   createdByEmail: string | null;
   memberCount: number;
+  archivedAt: string | null;
   createdAt: string;
 }
 
@@ -160,6 +161,7 @@ export interface OrganizationCreationLink {
 /** The one-time response to issuing a link — the only place the raw token ever appears. */
 export interface CreateCreationLinkResult {
   token: string;
+  url: string;
   info: OrganizationCreationLink;
 }
 

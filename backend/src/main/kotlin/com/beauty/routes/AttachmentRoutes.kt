@@ -29,7 +29,7 @@ import java.util.UUID
 
 /** Restricts a visit lookup to the caller's organization. See `ClientRoutes.clientScope`. */
 private fun OrgContext.visitScope(): Op<Boolean> =
-    scopedTo?.let { VisitsTable.organizationId eq it } ?: Op.TRUE
+    VisitsTable.organizationId eq organizationId!!
 
 /**
  * Attachment upload and deletion.
@@ -165,7 +165,7 @@ fun Route.attachmentRoutes(storage: FileStorageService) {
         }
 
         get("/{id}/file") {
-            val ctx = requireOrgAccess(memberships, allowGlobal = true) ?: return@get
+            val ctx = requireOrgAccess(memberships) ?: return@get
             val id = call.parameters["id"] ?: return@get call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Missing ID", "code" to "MISSING_ID"))
 
             val attachment = dbQuery {
@@ -197,7 +197,7 @@ fun Route.attachmentRoutes(storage: FileStorageService) {
         }
 
         delete("/{id}") {
-            val ctx = requireOrgAccess(memberships, allowGlobal = true) ?: return@delete
+            val ctx = requireOrgAccess(memberships) ?: return@delete
             val id = call.parameters["id"] ?: return@delete call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Missing ID", "code" to "MISSING_ID"))
 
             val deletedFile = dbQuery {

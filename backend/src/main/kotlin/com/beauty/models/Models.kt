@@ -392,6 +392,10 @@ data class UpdateUserAdminRequest(
     val suspended: Boolean
 )
 
+/** Body for `POST /api/admin/organizations/{id}/archive`. */
+@Serializable
+data class ArchiveOrganizationRequest(val confirmationSlug: String)
+
 /** One organization, as listed to a `SUPER_ADMIN` across the whole system. */
 @Serializable
 data class AdminOrganizationDto(
@@ -401,6 +405,7 @@ data class AdminOrganizationDto(
     val createdByEmail: String? = null,
     /** Count of `ACTIVE` memberships only — pending/invited rows aren't "members" yet. */
     val memberCount: Int,
+    val archivedAt: String? = null,
     val createdAt: String
 )
 
@@ -443,6 +448,7 @@ data class CreateOrganizationCreationTokenRequest(
 @Serializable
 data class CreateOrganizationCreationTokenResponse(
     val token: String,
+    val url: String,
     val info: OrganizationCreationTokenDto
 )
 

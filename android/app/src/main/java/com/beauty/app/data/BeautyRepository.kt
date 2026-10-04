@@ -1,6 +1,7 @@
 package com.beauty.app.data
 
 import com.beauty.app.data.api.AdminOrganizationDto
+import com.beauty.app.data.api.ArchiveOrganizationRequest
 import com.beauty.app.data.api.AdminUserDto
 import com.beauty.app.data.api.AuthResponse
 import com.beauty.app.data.api.BeautyApi
@@ -261,6 +262,9 @@ class BeautyRepository(
         api.setUserSuspended(userId, UpdateUserAdminRequest(suspended))
 
     suspend fun getAdminOrganizations(): List<AdminOrganizationDto> = api.getAdminOrganizations()
+
+    suspend fun archiveOrganization(id: String, confirmationSlug: String) =
+        api.archiveOrganization(id, ArchiveOrganizationRequest(confirmationSlug))
 
     suspend fun getCreationTokens(): List<OrganizationCreationTokenDto> = api.getCreationTokens()
 

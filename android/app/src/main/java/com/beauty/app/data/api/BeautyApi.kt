@@ -301,8 +301,14 @@ data class AdminOrganizationDto(
     val slug: String,
     val createdByEmail: String? = null,
     val memberCount: Int = 0,
+    val archivedAt: String? = null,
     val createdAt: String
-)
+) {
+    val isArchived: Boolean get() = archivedAt != null
+}
+
+@Serializable
+data class ArchiveOrganizationRequest(val confirmationSlug: String)
 
 @Serializable
 data class UpdateUserAdminRequest(val suspended: Boolean)
@@ -344,6 +350,7 @@ data class CreateOrganizationCreationTokenRequest(
 @Serializable
 data class CreateOrganizationCreationTokenResponse(
     val token: String,
+    val url: String,
     val info: OrganizationCreationTokenDto
 )
 
@@ -505,6 +512,8 @@ interface BeautyApi {
     suspend fun setUserSuspended(userId: String, request: UpdateUserAdminRequest)
 
     suspend fun getAdminOrganizations(): List<AdminOrganizationDto>
+
+    suspend fun archiveOrganization(id: String, request: ArchiveOrganizationRequest)
 
     suspend fun getCreationTokens(): List<OrganizationCreationTokenDto>
 
@@ -737,6 +746,13 @@ class KtorBeautyApi(private val client: HttpClient) : BeautyApi {
 
     override suspend fun getAdminOrganizations(): List<AdminOrganizationDto> =
         client.get("api/admin/organizations").body()
+
+    override suspend fun archiveOrganization(id: String, request: ArchiveOrganizationRequest) {
+        client.post("api/admin/organizations/$id/archive") {
+            contentType(ContentType.Application.Json)
+            setBody(request)
+        }
+    }
 
     override suspend fun getCreationTokens(): List<OrganizationCreationTokenDto> =
         client.get("api/admin/organization-creation-tokens").body()
