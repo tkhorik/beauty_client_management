@@ -71,7 +71,7 @@ class AuthViewModelResetPasswordTest {
     }
 
     @Test fun `field errors from the server stay on their fields`() = runTest(dispatcher) {
-        val failure = clientError("""{"error":"Validation failed","errors":{"newPassword":"Too common."}}""")
+        val failure = clientError("""{"error":"Validation failed","fieldErrors":{"newPassword":{"code":"PASSWORD_TOO_SHORT","args":{"min":12}}}}""")
         val vm = AuthViewModel(object : FakeBeautyApi() {
             override suspend fun resetPassword(request: ResetPasswordRequest) { throw failure }
         }, mock<TokenStore>())
@@ -80,7 +80,7 @@ class AuthViewModelResetPasswordTest {
         advanceUntilIdle()
 
         val state = vm.resetPasswordState as AuthViewModel.ResetPasswordState.Error
-        assertEquals(mapOf("newPassword" to "Too common."), state.fieldErrors)
+        assertEquals(mapOf("newPassword" to "PASSWORD_TOO_SHORT:12"), state.fieldErrors)
     }
 
     /** A real [io.ktor.client.plugins.ClientRequestException] with a 400 body, as the login client throws it. */

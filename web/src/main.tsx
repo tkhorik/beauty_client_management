@@ -9,6 +9,8 @@ import { ForgotPasswordPage } from './components/ForgotPasswordPage.tsx'
 import { ResetPasswordPage } from './components/ResetPasswordPage.tsx'
 import { VerifyEmailPage } from './components/VerifyEmailPage.tsx'
 import { VerificationGate } from './components/VerificationWall.tsx'
+import { LocaleProvider } from './i18n/LocaleProvider.tsx'
+import { LanguageAccountSync } from './i18n/LanguageAccountSync.tsx'
 
 /**
  * Chooses between the application and the three screens that must work without
@@ -39,6 +41,7 @@ function Root() {
     default:
       return (
         <AuthProvider>
+          <LanguageAccountSync />
           {/* Inside AuthProvider, outside OrgProvider — the same placement, and
               the same reason, as the session-less pages above. A restricted
               account is refused the organization list along with everything
@@ -58,6 +61,6 @@ function Root() {
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <Root />
+    <LocaleProvider><Root /></LocaleProvider>
   </StrictMode>,
 )

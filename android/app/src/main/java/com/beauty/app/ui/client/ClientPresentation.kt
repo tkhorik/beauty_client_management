@@ -89,7 +89,7 @@ fun VisitStatusBadge(status: String) {
         modifier = Modifier.border(1.dp, color.copy(alpha = 0.25f), RoundedCornerShape(12.dp))
     ) {
         Text(
-            status,
+            com.beauty.app.ui.i18n.statusLabel(status),
             color = color,
             fontSize = 10.sp,
             fontWeight = FontWeight.Bold,

@@ -12,6 +12,7 @@ import com.beauty.app.data.api.RefreshRequest
 import com.beauty.app.data.api.RegisterRequest
 import com.beauty.app.data.api.ResetPasswordRequest
 import com.beauty.app.data.api.ValidationErrorResponse
+import com.beauty.app.data.api.fieldMessageCodes
 import com.beauty.app.data.local.OrgStore
 import com.beauty.app.data.local.TokenStore
 import io.ktor.client.call.body
@@ -29,8 +30,17 @@ class AuthViewModel(
      * Cleared on logout alongside the tokens. Nullable so the existing tests,
      * which have no Android context to build one from, need no change.
      */
-    private val orgStore: OrgStore? = null
+    private val orgStore: OrgStore? = null,
+    private val registrationLanguage: () -> String? = { null }
 ) : ViewModel() {
+
+    // Volatile drafts survive Activity recreation but are never written to saved state.
+    var loginPassword by mutableStateOf("")
+    var registerPassword by mutableStateOf("")
+    var registerConfirmPassword by mutableStateOf("")
+    var resetLink by mutableStateOf("")
+    var resetNewPassword by mutableStateOf("")
+    var resetConfirmPassword by mutableStateOf("")
 
     sealed interface LoginState {
         object Idle : LoginState
@@ -118,15 +128,16 @@ class AuthViewModel(
                 // Both halves together: the access token expires in minutes,
                 // and the refresh token is what keeps the user signed in.
                 tokenStore.saveSession(response.token, response.refreshToken, response.user.id)
+                loginPassword = ""
                 LoginState.Success
             } catch (e: ClientRequestException) {
                 if (e.response.status == HttpStatusCode.Unauthorized) {
-                    LoginState.Error("Invalid email or password.")
+                    LoginState.Error("INVALID_CREDENTIALS")
                 } else {
-                    LoginState.Error("Login failed. Please try again.")
+                    LoginState.Error("LOGIN_FAILED")
                 }
             } catch (e: Exception) {
-                LoginState.Error("Server could not be reached.")
+                LoginState.Error("NETWORK_ERROR")
             }
         }
     }
@@ -159,10 +170,13 @@ class AuthViewModel(
                     RegisterRequest(
                         email = normalisedEmail,
                         password = password,
-                        fullName = trimmedName
+                        fullName = trimmedName,
+                        languagePreference = registrationLanguage()
                     )
                 )
                 tokenStore.saveSession(response.token, response.refreshToken, response.user.id)
+                registerPassword = ""
+                registerConfirmPassword = ""
                 RegisterState.Success
             } catch (e: ClientRequestException) {
                 when (e.response.status) {
@@ -171,22 +185,22 @@ class AuthViewModel(
                         // about yet, so surface its messages rather than a
                         // generic one.
                         val parsed = runCatching { e.response.body<ValidationErrorResponse>() }.getOrNull()
-                        if (parsed != null && parsed.errors.isNotEmpty()) {
-                            RegisterState.Error(fieldErrors = parsed.errors)
+                        if (parsed != null && parsed.fieldMessageCodes().isNotEmpty()) {
+                            RegisterState.Error(fieldErrors = parsed.fieldMessageCodes())
                         } else {
-                            RegisterState.Error(message = "Please check the details you entered.")
+                            RegisterState.Error(message = "VALIDATION_FAILED")
                         }
                     }
                     HttpStatusCode.Conflict -> RegisterState.Error(
-                        fieldErrors = mapOf("email" to "An account with this email already exists.")
+                        fieldErrors = mapOf("email" to "EMAIL_ALREADY_EXISTS")
                     )
                     HttpStatusCode.TooManyRequests -> RegisterState.Error(
-                        message = "Too many attempts. Please wait a moment and try again."
+                        message = "TOO_MANY_ATTEMPTS"
                     )
-                    else -> RegisterState.Error(message = "Registration failed. Please try again.")
+                    else -> RegisterState.Error(message = "REGISTER_FAILED")
                 }
             } catch (e: Exception) {
-                RegisterState.Error(message = "Server could not be reached.")
+                RegisterState.Error(message = "NETWORK_ERROR")
             }
         }
     }
@@ -219,7 +233,7 @@ class AuthViewModel(
                 ForgotPasswordState.Sent
             } catch (e: ClientRequestException) {
                 if (e.response.status == HttpStatusCode.TooManyRequests) {
-                    ForgotPasswordState.Error("Too many requests. Please wait a minute and try again.")
+                    ForgotPasswordState.Error("TOO_MANY_ATTEMPTS")
                 } else {
                     ForgotPasswordState.Sent
                 }
@@ -228,7 +242,7 @@ class AuthViewModel(
                 // something the user can usefully be told apart from success.
                 ForgotPasswordState.Sent
             } catch (e: Exception) {
-                ForgotPasswordState.Error("Server could not be reached. Please check your connection.")
+                ForgotPasswordState.Error("NETWORK_ERROR")
             }
         }
     }
@@ -246,7 +260,7 @@ class AuthViewModel(
 
     fun resetPassword(token: String?, newPassword: String, confirmPassword: String) {
         val localErrors = buildMap {
-            if (token == null) put("link", "Paste the full reset link from the email.")
+            if (token == null) put("link", "REQUIRED_LINK")
             AuthValidation.passwordError(newPassword)?.let { put("newPassword", it) }
             AuthValidation.confirmPasswordError(newPassword, confirmPassword)
                 ?.let { put("confirmPassword", it) }
@@ -263,6 +277,9 @@ class AuthViewModel(
                 api.resetPassword(ResetPasswordRequest(token, newPassword))
                 tokenStore.clearToken()
                 orgStore?.clear()
+                resetLink = ""
+                resetNewPassword = ""
+                resetConfirmPassword = ""
                 ResetPasswordState.Done
             } catch (e: ClientRequestException) {
                 when (e.response.status) {
@@ -271,27 +288,27 @@ class AuthViewModel(
                         // link is still good. A flat `error` means the token is
                         // unknown, used or expired — one message for all three.
                         val parsed = runCatching { e.response.body<ValidationErrorResponse>() }.getOrNull()
-                        if (parsed != null && parsed.errors.isNotEmpty()) {
-                            ResetPasswordState.Error(fieldErrors = parsed.errors)
+                        if (parsed != null && parsed.fieldMessageCodes().isNotEmpty()) {
+                            ResetPasswordState.Error(fieldErrors = parsed.fieldMessageCodes())
                         } else {
                             ResetPasswordState.Error(
                                 fieldErrors = mapOf(
-                                    "link" to "This reset link is invalid or has expired. Please request a new one."
+                                    "link" to "INVALID_RESET_TOKEN"
                                 )
                             )
                         }
                     }
                     HttpStatusCode.TooManyRequests -> ResetPasswordState.Error(
-                        message = "Too many attempts. Please wait a moment and try again."
+                        message = "TOO_MANY_ATTEMPTS"
                     )
-                    else -> ResetPasswordState.Error(message = "Could not reset the password. Please try again.")
+                    else -> ResetPasswordState.Error(message = "RESET_FAILED")
                 }
             } catch (e: ResponseException) {
-                ResetPasswordState.Error(message = "Could not reset the password. Please try again.")
+                ResetPasswordState.Error(message = "RESET_FAILED")
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                ResetPasswordState.Error(message = "Server could not be reached. Please check your connection.")
+                ResetPasswordState.Error(message = "NETWORK_ERROR")
             }
         }
     }

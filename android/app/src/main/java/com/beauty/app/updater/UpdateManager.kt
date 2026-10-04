@@ -90,7 +90,7 @@ class UpdateManager(
                 }
             },
             onFailure = { error ->
-                _state.value = UpdateState.Error(error.message ?: "Failed to check for updates")
+                _state.value = UpdateState.Error("UPDATE_CHECK")
             }
         )
     }
@@ -148,7 +148,7 @@ class UpdateManager(
                 },
                 onFailure = { error ->
                     if (error !is CancellationException) {
-                        _state.value = UpdateState.Error(error.message ?: "APK download failed", release)
+                        _state.value = UpdateState.Error("UPDATE_DOWNLOAD", release)
                     }
                 }
             )

@@ -16,6 +16,7 @@ import { PhotoCompareModal } from './components/PhotoCompareModal';
 import { SettingsModal } from './components/SettingsModal';
 import { VerificationBanner } from './components/VerificationBanner';
 import { Users, Sparkles } from 'lucide-react';
+import { useAppTranslation } from './i18n/LocaleProvider';
 
 export function App() {
   const { token, initialising, logout } = useAuth();
@@ -108,6 +109,7 @@ function AuthenticatedApp({
   organization: Organization;
   onOpenAdmin: () => void;
 }) {
+  const { t } = useAppTranslation();
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -180,17 +182,17 @@ function AuthenticatedApp({
       <main>
         {loading ? (
           <div style={{ textAlign: 'center', padding: '60px', color: 'var(--rose-gold-primary)' }}>
-            <p>Loading Beauty Client Directory & Procedure Logs...</p>
+            <p>{t('clients.loading')}</p>
           </div>
         ) : clients.length === 0 ? (
           <div className="glass-panel" style={{ padding: '60px', textAlign: 'center', borderRadius: '20px' }}>
             <Users size={48} color="var(--rose-gold-primary)" style={{ opacity: 0.7, marginBottom: '16px' }} />
-            <h2 className="text-gradient" style={{ fontSize: '22px', marginBottom: '8px' }}>No Client Profiles Found</h2>
+            <h2 className="text-gradient" style={{ fontSize: '22px', marginBottom: '8px' }}>{t('clients.none')}</h2>
             <p style={{ color: 'var(--text-muted)', marginBottom: '20px' }}>
-              {searchQuery || selectedTag ? 'No clients match your filter criteria.' : 'Get started by creating your first beauty client record.'}
+              {searchQuery || selectedTag ? t('clients.noMatch') : t('clients.first')}
             </p>
             <button className="btn-rose" onClick={() => setIsNewClientOpen(true)}>
-              <Sparkles size={18} /> Create Client Profile
+              <Sparkles size={18} /> {t('clients.create')}
             </button>
           </div>
         ) : (

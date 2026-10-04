@@ -1,3 +1,4 @@
+import { useAppTranslation } from '../i18n/LocaleProvider';
 import React, { useState } from 'react';
 import { api, writeErrorMessage } from '../services/api';
 import { X, Plus, Trash2, UserPlus } from 'lucide-react';
@@ -8,15 +9,13 @@ interface NewClientModalProps {
 }
 
 export const NewClientModal: React.FC<NewClientModalProps> = ({ onClose, onSuccess }) => {
+  const { t } = useAppTranslation();
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
   const [tagInput, setTagInput] = useState('');
-  const [tags, setTags] = useState<string[]>(['VIP']);
-  const [customFields, setCustomFields] = useState<Array<{ key: string; value: string }>>([
-    { key: 'Skin Type', value: 'Sensitive' },
-    { key: 'Allergies', value: 'None' }
-  ]);
+  const [tags, setTags] = useState<string[]>([]);
+  const [customFields, setCustomFields] = useState<Array<{ key: string; value: string }>>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleAddTag = () => {
@@ -48,7 +47,7 @@ export const NewClientModal: React.FC<NewClientModalProps> = ({ onClose, onSucce
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || !phone.trim()) {
-      alert('Please fill in Client Name and Phone Number.');
+      alert(t('newClientModal.pleaseFillInClientNameAndPhoneNumber'));
       return;
     }
 
@@ -71,7 +70,7 @@ export const NewClientModal: React.FC<NewClientModalProps> = ({ onClose, onSucce
       onSuccess();
       onClose();
     } catch (err) {
-      alert(writeErrorMessage(err, 'Failed to create client profile'));
+      alert(writeErrorMessage(err, t('newClientModal.failedToCreateClientProfile')));
     } finally {
       setIsSubmitting(false);
     }
@@ -108,9 +107,9 @@ export const NewClientModal: React.FC<NewClientModalProps> = ({ onClose, onSucce
           background: 'rgba(15, 14, 19, 0.9)'
         }}>
           <h2 className="text-gradient" style={{ fontSize: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <UserPlus size={20} /> Create New Client Profile
+            <UserPlus size={20} /> {t('newClientModal.createNewClientProfile')}
           </h2>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
+          <button aria-label={t('common.close')} onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
             <X size={22} />
           </button>
         </div>
@@ -120,19 +119,19 @@ export const NewClientModal: React.FC<NewClientModalProps> = ({ onClose, onSucce
           
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
             <div>
-              <label style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px', display: 'block' }}>Full Name *</label>
+              <label style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px', display: 'block' }}>{t('newClientModal.fullNameRequired')}</label>
               <input
                 type="text"
                 required
                 className="input-field"
-                placeholder="e.g. Victoria Sterling"
+                placeholder={t('newClientModal.eGVictoriaSterling')}
                 value={name}
                 onChange={(e) => setName(e.target.value)}
               />
             </div>
 
             <div>
-              <label style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px', display: 'block' }}>Phone Number *</label>
+              <label style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px', display: 'block' }}>{t('newClientModal.phoneNumberRequired')}</label>
               <input
                 type="text"
                 required
@@ -145,7 +144,7 @@ export const NewClientModal: React.FC<NewClientModalProps> = ({ onClose, onSucce
           </div>
 
           <div>
-            <label style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px', display: 'block' }}>Email Address (Optional)</label>
+            <label style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px', display: 'block' }}>{t('newClientModal.emailOptional')}</label>
             <input
               type="email"
               className="input-field"
@@ -157,23 +156,23 @@ export const NewClientModal: React.FC<NewClientModalProps> = ({ onClose, onSucce
 
           {/* Client Tags */}
           <div>
-            <label style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px', display: 'block' }}>Primary Client Tags</label>
+            <label style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px', display: 'block' }}>{t('newClientModal.primaryTags')}</label>
             <div style={{ display: 'flex', gap: '8px', marginBottom: '10px' }}>
               <input
                 type="text"
                 className="input-field"
-                placeholder="Add tag (e.g. Sensitive Skin, Lash Extensions)..."
+                placeholder={t('newClientModal.addTagPlaceholder')}
                 value={tagInput}
                 onChange={(e) => setTagInput(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddTag(); } }}
               />
-              <button type="button" className="btn-secondary" onClick={handleAddTag}>Add</button>
+              <button type="button" className="btn-secondary" onClick={handleAddTag}>{t('newClientModal.add')}</button>
             </div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-              {tags.map(t => (
-                <span key={t} className="tag-badge" style={{ padding: '4px 10px' }}>
-                  {t}
-                  <X size={12} style={{ cursor: 'pointer', marginLeft: '4px' }} onClick={() => handleRemoveTag(t)} />
+              {tags.map(tag => (
+                <span key={tag} className="tag-badge" style={{ padding: '4px 10px' }}>
+                  {tag}
+                  <button type="button" aria-label={t('common.remove')} style={{ background: 'none', border: 'none', color: 'inherit', padding: 0, cursor: 'pointer' }} onClick={() => handleRemoveTag(tag)}><X size={12} /></button>
                 </span>
               ))}
             </div>
@@ -182,9 +181,9 @@ export const NewClientModal: React.FC<NewClientModalProps> = ({ onClose, onSucce
           {/* Dynamic Custom Fields */}
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-              <label style={{ fontSize: '12px', color: 'var(--rose-gold-primary)', fontWeight: 600 }}>Custom Dynamic Client Attributes</label>
+              <label style={{ fontSize: '12px', color: 'var(--rose-gold-primary)', fontWeight: 600 }}>{t('newClientModal.customAttributes')}</label>
               <button type="button" className="btn-secondary" style={{ padding: '4px 10px', fontSize: '11px' }} onClick={handleAddField}>
-                <Plus size={12} /> Add Field
+                <Plus size={12} /> {t('newClientModal.addField')}
               </button>
             </div>
 
@@ -193,19 +192,19 @@ export const NewClientModal: React.FC<NewClientModalProps> = ({ onClose, onSucce
                 <div key={idx} style={{ display: 'flex', gap: '10px' }}>
                   <input
                     type="text"
-                    placeholder="Attribute (e.g. Skin Type)"
+                    placeholder={t('newClientModal.attributePlaceholder')}
                     className="input-field"
                     value={field.key}
                     onChange={(e) => handleFieldChange(idx, 'key', e.target.value)}
                   />
                   <input
                     type="text"
-                    placeholder="Value (e.g. Combination)"
+                    placeholder={t('newClientModal.valuePlaceholder')}
                     className="input-field"
                     value={field.value}
                     onChange={(e) => handleFieldChange(idx, 'value', e.target.value)}
                   />
-                  <button type="button" onClick={() => handleRemoveField(idx)} style={{ background: 'none', border: 'none', color: '#f87171', cursor: 'pointer' }}>
+                  <button type="button" aria-label={t('common.remove')} onClick={() => handleRemoveField(idx)} style={{ background: 'none', border: 'none', color: '#f87171', cursor: 'pointer' }}>
                     <Trash2 size={16} />
                   </button>
                 </div>
@@ -214,9 +213,9 @@ export const NewClientModal: React.FC<NewClientModalProps> = ({ onClose, onSucce
           </div>
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '12px', paddingTop: '16px', borderTop: '1px solid var(--border-color)' }}>
-            <button type="button" className="btn-secondary" onClick={onClose}>Cancel</button>
+            <button type="button" className="btn-secondary" onClick={onClose}>{t('newClientModal.cancel')}</button>
             <button type="submit" className="btn-rose" disabled={isSubmitting}>
-              {isSubmitting ? 'Creating...' : 'Create Client Profile'}
+              {isSubmitting ? t('newClientModal.creating') : t('newClientModal.createClientProfile')}
             </button>
           </div>
         </form>

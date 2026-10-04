@@ -1,3 +1,4 @@
+import { useAppTranslation } from '../i18n/LocaleProvider';
 import React, { useState } from 'react';
 import type { Client } from '../types';
 import { api, writeErrorMessage } from '../services/api';
@@ -10,6 +11,7 @@ interface EditClientModalProps {
 }
 
 export const EditClientModal: React.FC<EditClientModalProps> = ({ client, onClose, onSuccess }) => {
+  const { t } = useAppTranslation();
   const [name, setName] = useState(client.name);
   const [phone, setPhone] = useState(client.phone);
   const [email, setEmail] = useState(client.email ?? '');
@@ -56,7 +58,7 @@ export const EditClientModal: React.FC<EditClientModalProps> = ({ client, onClos
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || !phone.trim()) {
-      setError('Please fill in Client Name and Phone Number.');
+      setError(t('editClientModal.pleaseFillInClientNameAndPhoneNumber'));
       return;
     }
     setError('');
@@ -80,7 +82,7 @@ export const EditClientModal: React.FC<EditClientModalProps> = ({ client, onClos
       onSuccess();
       onClose();
     } catch (err) {
-      setError(writeErrorMessage(err, 'Failed to save changes. Please try again.'));
+      setError(writeErrorMessage(err,t('editClientModal.failedToSaveChangesPleaseTryAgain')));
     } finally {
       setIsSubmitting(false);
     }
@@ -117,9 +119,9 @@ export const EditClientModal: React.FC<EditClientModalProps> = ({ client, onClos
           background: 'rgba(15, 14, 19, 0.9)'
         }}>
           <h2 className="text-gradient" style={{ fontSize: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Edit2 size={20} /> Edit Client Profile
+            <Edit2 size={20} /> {t('editClientModal.editClientProfile')}
           </h2>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
+          <button aria-label={t('common.close')} onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
             <X size={22} />
           </button>
         </div>
@@ -129,19 +131,19 @@ export const EditClientModal: React.FC<EditClientModalProps> = ({ client, onClos
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
             <div>
-              <label style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px', display: 'block' }}>Full Name *</label>
+              <label style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px', display: 'block' }}>{t('editClientModal.fullName')}</label>
               <input
                 type="text"
                 required
                 className="input-field"
-                placeholder="e.g. Victoria Sterling"
+                placeholder={t('editClientModal.eGVictoriaSterling')}
                 value={name}
                 onChange={(e) => setName(e.target.value)}
               />
             </div>
 
             <div>
-              <label style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px', display: 'block' }}>Phone Number *</label>
+              <label style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px', display: 'block' }}>{t('editClientModal.phoneNumber')}</label>
               <input
                 type="text"
                 required
@@ -154,7 +156,7 @@ export const EditClientModal: React.FC<EditClientModalProps> = ({ client, onClos
           </div>
 
           <div>
-            <label style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px', display: 'block' }}>Email Address (Optional)</label>
+            <label style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px', display: 'block' }}>{t('editClientModal.emailAddressOptional')}</label>
             <input
               type="email"
               className="input-field"
@@ -166,23 +168,23 @@ export const EditClientModal: React.FC<EditClientModalProps> = ({ client, onClos
 
           {/* Client Tags */}
           <div>
-            <label style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px', display: 'block' }}>Primary Client Tags</label>
+            <label style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px', display: 'block' }}>{t('editClientModal.primaryClientTags')}</label>
             <div style={{ display: 'flex', gap: '8px', marginBottom: '10px' }}>
               <input
                 type="text"
                 className="input-field"
-                placeholder="Add tag (e.g. Sensitive Skin, Lash Extensions)..."
+                placeholder={t('editClientModal.addTagEGSensitiveSkinLashExtensions')}
                 value={tagInput}
                 onChange={(e) => setTagInput(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddTag(); } }}
               />
-              <button type="button" className="btn-secondary" onClick={handleAddTag}>Add</button>
+              <button type="button" className="btn-secondary" onClick={handleAddTag}>{t('editClientModal.add')}</button>
             </div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-              {tags.map(t => (
-                <span key={t} className="tag-badge" style={{ padding: '4px 10px' }}>
-                  {t}
-                  <X size={12} style={{ cursor: 'pointer', marginLeft: '4px' }} onClick={() => handleRemoveTag(t)} />
+              {tags.map(tag => (
+                <span key={tag} className="tag-badge" style={{ padding: '4px 10px' }}>
+                  {tag}
+                  <button type="button" aria-label={t('common.remove')} style={{ background: 'none', border: 'none', color: 'inherit', padding: 0, cursor: 'pointer' }} onClick={() => handleRemoveTag(tag)}><X size={12} /></button>
                 </span>
               ))}
             </div>
@@ -191,9 +193,9 @@ export const EditClientModal: React.FC<EditClientModalProps> = ({ client, onClos
           {/* Dynamic Custom Fields */}
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-              <label style={{ fontSize: '12px', color: 'var(--rose-gold-primary)', fontWeight: 600 }}>Custom Dynamic Client Attributes</label>
+              <label style={{ fontSize: '12px', color: 'var(--rose-gold-primary)', fontWeight: 600 }}>{t('editClientModal.customDynamicClientAttributes')}</label>
               <button type="button" className="btn-secondary" style={{ padding: '4px 10px', fontSize: '11px' }} onClick={handleAddField}>
-                <Plus size={12} /> Add Field
+                <Plus size={12} /> {t('editClientModal.addField')}
               </button>
             </div>
 
@@ -202,19 +204,19 @@ export const EditClientModal: React.FC<EditClientModalProps> = ({ client, onClos
                 <div key={idx} style={{ display: 'flex', gap: '10px' }}>
                   <input
                     type="text"
-                    placeholder="Attribute (e.g. Skin Type)"
+                    placeholder={t('editClientModal.attributeEGSkinType')}
                     className="input-field"
                     value={field.key}
                     onChange={(e) => handleFieldChange(idx, 'key', e.target.value)}
                   />
                   <input
                     type="text"
-                    placeholder="Value (e.g. Combination)"
+                    placeholder={t('editClientModal.valueEGCombination')}
                     className="input-field"
                     value={field.value}
                     onChange={(e) => handleFieldChange(idx, 'value', e.target.value)}
                   />
-                  <button type="button" onClick={() => handleRemoveField(idx)} style={{ background: 'none', border: 'none', color: '#f87171', cursor: 'pointer' }}>
+                  <button type="button" aria-label={t('common.remove')} onClick={() => handleRemoveField(idx)} style={{ background: 'none', border: 'none', color: '#f87171', cursor: 'pointer' }}>
                     <Trash2 size={16} />
                   </button>
                 </div>
@@ -237,9 +239,9 @@ export const EditClientModal: React.FC<EditClientModalProps> = ({ client, onClos
           )}
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '12px', paddingTop: '16px', borderTop: '1px solid var(--border-color)' }}>
-            <button type="button" className="btn-secondary" onClick={onClose}>Cancel</button>
+            <button type="button" className="btn-secondary" onClick={onClose}>{t('editClientModal.cancel')}</button>
             <button type="submit" className="btn-rose" disabled={isSubmitting}>
-              {isSubmitting ? 'Saving...' : 'Save Changes'}
+              {isSubmitting ?t('editClientModal.saving') :t('editClientModal.saveChanges')}
             </button>
           </div>
         </form>

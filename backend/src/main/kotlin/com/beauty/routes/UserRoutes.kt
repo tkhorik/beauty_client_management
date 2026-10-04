@@ -66,6 +66,12 @@ fun Route.userRoutes() {
                 call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Invalid language preference or revision", "code" to "INVALID_LANGUAGE"))
                 return@put
             }
+            // A delayed client request may retry after its session has changed.
+            // Never apply the previous account's pending preference to the new caller.
+            if (req.expectedAccountId != null && req.expectedAccountId != userId) {
+                call.respond(HttpStatusCode.Forbidden, mapOf("error" to "The active account changed", "code" to "ACCOUNT_CHANGED"))
+                return@put
+            }
             if (req.preference !in Languages.preferences || req.expectedRevision < 0) {
                 call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Invalid language preference or revision", "code" to "INVALID_LANGUAGE"))
                 return@put

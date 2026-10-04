@@ -1,5 +1,8 @@
 package com.beauty.app.ui.auth
 
+import androidx.compose.runtime.saveable.rememberSaveable
+import com.beauty.app.ui.i18n.localizedMessage
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -23,6 +26,7 @@ import com.beauty.app.ui.theme.CardSurface
 import com.beauty.app.ui.theme.RoseGoldPrimary
 import com.beauty.app.ui.theme.TextLight
 import com.beauty.app.ui.theme.TextMuted
+import com.beauty.app.ui.i18n.LanguageSelector
 
 @Composable
 fun RegisterScreen(
@@ -30,10 +34,10 @@ fun RegisterScreen(
     onRegisterSuccess: () -> Unit,
     onNavigateToLogin: () -> Unit
 ) {
-    var fullName by remember { mutableStateOf("") }
-    var email by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
-    var confirmPassword by remember { mutableStateOf("") }
+    var fullName by rememberSaveable { mutableStateOf("") }
+    var email by rememberSaveable { mutableStateOf("") }
+    var password by viewModel::registerPassword
+    var confirmPassword by viewModel::registerConfirmPassword
     var showPassword by remember { mutableStateOf(false) }
 
     val state = viewModel.registerState
@@ -76,23 +80,25 @@ fun RegisterScreen(
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
                 Text(
-                    text = "Aura Beauty Log",
+                    text = stringResource(com.beauty.app.R.string.aura_beauty_log),
                     color = RoseGoldPrimary,
                     fontWeight = FontWeight.Bold,
                     fontSize = 24.sp
                 )
                 Text(
-                    text = "Create your account",
+                    text = stringResource(com.beauty.app.R.string.create_your_account),
                     color = TextMuted,
                     fontSize = 14.sp
                 )
+
+                LanguageSelector(accountId = null, modifier = Modifier.fillMaxWidth())
 
                 Spacer(modifier = Modifier.height(4.dp))
 
                 AuthTextField(
                     value = fullName,
                     onValueChange = { fullName = it },
-                    label = "Full Name",
+                    label = stringResource(com.beauty.app.R.string.full_name),
                     error = fieldErrors["fullName"],
                     keyboardType = KeyboardType.Text
                 )
@@ -100,7 +106,7 @@ fun RegisterScreen(
                 AuthTextField(
                     value = email,
                     onValueChange = { email = it },
-                    label = "Email",
+                    label = stringResource(com.beauty.app.R.string.email),
                     error = fieldErrors["email"],
                     keyboardType = KeyboardType.Email
                 )
@@ -108,11 +114,11 @@ fun RegisterScreen(
                 AuthTextField(
                     value = password,
                     onValueChange = { password = it },
-                    label = "Password",
+                    label = stringResource(com.beauty.app.R.string.password),
                     error = fieldErrors["password"],
                     // Guidance shown up front, so the rule is not discovered
                     // only by having the form rejected.
-                    helper = "At least ${AuthValidation.PASSWORD_MIN_LENGTH} characters.",
+                    helper = stringResource(com.beauty.app.R.string.password_minimum, AuthValidation.PASSWORD_MIN_LENGTH),
                     keyboardType = KeyboardType.Password,
                     isPassword = true,
                     showPassword = showPassword,
@@ -122,7 +128,7 @@ fun RegisterScreen(
                 AuthTextField(
                     value = confirmPassword,
                     onValueChange = { confirmPassword = it },
-                    label = "Confirm Password",
+                    label = stringResource(com.beauty.app.R.string.confirm_password),
                     error = fieldErrors["confirmPassword"],
                     keyboardType = KeyboardType.Password,
                     isPassword = true,
@@ -133,7 +139,7 @@ fun RegisterScreen(
                 // Failures that belong to no single field.
                 errorState?.message?.let { message ->
                     Text(
-                        text = message,
+                        text = localizedMessage(message),
                         color = MaterialTheme.colorScheme.error,
                         fontSize = 13.sp
                     )
@@ -156,7 +162,7 @@ fun RegisterScreen(
                         )
                     } else {
                         Text(
-                            text = "Create Account",
+                            text = stringResource(com.beauty.app.R.string.create_account),
                             color = Color.Black,
                             fontWeight = FontWeight.Bold,
                             fontSize = 15.sp
@@ -166,7 +172,7 @@ fun RegisterScreen(
 
                 TextButton(onClick = onNavigateToLogin, enabled = !isLoading) {
                     Text(
-                        text = "Already have an account? Sign in",
+                        text = stringResource(com.beauty.app.R.string.already_have_an_account_sign_in),
                         color = RoseGoldPrimary,
                         fontSize = 13.sp
                     )
@@ -209,7 +215,7 @@ private fun AuthTextField(
                     IconButton(onClick = onToggleShowPassword) {
                         Icon(
                             imageVector = if (showPassword) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
-                            contentDescription = if (showPassword) "Hide password" else "Show password",
+                            contentDescription = if (showPassword) stringResource(com.beauty.app.R.string.hide_password) else stringResource(com.beauty.app.R.string.show_password),
                             tint = TextMuted
                         )
                     }
@@ -230,7 +236,7 @@ private fun AuthTextField(
 
         when {
             error != null -> Text(
-                text = error,
+                text = localizedMessage(error),
                 color = MaterialTheme.colorScheme.error,
                 fontSize = 12.sp,
                 modifier = Modifier.padding(start = 4.dp, top = 4.dp)

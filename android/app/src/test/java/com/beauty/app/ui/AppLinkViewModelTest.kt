@@ -54,7 +54,7 @@ class AppLinkViewModelTest {
         advanceUntilIdle()
         assertEquals(listOf("email"), tokens)
         assertTrue(refreshed)
-        assertEquals("Email confirmed.", vm.verificationMessage)
+        assertEquals("EMAIL_CONFIRMED", vm.verificationMessage)
         assertFalse(vm.verifying)
         assertEquals(1, vm.profileRevision)
     }
@@ -67,9 +67,9 @@ class AppLinkViewModelTest {
         vm.verify(AppLink.VerifyEmail("email", null), api)
         advanceUntilIdle()
         assertFalse(vm.verifying)
-        assertFalse(vm.verificationMessage.orEmpty().contains("secret"))
+        assertEquals("VERIFY_NETWORK", vm.verificationMessage)
         vm.verify(AppLink.VerifyEmail(null, "invalid"), api)
         advanceUntilIdle()
-        assertTrue(vm.verificationMessage.orEmpty().contains("invalid"))
+        assertEquals("INVALID_VERIFICATION_TOKEN", vm.verificationMessage)
     }
 }

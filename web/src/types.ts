@@ -42,6 +42,7 @@ export interface CreateClientInput {
 
 /** A user's system-wide privilege. Mirrors `auth/Roles.GlobalRole` on the backend. */
 export type GlobalRole = 'USER' | 'SUPER_ADMIN';
+export type LanguagePreference = 'system' | 'en' | 'ru';
 
 /** The signed-in user's own profile — distinct from `Client`, which is a salon customer record. */
 export interface UserProfile {
@@ -71,6 +72,10 @@ export interface UserProfile {
    * response that forgot the field, not silently show nothing being wrong.
    */
   globalRole?: GlobalRole;
+  /** Explicit user choice; `system` means resolve the language on each device. */
+  languagePreference: LanguagePreference;
+  /** Optimistic-concurrency version for cross-device language changes. */
+  languageRevision: number;
 }
 
 /** A user's capability within one organization. Mirrors `auth/Roles.OrgRole` on the backend. */

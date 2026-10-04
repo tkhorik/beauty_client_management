@@ -1,0 +1,461 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="language">Language</string>
+    <string name="language_system">System default</string>
+    <string name="language_english">English</string>
+    <string name="language_russian">Russian</string>
+    <string name="language_saved_offline">Language changed. It will sync when you are online.</string>
+    <string name="language_conflict">Language was updated on another device.</string>
+    <string name="aura_beauty_log" formatted="false">Aura Beauty Log</string>
+    <string name="sign_in_to_continue" formatted="false">Sign in to continue</string>
+    <string name="email" formatted="false">Email</string>
+    <string name="password" formatted="false">Password</string>
+    <string name="hide_password" formatted="false">Hide password</string>
+    <string name="show_password" formatted="false">Show password</string>
+    <string name="sign_in" formatted="false">Sign In</string>
+    <string name="forgot_password" formatted="false">Forgot password?</string>
+    <string name="first_time_here_create_an_account" formatted="false">First time here? Create an account</string>
+    <string name="create_your_account" formatted="false">Create your account</string>
+    <string name="full_name" formatted="false">Full Name</string>
+    <string name="confirm_password" formatted="false">Confirm Password</string>
+    <string name="create_account" formatted="false">Create Account</string>
+    <string name="already_have_an_account_sign_in" formatted="false">Already have an account? Sign in</string>
+    <string name="reset_your_password" formatted="false">Reset your password</string>
+    <string name="send_reset_link" formatted="false">Send reset link</string>
+    <string name="already_have_a_reset_link" formatted="false">Already have a reset link?</string>
+    <string name="back_to_sign_in" formatted="false">Back to sign in</string>
+    <string name="check_your_email" formatted="false">Check your email</string>
+    <string name="paste_reset_link" formatted="false">Paste reset link</string>
+    <string name="password_changed" formatted="false">Password changed</string>
+    <string name="sign_in_2" formatted="false">Sign in</string>
+    <string name="choose_a_new_password" formatted="false">Choose a new password</string>
+    <string name="reset_link" formatted="false">Reset link</string>
+    <string name="reset_link_received_choose_your_new_password" formatted="false">Reset link received. Choose your new password.</string>
+    <string name="new_password" formatted="false">New password</string>
+    <string name="confirm_new_password" formatted="false">Confirm new password</string>
+    <string name="set_new_password" formatted="false">Set new password</string>
+    <string name="request_a_new_link" formatted="false">Request a new link</string>
+    <string name="new_client" formatted="false">New Client</string>
+    <string name="edit_client" formatted="false">Edit Client</string>
+    <string name="full_name_2" formatted="false">Full Name *</string>
+    <string name="phone_number" formatted="false">Phone Number *</string>
+    <string name="email_optional" formatted="false">Email (Optional)</string>
+    <string name="add_tag" formatted="false">Add tag</string>
+    <string name="remove_tag" formatted="false">Remove tag</string>
+    <string name="custom_attributes" formatted="false">Custom Attributes</string>
+    <string name="add" formatted="false">+ Add</string>
+    <string name="create_client" formatted="false">Create Client</string>
+    <string name="save_changes" formatted="false">Save Changes</string>
+    <string name="client_details" formatted="false">Client details</string>
+    <string name="refresh_visit_history" formatted="false">Refresh visit history</string>
+    <string name="log_new_visit" formatted="false">Log New Visit</string>
+    <string name="delete_client" formatted="false">Delete Client</string>
+    <string name="visit_history_procedure_timeline" formatted="false">Visit History &amp; Procedure Timeline</string>
+    <string name="waiting_to_upload" formatted="false">Waiting to upload</string>
+    <string name="upload_pending_tap_refresh_to_retry" formatted="false">Upload pending — tap Refresh to retry</string>
+    <string name="saved_on_this_device" formatted="false">Saved on this device</string>
+    <string name="log_first_visit" formatted="false">Log First Visit</string>
+    <string name="compare_before_after" formatted="false">Compare Before/After</string>
+    <string name="delete_client_2" formatted="false">Delete client?</string>
+    <string name="dynamic_custom_client_attributes" formatted="false">Dynamic Custom Client Attributes</string>
+    <string name="edit_attributes" formatted="false">Edit Attributes</string>
+    <string name="custom_client_attributes" formatted="false">Custom Client Attributes</string>
+    <string name="no_attributes_yet" formatted="false">No attributes yet.</string>
+    <string name="attribute_name_e_g_skin_tone" formatted="false">Attribute name (e.g. Skin Tone)</string>
+    <string name="value_e_g_warm_olive" formatted="false">Value (e.g. Warm Olive)</string>
+    <string name="add_attribute" formatted="false">+ Add Attribute</string>
+    <string name="saving" formatted="false">Saving…</string>
+    <string name="log_procedure_visit_entry" formatted="false">Log Procedure Visit Entry</string>
+    <string name="date_time" formatted="false">Date &amp; Time *</string>
+    <string name="duration_mins" formatted="false">Duration (mins)</string>
+    <string name="in_15_minute_steps" formatted="false">In 15-minute steps</string>
+    <string name="visit_status" formatted="false">Visit Status</string>
+    <string name="procedure_details_formula_notes" formatted="false">Procedure details &amp; formula notes *</string>
+    <string name="lash_mapping_dye_formula_ratios_laser_intensity_skin_tr" formatted="false">Lash mapping, dye formula ratios, laser intensity, skin treatment details…</string>
+    <string name="attach_procedure_media_compressed_before_upload" formatted="false">Attach procedure media (compressed before upload)</string>
+    <string name="saving_visit_record" formatted="false">Saving Visit Record…</string>
+    <string name="log_visit_record" formatted="false">Log Visit Record</string>
+    <string name="client_directory" formatted="false">Client Directory</string>
+    <string name="refresh_clients" formatted="false">Refresh clients</string>
+    <string name="more_options_update_available" formatted="false">More options, update available</string>
+    <string name="more_options" formatted="false">More options</string>
+    <string name="organizations_members" formatted="false">Organizations &amp; members</string>
+    <string name="account_settings" formatted="false">Account settings</string>
+    <string name="admin_panel" formatted="false">Admin panel</string>
+    <string name="sign_out" formatted="false">Sign out</string>
+    <string name="log_visit" formatted="false">Log Visit</string>
+    <string name="search_name_phone_email_or_tag" formatted="false">Search name, phone, email or tag</string>
+    <string name="sensitive_skin" formatted="false">Sensitive Skin</string>
+    <string name="lash_extensions" formatted="false">Lash Extensions</string>
+    <string name="hair_coloring" formatted="false">Hair Coloring</string>
+    <string name="skin_treatment" formatted="false">Skin Treatment</string>
+    <string name="clear_filters" formatted="false">Clear filters</string>
+    <string name="loading_saved_clients" formatted="false">Loading saved clients…</string>
+    <string name="synced_with_web" formatted="false">Synced with web</string>
+    <string name="no_clients_match_these_filters" formatted="false">No clients match these filters.</string>
+    <string name="no_cached_clients_are_available_connect_and_refresh" formatted="false">No cached clients are available. Connect and refresh.</string>
+    <string name="no_client_profiles_yet_create_your_first_client_to_get_" formatted="false">No client profiles yet. Create your first client to get started.</string>
+    <string name="choose_a_client" formatted="false">Choose a client</string>
+    <string name="create_a_client_before_logging_a_visit" formatted="false">Create a client before logging a visit.</string>
+    <string name="custom_specs_attributes" formatted="false">CUSTOM SPECS &amp; ATTRIBUTES</string>
+    <string name="before_after_comparison" formatted="false">Before &amp; After Comparison</string>
+    <string name="side_by_side_slider_inspection" formatted="false">Side-by-side &amp; slider inspection</string>
+    <string name="slider_split" formatted="false">Slider Split</string>
+    <string name="side_by_side" formatted="false">Side by Side</string>
+    <string name="could_not_load_these_photos_check_your_connection_and_t" formatted="false">Could not load these photos. Check your connection and try again.</string>
+    <string name="before_procedure_baseline_photo" formatted="false">Before procedure baseline photo</string>
+    <string name="post_procedure_finished_result" formatted="false">Post-procedure finished result</string>
+    <string name="after_procedure" formatted="false">After procedure</string>
+    <string name="before_procedure" formatted="false">Before procedure</string>
+    <string name="after_procedure_2" formatted="false">AFTER PROCEDURE</string>
+    <string name="before_procedure_2" formatted="false">BEFORE PROCEDURE</string>
+    <string name="drag_across_the_photo_to_split_before_after_results" formatted="false">Drag across the photo to split Before &amp; After results</string>
+    <string name="your_organizations" formatted="false">Your organizations</string>
+    <string name="waiting_for_approval" formatted="false">Waiting for approval</string>
+    <string name="join_an_organization" formatted="false">Join an organization</string>
+    <string name="organization_handle" formatted="false">Organization handle</string>
+    <string name="request_access" formatted="false">Request access</string>
+    <string name="create_an_organization" formatted="false">Create an organization</string>
+    <string name="organization_creation_link" formatted="false">Organization creation link</string>
+    <string name="checking_your_link" formatted="false">Checking your link…</string>
+    <string name="handle_optional" formatted="false">Handle (optional)</string>
+    <string name="creating" formatted="false">Creating…</string>
+    <string name="create_organization" formatted="false">Create organization</string>
+    <string name="invite_by_email" formatted="false">Invite by email</string>
+    <string name="they_need_an_account_already" formatted="false">They need an account already.</string>
+    <string name="send_invitation" formatted="false">Send invitation</string>
+    <string name="loading" formatted="false">Loading…</string>
+    <string name="no_organizations_yet" formatted="false">No organizations yet.</string>
+    <string name="new_link_copy_it_now" formatted="false">New link — copy it now</string>
+    <string name="issue_a_link" formatted="false">Issue a link</string>
+    <string name="label_optional" formatted="false">Label (optional)</string>
+    <string name="max_uses" formatted="false">Max uses</string>
+    <string name="expires_in_h" formatted="false">Expires in (h)</string>
+    <string name="issue_link" formatted="false">Issue link</string>
+    <string name="untitled_link" formatted="false">Untitled link</string>
+    <string name="revoke_link" formatted="false">Revoke link</string>
+    <string name="withdraw_invitation" formatted="false">Withdraw invitation</string>
+    <string name="decline_request" formatted="false">Decline request?</string>
+    <string name="withdraw_invitation_2" formatted="false">Withdraw invitation?</string>
+    <string name="remove_member" formatted="false">Remove member?</string>
+    <string name="account_settings_2" formatted="false">Account Settings</string>
+    <string name="profile" formatted="false">Profile</string>
+    <string name="your_sign_in_identifier_can_t_be_changed_here_yet" formatted="false">Your sign-in identifier — can\'t be changed here yet.</string>
+    <string name="profile_updated" formatted="false">Profile updated.</string>
+    <string name="save_name" formatted="false">Save Name</string>
+    <string name="change_password" formatted="false">Change Password</string>
+    <string name="current_password" formatted="false">Current Password</string>
+    <string name="new_password_2" formatted="false">New Password</string>
+    <string name="confirm_new_password_2" formatted="false">Confirm New Password</string>
+    <string name="confirm_your_email" formatted="false">Confirm your email</string>
+    <string name="checking" formatted="false">Checking…</string>
+    <string name="resend_link" formatted="false">Resend link</string>
+    <string name="i_ve_confirmed" formatted="false">I\'ve confirmed</string>
+    <string name="send_the_link_again" formatted="false">Send the link again</string>
+    <string name="wrong_address_sign_out" formatted="false">Wrong address? Sign out</string>
+    <string name="link_sent" formatted="false">Link sent</string>
+    <string name="grant_permission" formatted="false">Grant Permission</string>
+    <string name="install_now" formatted="false">Install Now</string>
+    <string name="open_google_play" formatted="false">Open Google Play</string>
+    <string name="download_install" formatted="false">Download &amp; Install</string>
+    <string name="new_version_available" formatted="false">New Version Available</string>
+    <string name="what_s_new_in_this_release" formatted="false">What\'s new in this release:</string>
+    <string name="release_notes" formatted="false">Release notes</string>
+    <string name="install_update" formatted="false">Install update</string>
+    <string name="view_download" formatted="false">View download</string>
+    <string name="update_now" formatted="false">Update now</string>
+    <string name="try_again" formatted="false">Try again</string>
+    <string name="check_for_updates" formatted="false">Check for updates</string>
+    <string name="copy_version" formatted="false">Copy version</string>
+    <string name="version_copied" formatted="false">Version copied</string>
+    <string name="google_play" formatted="false">Google Play</string>
+    <string name="github_releases" formatted="false">GitHub Releases</string>
+    <string name="download_from_github" formatted="false">Download from GitHub</string>
+    <string name="not_checked_yet" formatted="false">Not checked yet.</string>
+    <string name="checking_for_updates" formatted="false">Checking for updates…</string>
+    <string name="you_re_on_the_latest_version" formatted="false">You\'re on the latest version.</string>
+    <string name="just_now" formatted="false">just now</string>
+    <string name="back" formatted="false">Back</string>
+    <string name="continue_action" formatted="false">Continue</string>
+    <string name="organization" formatted="false">Organization</string>
+    <string name="no_tags" formatted="false">No tags</string>
+    <string name="view_visits" formatted="false">View visits →</string>
+    <string name="error_email_required">Email is required.</string>
+    <string name="error_email_invalid">Enter a valid email address.</string>
+    <string name="error_email_too_long">Email must be at most %1$d characters.</string>
+    <string name="error_name_required">Name is required.</string>
+    <string name="error_name_too_long">Name must be at most %1$d characters.</string>
+    <string name="error_password_required">Password is required.</string>
+    <string name="error_password_too_short">Password must be at least %1$d characters.</string>
+    <string name="error_password_too_long">Password must be at most %1$d bytes long.</string>
+    <string name="error_organization_name_required">Organization name is required.</string>
+    <string name="error_organization_name_too_long">Organization name must be at most %1$d characters.</string>
+    <string name="error_slug_required">Organization handle is required.</string>
+    <string name="error_slug_too_short">Organization handle must be at least %1$d characters.</string>
+    <string name="error_slug_too_long">Organization handle must be at most %1$d characters.</string>
+    <string name="error_slug_invalid">Organization handle may contain only lowercase letters, numbers and hyphens.</string>
+    <string name="error_slug_taken">That organization handle is already taken.</string>
+    <string name="error_password_unchanged">New password must be different from the current password.</string>
+    <string name="error_current_password_incorrect">Current password is incorrect.</string>
+    <string name="error_email_already_exists">An account with this email already exists.</string>
+    <string name="error_invalid_credentials">Invalid email or password.</string>
+    <string name="error_invalid_reset_token">This reset link is invalid or has expired. Please request a new one.</string>
+    <string name="error_invalid_verification_token">This verification link is invalid or has expired.</string>
+    <string name="error_creation_token_invalid">This organization creation link is invalid or has expired.</string>
+    <string name="error_last_admin">This is the only administrator.</string>
+    <string name="error_cannot_suspend_self">You cannot suspend your own account.</string>
+    <string name="error_already_a_member">You are already a member.</string>
+    <string name="error_organization_not_found">Organization not found.</string>
+    <string name="error_account_not_found">Account not found.</string>
+    <string name="error_membership_suspended">Membership is suspended.</string>
+    <string name="error_member_suspended">This member is suspended.</string>
+    <string name="error_validation_failed">Please check the details you entered.</string>
+    <string name="error_invalid_language">Unsupported language.</string>
+    <string name="error_session_expired">Session expired. Sign in again.</string>
+    <string name="error_client_not_found">Client not found.</string>
+    <string name="error_visit_not_found">Visit not found.</string>
+    <string name="error_attachment_not_found">Attachment not found.</string>
+    <string name="error_access_denied">Access is unavailable. Check your account and organization.</string>
+    <string name="error_network_error">Server could not be reached.</string>
+    <string name="error_action_failed">That action failed.</string>
+    <string name="error_too_many_attempts">Too many attempts. Please wait a moment and try again.</string>
+    <string name="error_reset_failed">Could not reset the password. Please try again.</string>
+    <string name="error_login_failed">Login failed. Please try again.</string>
+    <string name="error_register_failed">Registration failed. Please try again.</string>
+    <string name="error_profile_failed">Could not save changes. Please try again.</string>
+    <string name="error_password_change_failed">Could not change password. Please try again.</string>
+    <string name="error_required_link">Paste the full reset link from the email.</string>
+    <string name="error_password_mismatch">Passwords do not match.</string>
+    <string name="error_current_password_required">Enter your current password.</string>
+    <string name="error_verify_failed">Could not verify your email. Please try again.</string>
+    <string name="error_verify_network">Could not reach the server. Reopen the link to try again.</string>
+    <string name="error_email_confirmed">Email confirmed.</string>
+    <string name="error_link_sent">Link sent.</string>
+    <string name="error_request_approved">Request approved.</string>
+    <string name="error_request_declined">Request declined.</string>
+    <string name="error_member_removed">Member removed.</string>
+    <string name="error_role_updated">Role updated.</string>
+    <string name="error_invitation_sent">Invitation sent.</string>
+    <string name="error_link_revoked">Link revoked.</string>
+    <string name="error_link_issued">Link issued. Copy it now — it cannot be shown again.</string>
+    <string name="error_could_not_load_members">Could not load members.</string>
+    <string name="error_could_not_load_organizations">Could not load your organizations.</string>
+    <string name="error_could_not_create_organization">Could not create the organization.</string>
+    <string name="error_could_not_send_request">Could not send the request.</string>
+    <string name="error_could_not_issue_link">Could not issue the link.</string>
+    <string name="error_could_not_load_admin">Could not load admin data.</string>
+    <string name="error_could_not_refresh_visits">Could not refresh visit history. Previously loaded visits and visits saved on this device may be incomplete.</string>
+    <string name="error_could_not_save_attributes">Could not save attributes. Check your connection and try again.</string>
+    <string name="error_could_not_delete_client">Could not delete this client.</string>
+    <string name="error_enter_procedure_notes">Enter procedure notes.</string>
+    <string name="error_could_not_read_photo">Could not read selected photo</string>
+    <string name="error_could_not_save_visit">Could not save this visit on the device. Please try again.</string>
+    <string name="error_no_cached_clients">Could not reach the server — showing cached clients.</string>
+    <string name="error_invalid_create_link">Paste a valid creation link for this Aura environment.</string>
+    <string name="ui2_confirming_your_email" formatted="false">Confirming your email…</string>
+    <string name="ui2_reopen_your_verification_link_to_continue" formatted="false">Reopen your verification link to continue.</string>
+    <string name="ui2_could_not_reach_the_server" formatted="false">Could not reach the server</string>
+    <string name="ui2_no_clients_available_refresh_the_directory_or_create_a_client_on_" formatted="false">No clients available. Refresh the directory or create a client on the web first.</string>
+    <string name="ui2_aura_beauty_mobile" formatted="false">Aura Beauty Mobile</string>
+    <string name="ui2_client_procedure_logging_studio" formatted="false">Client &amp; Procedure Logging Studio</string>
+    <string name="ui2_search_clients_or_procedure_specs" formatted="false">Search clients or procedure specs...</string>
+    <string name="ui2_updating_directory" formatted="false">Updating directory…</string>
+    <string name="ui2_offline_showing_cached_data" formatted="false">Offline — showing cached data</string>
+    <string name="ui2_offline_cache" formatted="false">Offline cache</string>
+    <string name="ui2_synced_just_now" formatted="false">Synced just now</string>
+    <string name="ui2_no_app_available_to_open_the_link" formatted="false">No app available to open the link.</string>
+    <string name="ui2_this_client_is_no_longer_available_return_to_the_directory_and_re" formatted="false">This client is no longer available. Return to the directory and refresh.</string>
+    <string name="ui2_visit_saved_on_this_device_it_will_upload_when_connected" formatted="false">Visit saved on this device. It will upload when connected.</string>
+    <string name="ui2_no_visit_logs_found_for_this_client_yet" formatted="false">No visit logs found for this client yet.</string>
+    <string name="ui2_your_account_is_ready_it_just_needs_a_confirmed_email_address_bef" formatted="false">Your account is ready — it just needs a confirmed email address before you can use it.</string>
+    <string name="ui2_we_sent_a_confirmation_link_to" formatted="false">We sent a confirmation link to</string>
+    <string name="ui2_your_address" formatted="false">Your address</string>
+    <string name="ui2_still_unconfirmed_open_the_link_then_try_again" formatted="false">Still unconfirmed — open the link, then try again.</string>
+    <string name="ui2_i_ve_confirmed_my_email" formatted="false">I\'ve confirmed my email</string>
+    <string name="ui2_new_link_sent_it_can_take_a_minute_to_arrive" formatted="false">New link sent. It can take a minute to arrive.</string>
+    <string name="ui2_couldn_t_send_the_link_check_your_connection" formatted="false">Couldn\'t send the link. Check your connection.</string>
+    <string name="ui2_still_unconfirmed_try_the_link_again" formatted="false">Still unconfirmed — try the link again.</string>
+    <string name="ui2_link_sent_check_your_inbox_and_spam_folder" formatted="false">Link sent — check your inbox and spam folder.</string>
+    <string name="ui2_tap_to_review_changes_install" formatted="false">Tap to review changes &amp; install</string>
+    <string name="ui2_to_install_this_update_you_ll_need_to_allow_aura_beauty_to_instal" formatted="false">To install this update, you\'ll need to allow Aura Beauty to install unknown apps in settings.</string>
+    <string name="ui2_password_changed_you_ve_been_signed_out_of_every_other_device" formatted="false">Password changed. You\'ve been signed out of every other device.</string>
+    <string name="ui2_you_ve_been_signed_out_on_every_device_sign_in_with_your_new_pass" formatted="false">You\'ve been signed out on every device. Sign in with your new password.</string>
+    <string name="ui2_reset_link_received_choose_your_new_password" formatted="false">Reset link received. Choose your new password.</string>
+    <string name="ui2_no_clients_match_these_filters" formatted="false">No clients match these filters.</string>
+    <string name="ui2_retry" formatted="false">Retry</string>
+    <string name="ui2_no_photos_available" formatted="false">No photos available.</string>
+    <string name="ui2_a_photo_is_required" formatted="false">A photo is required.</string>
+    <string name="ui2_connection_unavailable" formatted="false">Connection unavailable.</string>
+    <string name="ui2_email_confirmed" formatted="false">Email confirmed.</string>
+    <string name="cancel">Cancel</string>
+    <string name="delete">Delete</string>
+    <string name="date">Date</string>
+    <string name="time">Time</string>
+    <string name="about">About</string>
+    <string name="updates">Updates</string>
+    <string name="source">Source</string>
+    <string name="new_badge">New</string>
+    <string name="all">All</string>
+    <string name="organizations">Organizations</string>
+    <string name="users">Users</string>
+    <string name="links">Links</string>
+    <string name="name">Name</string>
+    <string name="members">Members</string>
+    <string name="copy">Copy</string>
+    <string name="dismiss">Dismiss</string>
+    <string name="later">Later</string>
+    <string name="update">Update</string>
+    <string name="view">View</string>
+    <string name="install">Install</string>
+    <string name="you">You</string>
+    <string name="suspend">Suspend</string>
+    <string name="unsuspend">Unsuspend</string>
+    <string name="approve">Approve</string>
+    <string name="decline">Decline</string>
+    <string name="promote">Promote</string>
+    <string name="demote">Demote</string>
+    <string name="remove">Remove</string>
+    <string name="withdraw">Withdraw</string>
+    <string name="selected">Selected</string>
+    <string name="search">Search</string>
+    <string name="unknown">unknown</string>
+    <string name="your_address">your address</string>
+    <string name="password_minimum">At least %1$d characters.</string>
+    <string name="version_build">v%1$s (build %2$d)</string>
+    <string name="whats_new_version">What\'s new in v%1$s</string>
+    <string name="checked_time">Checked %1$s</string>
+    <string name="update_available">v%1$s is available.</string>
+    <string name="update_downloading">Downloading v%1$s… %2$d%%</string>
+    <string name="update_ready">v%1$s is downloaded and ready to install.</string>
+    <string name="update_banner_available">New update available: v%1$s</string>
+    <string name="update_banner_downloading">Downloading update… %1$d%%</string>
+    <string name="update_banner_ready">Update v%1$s ready to install</string>
+    <string name="download_size">Download size: %1$s</string>
+    <string name="client_directory_count">Client Directory · %1$d</string>
+    <string name="updated_date">Updated %1$s</string>
+    <string name="phone_value">Phone: %1$s</string>
+    <string name="email_value">Email: %1$s</string>
+    <string name="delete_client_confirmation">Are you sure you want to delete %1$s and all visit logs? Pending offline visits or photos must upload first.</string>
+    <string name="this_client">this client</string>
+    <string name="remove_attribute">Remove %1$s</string>
+    <string name="status_completed">Completed</string>
+    <string name="status_scheduled">Scheduled</string>
+    <string name="status_cancelled">Cancelled</string>
+    <string name="status_active">Active</string>
+    <string name="status_pending">Pending</string>
+    <string name="status_invited">Invited</string>
+    <string name="status_suspended">Suspended</string>
+    <string name="status_unknown">Unknown</string>
+    <string name="role_admin">Administrator</string>
+    <string name="role_member">Member</string>
+    <string name="role_super_admin">Super administrator</string>
+    <string name="photo_before">Before photo</string>
+    <string name="photo_after">After photo</string>
+    <string name="upload_before_photo">Upload Before Photo</string>
+    <string name="upload_after_photo">Upload After Photo</string>
+    <string name="preview_before_photo">Before photo preview</string>
+    <string name="preview_after_photo">After photo preview</string>
+    <string name="remove_before_photo">Remove before photo</string>
+    <string name="remove_after_photo">Remove after photo</string>
+    <string name="organization_created">Created %1$s. You are its administrator.</string>
+    <string name="organization_joined">You have joined %1$s.</string>
+    <string name="organization_requested">Request sent to %1$s. An administrator has to approve it.</string>
+    <string name="account_suspended">%1$s suspended.</string>
+    <string name="account_unsuspended">%1$s unsuspended.</string>
+    <string name="members_of">Members of %1$s</string>
+    <string name="error_client_name_required">Client name is required.</string>
+    <string name="error_phone_required">Phone number is required.</string>
+    <string name="error_duplicate_field">Custom field \"%1$s\" is entered more than once. Field names must be unique.</string>
+    <string name="error_duration_min">Duration must be at least %1$d minutes.</string>
+    <string name="error_duration_step">Duration must be in %1$d-minute steps (15, 30, 45, 60…).</string>
+    <string name="error_update_check">Could not check for updates. Please try again.</string>
+    <string name="error_update_download">Could not download the update. Please try again.</string>
+    <string name="organization_created_by">%1$s · created by %2$s</string>
+    <string name="unverified">Unverified</string>
+    <string name="link_usage">%1$d/%2$d used · expires %3$s</string>
+    <string name="revoked">Revoked</string>
+    <string name="exhausted">Exhausted</string>
+    <string name="decline_member_confirmation">Decline %1$s (%2$s)\'s request to join? They will not gain access to this organization\'s data.</string>
+    <string name="withdraw_member_confirmation">Withdraw the invitation for %1$s (%2$s)? They will no longer be able to accept it.</string>
+    <string name="remove_member_confirmation">Remove %1$s (%2$s) from this organization? Their access will be revoked immediately. Clients and visits they entered will stay with the organization.</string>
+    <string name="creation_link_help">Creating an organization requires a creation link from an administrator. Paste the whole link here.</string>
+    <string name="creation_link_invalid">This link is invalid, expired, or has already been used. Ask your administrator for a new one.</string>
+    <string name="handle_help">What colleagues type to request access. Lowercase letters, numbers and hyphens only. Leave blank to generate one.</string>
+    <string name="organization_example">Aura Downtown</string>
+    <string name="members_removal_help">Removing someone revokes their access immediately. Clients and visits they entered stay with the organization.</string>
+    <string name="admin_members_help">Pending and invited members are listed here too. Removing someone revokes their access immediately; the organization keeps their clients and visits.</string>
+    <string name="forgot_password_help">Enter the email address on your account and we\'ll send you a link to reset your password.</string>
+    <string name="forgot_password_sent">If an account exists for that address, a reset link is on its way. Open it in any browser, or copy it and paste it here to choose a new password. The link works once and expires within the hour.</string>
+    <string name="forgot_password_spam">Nothing arrived? Check your spam folder before requesting another link.</string>
+    <string name="verification_wall_help">Click the link in that email to unlock your account. If it isn\'t in your inbox, check your spam or junk folder — confirmation mail lands there more often than anywhere else.</string>
+    <string name="verification_banner_help">We sent a link to %1$s — check your spam folder if it hasn\'t arrived. After that, using Aura needs a confirmed address.</string>
+    <plurals name="visits_count">
+        <item quantity="one">%1$d Visit</item>
+        <item quantity="other">%1$d Visits</item>
+    </plurals>
+    <plurals name="total_visits">
+        <item quantity="one">%1$d Total Visit</item>
+        <item quantity="other">%1$d Total Visits</item>
+    </plurals>
+    <plurals name="visit_duration">
+        <item quantity="one">Duration: %1$d minute</item>
+        <item quantity="other">Duration: %1$d minutes</item>
+    </plurals>
+    <plurals name="attachments_count">
+        <item quantity="one">Attachments (%1$d Photo/File):</item>
+        <item quantity="other">Attachments (%1$d Photos/Files):</item>
+    </plurals>
+    <plurals name="members_count">
+        <item quantity="one">%1$d member</item>
+        <item quantity="other">%1$d members</item>
+    </plurals>
+    <plurals name="organizations_count">
+        <item quantity="one">%1$d organization</item>
+        <item quantity="other">%1$d organizations</item>
+    </plurals>
+    <plurals name="confirm_email_days">
+        <item quantity="one">Confirm your email within %1$d day</item>
+        <item quantity="other">Confirm your email within %1$d days</item>
+    </plurals>
+    <plurals name="synced_minutes">
+        <item quantity="one">Synced %1$d minute ago</item>
+        <item quantity="other">Synced %1$d minutes ago</item>
+    </plurals>
+    <string name="error_pending_uploads">Upload pending visits and photos before deleting this client.</string>
+    <string name="error_session_changed">Your session changed. Please reopen this screen.</string>
+    <string name="error_photo_unavailable">Photo is no longer available.</string>
+    <string name="error_record_unavailable">This record is no longer available. Refresh and try again.</string>
+    <string name="error_record_conflict">This change conflicts with the current record. Refresh and try again.</string>
+    <string name="error_photo_too_large">This photo is too large. Please select a smaller image.</string>
+    <string name="error_photo_upload_pending">Photo upload is pending.</string>
+    <string name="unavailable">Unavailable</string>
+    <string name="close">Close</string>
+    <string name="refresh">Refresh</string>
+    <string name="size_bytes">%1$d B</string>
+    <string name="size_kilobytes">%1$s KB</string>
+    <string name="size_megabytes">%1$s MB</string>
+    <string name="tags">Tags</string>
+    <string name="add_action">Add</string>
+    <string name="attribute">Attribute</string>
+    <string name="value_label">Value</string>
+    <string name="reset_link_help">Copy the reset link from the email (long-press it, then Copy link) and paste it below.</string>
+    <string name="error_max_uses_too_small">Allow at least one use.</string>
+    <string name="error_expiry_too_short">The link must remain valid for at least one hour.</string>
+    <string name="error_expiry_too_long">The link cannot remain valid for more than %1$d hours.</string>
+    <string name="error_account_changed">Your account changed. Please try again.</string>
+    <string name="error_invalid_token">Your session is invalid. Sign in again.</string>
+    <string name="error_email_not_verified">Your changes were not saved. Confirm your email address first.</string>
+    <string name="error_missing_organization">Choose an organization first.</string>
+    <string name="error_not_a_member">You are not a member of this organization.</string>
+    <string name="error_admin_required">Administrator access is required.</string>
+    <string name="error_super_admin_required">Super administrator access is required.</string>
+    <string name="error_user_not_found">User not found.</string>
+    <string name="error_missing_id">An item identifier is missing.</string>
+    <string name="error_one_file_required">Upload one file at a time.</string>
+    <string name="error_missing_attachment_data">Select a file and visit first.</string>
+    <string name="error_attachment_too_large">The attachment exceeds the 20 MB limit.</string>
+    <string name="error_link_not_found">That link was not found or was already revoked.</string>
+    <string name="error_request_not_found">No pending request was found.</string>
+    <string name="error_organization_mismatch">The selected organization does not match this request.</string>
+    <string name="error_internal_error">Something went wrong. Please try again.</string>
+</resources>

@@ -1,5 +1,8 @@
 package com.beauty.app.ui.auth
 
+import androidx.compose.runtime.saveable.rememberSaveable
+import com.beauty.app.ui.i18n.localizedMessage
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -36,7 +39,7 @@ fun ForgotPasswordScreen(
     onNavigateBackToLogin: () -> Unit,
     onEnterResetLink: () -> Unit
 ) {
-    var email by remember { mutableStateOf("") }
+    var email by rememberSaveable { mutableStateOf("") }
     val state = viewModel.forgotPasswordState
 
     // The AuthViewModel is shared across the auth screens, so state left behind
@@ -70,6 +73,7 @@ fun ForgotPasswordScreen(
                 // an inline composable lambda leaves the composer's group
                 // structure to the compiler to unwind, and there is no reason
                 // to rely on that when an if/else reads the same.
+                com.beauty.app.ui.i18n.LanguageSelector(accountId = null, modifier = Modifier.fillMaxWidth())
                 if (state is AuthViewModel.ForgotPasswordState.Sent) {
                     SentConfirmation(
                         onNavigateBackToLogin = onNavigateBackToLogin,
@@ -77,14 +81,13 @@ fun ForgotPasswordScreen(
                     )
                 } else {
                     Text(
-                        text = "Reset your password",
+                        text = stringResource(com.beauty.app.R.string.reset_your_password),
                         color = RoseGoldPrimary,
                         fontWeight = FontWeight.Bold,
                         fontSize = 22.sp
                     )
                     Text(
-                        text = "Enter the email address on your account and we'll send you a " +
-                            "link to choose a new password.",
+                        text = stringResource(com.beauty.app.R.string.forgot_password_help),
                         color = TextMuted,
                         fontSize = 14.sp,
                         textAlign = TextAlign.Center
@@ -95,7 +98,7 @@ fun ForgotPasswordScreen(
                     OutlinedTextField(
                         value = email,
                         onValueChange = { email = it },
-                        label = { Text("Email", color = TextMuted) },
+                        label = { Text(stringResource(com.beauty.app.R.string.email), color = TextMuted) },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                         singleLine = true,
                         isError = state is AuthViewModel.ForgotPasswordState.Error,
@@ -110,7 +113,7 @@ fun ForgotPasswordScreen(
 
                     if (state is AuthViewModel.ForgotPasswordState.Error) {
                         Text(
-                            text = state.message,
+                            text = localizedMessage(state.message),
                             color = MaterialTheme.colorScheme.error,
                             fontSize = 13.sp
                         )
@@ -133,7 +136,7 @@ fun ForgotPasswordScreen(
                             )
                         } else {
                             Text(
-                                text = "Send reset link",
+                                text = stringResource(com.beauty.app.R.string.send_reset_link),
                                 color = Color.Black,
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 15.sp
@@ -146,7 +149,7 @@ fun ForgotPasswordScreen(
                         enabled = state !is AuthViewModel.ForgotPasswordState.Loading
                     ) {
                         Text(
-                            text = "Already have a reset link?",
+                            text = stringResource(com.beauty.app.R.string.already_have_a_reset_link),
                             color = RoseGoldPrimary,
                             fontSize = 13.sp
                         )
@@ -157,7 +160,7 @@ fun ForgotPasswordScreen(
                         enabled = state !is AuthViewModel.ForgotPasswordState.Loading
                     ) {
                         Text(
-                            text = "Back to sign in",
+                            text = stringResource(com.beauty.app.R.string.back_to_sign_in),
                             color = RoseGoldPrimary,
                             fontSize = 13.sp
                         )
@@ -179,22 +182,19 @@ fun ForgotPasswordScreen(
 @Composable
 private fun ColumnScope.SentConfirmation(onNavigateBackToLogin: () -> Unit, onEnterResetLink: () -> Unit) {
     Text(
-        text = "Check your email",
+        text = stringResource(com.beauty.app.R.string.check_your_email),
         color = RoseGoldPrimary,
         fontWeight = FontWeight.Bold,
         fontSize = 22.sp
     )
     Text(
-        text = "If an account exists for that address, a reset link is on its way. " +
-            "Open it in any browser, or copy it and paste it here to choose a new password. " +
-            "The link works once and expires within the hour.",
+        text = stringResource(com.beauty.app.R.string.forgot_password_sent),
         color = TextMuted,
         fontSize = 14.sp,
         textAlign = TextAlign.Center
     )
     Text(
-        text = "Nothing arrived? Check your spam folder before requesting another " +
-            "link — each new link cancels the previous one.",
+        text = stringResource(com.beauty.app.R.string.forgot_password_spam),
         color = TextMuted,
         fontSize = 13.sp,
         textAlign = TextAlign.Center
@@ -209,7 +209,7 @@ private fun ColumnScope.SentConfirmation(onNavigateBackToLogin: () -> Unit, onEn
         colors = ButtonDefaults.buttonColors(containerColor = RoseGoldPrimary)
     ) {
         Text(
-            text = "Paste reset link",
+            text = stringResource(com.beauty.app.R.string.paste_reset_link),
             color = Color.Black,
             fontWeight = FontWeight.Bold,
             fontSize = 15.sp
@@ -217,6 +217,6 @@ private fun ColumnScope.SentConfirmation(onNavigateBackToLogin: () -> Unit, onEn
     }
 
     TextButton(onClick = onNavigateBackToLogin) {
-        Text(text = "Back to sign in", color = RoseGoldPrimary, fontSize = 13.sp)
+        Text(text = stringResource(com.beauty.app.R.string.back_to_sign_in), color = RoseGoldPrimary, fontSize = 13.sp)
     }
 }

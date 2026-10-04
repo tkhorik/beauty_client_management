@@ -20,6 +20,8 @@ import com.beauty.app.data.api.UpdateClientRequest
 import com.beauty.app.data.api.UpdateProfileRequest
 import com.beauty.app.data.api.UpdateUserAdminRequest
 import com.beauty.app.data.api.UserDto
+import com.beauty.app.data.api.LanguagePreferenceRequest
+import com.beauty.app.data.api.LanguagePreferenceResponse
 import com.beauty.app.data.api.VisitHistoryDto
 import com.beauty.app.data.api.isEmailNotVerified
 import com.beauty.app.data.local.ClientDao
@@ -152,7 +154,7 @@ class BeautyRepository(
             try { uploadPhotoDraft(draft.id) }
             catch (error: Exception) {
                 allUploaded = false
-                dao.savePhotoDraft(draft.copy(syncError = error.safeMessage("Photo upload is pending.")))
+                dao.savePhotoDraft(draft.copy(syncError = error.safeMessage("PHOTO_UPLOAD_PENDING")))
             }
         }
         return allUploaded
@@ -227,6 +229,9 @@ class BeautyRepository(
 
     suspend fun updateProfile(fullName: String): UserDto =
         api.updateProfile(UpdateProfileRequest(fullName))
+
+    suspend fun updateLanguagePreference(preference: String, expectedRevision: Long, expectedAccountId: String? = null): LanguagePreferenceResponse =
+        api.updateLanguagePreference(LanguagePreferenceRequest(preference, expectedRevision, expectedAccountId))
 
     /** Returns a brand-new session — the caller must persist it, replacing whatever it's holding. */
     suspend fun changePassword(currentPassword: String, newPassword: String): AuthResponse =

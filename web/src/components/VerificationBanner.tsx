@@ -1,3 +1,4 @@
+import { useAppTranslation } from '../i18n/LocaleProvider';
 import { MailCheck, RefreshCw } from 'lucide-react';
 import { useVerification } from '../auth/useVerification';
 
@@ -19,6 +20,7 @@ import { useVerification } from '../auth/useVerification';
  * screens cannot start telling the user different stories.
  */
 export function VerificationBanner() {
+  const { t } = useAppTranslation();
   const {
     user,
     standing,
@@ -53,23 +55,21 @@ export function VerificationBanner() {
 
       <div style={{ flex: 1, minWidth: '260px' }}>
         <p style={{ margin: 0, fontWeight: 600 }}>
-          Confirm your email within {daysLeft} day{daysLeft === 1 ? '' : 's'}
+          {t('verificationBanner.deadline', { count: daysLeft })}
         </p>
         <p style={{ margin: '4px 0 0', fontSize: '13px', color: 'var(--text-muted)' }}>
-          We sent a link to {user.email}. Check your spam folder if it hasn't
-          arrived. After {daysLeft} day{daysLeft === 1 ? '' : 's'}, you'll need a
-          confirmed address to keep using Aura.
+          {t('verificationBanner.description', { email: user.email, days: t('counts.days', { count: daysLeft }) })}
         </p>
         {sendState === 'sent' && (
           <p style={{ margin: '6px 0 0', fontSize: '13px', color: 'var(--rose-gold-primary)' }}>
-            Link sent. Check your inbox, and your spam folder.
+            {t('verificationBanner.linkSentCheckYourInboxAndYourSpamFolder')}
           </p>
         )}
         {sendState === 'failed' && (
           <p style={{ margin: '6px 0 0', fontSize: '13px', color: 'var(--rose-gold-primary)' }}>
             {coolingDown
-              ? 'Too many requests just now — try again in a minute.'
-              : "Couldn't send the link. Check your connection and try again."}
+              ?t('verificationBanner.tooManyRequestsJustNowTryAgainInAMinute')
+              :t('verificationBanner.couldnTSendTheLinkCheckYourConnectionAndTryAgain')}
           </p>
         )}
       </div>
@@ -79,10 +79,10 @@ export function VerificationBanner() {
           className="btn-rose"
           onClick={recheck}
           disabled={refreshing}
-          title="Already clicked the link? Check again."
+          title={t('verificationBanner.alreadyClickedTheLinkCheckAgain')}
           style={{ opacity: refreshing ? 0.6 : 1 }}
         >
-          <RefreshCw size={16} /> {refreshing ? 'Checking…' : "I've confirmed"}
+          <RefreshCw size={16} /> {refreshing ?t('verificationBanner.checking') :t('verificationBanner.iVeConfirmed')}
         </button>
         <button
           className="btn-rose"
@@ -91,10 +91,10 @@ export function VerificationBanner() {
           style={{ opacity: sendState === 'sending' || coolingDown ? 0.6 : 1 }}
         >
           {sendState === 'sending'
-            ? 'Sending…'
+            ?t('verificationBanner.sending')
             : coolingDown
-              ? `Resend in ${secondsLeft}s`
-              : 'Resend link'}
+              ? t('verification.resendIn', { seconds: secondsLeft })
+              :t('verificationBanner.resendLink')}
         </button>
       </div>
     </div>

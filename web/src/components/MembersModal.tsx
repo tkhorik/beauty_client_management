@@ -1,7 +1,8 @@
+import { useAppTranslation } from '../i18n/LocaleProvider';
 import React, { useCallback, useEffect, useState } from 'react';
 import { X, Users, UserPlus, Check, Trash2, Shield } from 'lucide-react';
 import type { OrgMember, OrgRole } from '../types';
-import { api, ApiError } from '../services/api';
+import { api, writeErrorMessage } from '../services/api';
 import { useAuth } from '../auth/AuthContext';
 import { useOrg } from '../auth/OrgContext';
 
@@ -47,6 +48,7 @@ const bannerStyle = (kind: 'error' | 'success') =>
  * the members already inside.
  */
 export const MembersModal: React.FC<MembersModalProps> = ({ orgId, orgName, onClose }) => {
+  const { t } = useAppTranslation();
   const { user } = useAuth();
   const { organizations, refresh: refreshOrgs } = useOrg();
 
@@ -73,11 +75,11 @@ export const MembersModal: React.FC<MembersModalProps> = ({ orgId, orgName, onCl
     try {
       setMembers(await api.getOrganizationMembers(orgId));
     } catch (err) {
-      setError(err instanceof ApiError && err.body.error ? err.body.error : 'Could not load members.');
+      setError(writeErrorMessage(err, t('membersModal.couldNotLoadMembers')));
     } finally {
       setLoading(false);
     }
-  }, [orgId]);
+  }, [orgId, t]);
 
   useEffect(() => {
     void load();
@@ -99,7 +101,7 @@ export const MembersModal: React.FC<MembersModalProps> = ({ orgId, orgName, onCl
       // spend a request to learn nothing.
       if (isOwnOrganization) await refreshOrgs();
     } catch (err) {
-      setError(err instanceof ApiError && err.body.error ? err.body.error : 'That action failed.');
+      setError(writeErrorMessage(err, t('membersModal.thatActionFailed')));
     }
   }
 
@@ -107,8 +109,7 @@ export const MembersModal: React.FC<MembersModalProps> = ({ orgId, orgName, onCl
     e.preventDefault();
     setInviting(true);
     await run(
-      () => api.inviteMember(orgId, inviteEmail.trim().toLowerCase(), inviteRole),
-      'Invitation sent.'
+      () => api.inviteMember(orgId, inviteEmail.trim().toLowerCase(), inviteRole),t('membersModal.invitationSent')
     );
     setInviteEmail('');
     setInviting(false);
@@ -121,16 +122,16 @@ export const MembersModal: React.FC<MembersModalProps> = ({ orgId, orgName, onCl
     let success: string;
 
     if (member.status === 'PENDING') {
-      message = `Decline ${identity}'s request to join ${orgName}? They will not be granted access.`;
-      success = 'Request declined.';
+      message = t('membersModal.confirmDecline', { identity, organization: orgName });
+      success =t('membersModal.requestDeclined');
     } else if (member.status === 'INVITED') {
-      message = `Withdraw ${identity}'s invitation to ${orgName}? They will no longer be able to accept it.`;
-      success = 'Invitation withdrawn.';
+      message = t('membersModal.confirmWithdraw', { identity, organization: orgName });
+      success =t('membersModal.invitationWithdrawn');
     } else {
       message = isSelf
-        ? `Leave ${orgName}? Your access will be revoked immediately. Clients and visits you entered will stay with the organization.`
-        : `Remove ${identity} from ${orgName}? Their access will be revoked immediately. Clients and visits they entered will stay with the organization.`;
-      success = isSelf ? 'You left the organization.' : `${member.fullName} removed.`;
+        ? t('membersModal.confirmLeave', { organization: orgName })
+        : t('membersModal.confirmRemove', { identity, organization: orgName });
+      success = isSelf ?t('membersModal.youLeftTheOrganization') : t('membersModal.memberRemoved', { name: member.fullName });
     }
 
     if (window.confirm(message)) {
@@ -181,9 +182,9 @@ export const MembersModal: React.FC<MembersModalProps> = ({ orgId, orgName, onCl
           }}
         >
           <h2 className="text-gradient" style={{ fontSize: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Users size={20} /> {orgName} — Members
+            <Users size={20} /> {orgName} {t('membersModal.members')}
           </h2>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
+          <button aria-label={t('common.close')} onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
             <X size={22} />
           </button>
         </div>
@@ -196,19 +197,19 @@ export const MembersModal: React.FC<MembersModalProps> = ({ orgId, orgName, onCl
           {pending.length > 0 && (
             <section style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
               <h3 style={{ fontSize: '14px', color: 'var(--rose-gold-primary)' }}>
-                Waiting for approval ({pending.length})
+                {t('membersModal.waitingForApproval')}{pending.length})
               </h3>
               {pending.map(m => (
                 <MemberRow key={m.userId} member={m}>
                   <button
                     className="btn-rose"
                     style={{ padding: '6px 12px', fontSize: '12px' }}
-                    onClick={() => run(() => api.approveMember(orgId, m.userId), `${m.fullName} approved.`)}
+                    onClick={() => run(() => api.approveMember(orgId, m.userId), t('membersModal.memberApproved', { name: m.fullName }))}
                   >
-                    <Check size={14} /> Approve
+                    <Check size={14} /> {t('membersModal.approve')}
                   </button>
                   <IconButton
-                    title="Decline"
+                    title={t('membersModal.decline')}
                     onClick={() => confirmRemoval(m)}
                   >
                     <Trash2 size={15} />
@@ -221,12 +222,12 @@ export const MembersModal: React.FC<MembersModalProps> = ({ orgId, orgName, onCl
           {invited.length > 0 && (
             <section style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
               <h3 style={{ fontSize: '14px', color: 'var(--rose-gold-primary)' }}>
-                Invited ({invited.length})
+                {t('membersModal.invited')}{invited.length})
               </h3>
               {invited.map(m => (
                 <MemberRow key={m.userId} member={m}>
                   <IconButton
-                    title="Withdraw invitation"
+                    title={t('membersModal.withdrawInvitation')}
                     onClick={() => confirmRemoval(m)}
                   >
                     <Trash2 size={15} />
@@ -238,10 +239,10 @@ export const MembersModal: React.FC<MembersModalProps> = ({ orgId, orgName, onCl
 
           <section style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
             <h3 style={{ fontSize: '14px', color: 'var(--rose-gold-primary)' }}>
-              Members ({active.length})
+              {t('membersModal.members')}{active.length})
             </h3>
             {loading ? (
-              <p style={{ color: 'var(--text-muted)', fontSize: '13px' }}>Loading…</p>
+              <p style={{ color: 'var(--text-muted)', fontSize: '13px' }}>{t('membersModal.loading')}</p>
             ) : (
               active.map(m => (
                 <MemberRow key={m.userId} member={m}>
@@ -252,15 +253,15 @@ export const MembersModal: React.FC<MembersModalProps> = ({ orgId, orgName, onCl
                     onChange={e =>
                       run(
                         () => api.changeMemberRole(orgId, m.userId, e.target.value as OrgRole),
-                        `${m.fullName}'s role updated.`
+                        t('membersModal.roleUpdated', { name: m.fullName })
                       )
                     }
                   >
-                    <option value="ORG_USER">Member</option>
-                    <option value="ORG_ADMIN">Administrator</option>
+                    <option value="ORG_USER">{t('membersModal.member')}</option>
+                    <option value="ORG_ADMIN">{t('membersModal.administrator')}</option>
                   </select>
                   <IconButton
-                    title={m.userId === user?.id ? 'Leave organization' : 'Remove from organization'}
+                    title={m.userId === user?.id ?t('membersModal.leaveOrganization') :t('membersModal.removeFromOrganization')}
                     onClick={() => confirmRemoval(m)}
                   >
                     <Trash2 size={15} />
@@ -269,16 +270,14 @@ export const MembersModal: React.FC<MembersModalProps> = ({ orgId, orgName, onCl
               ))
             )}
             <p style={{ color: 'var(--text-muted)', fontSize: '12px' }}>
-              Removing someone revokes their access immediately — their current session stops
-              working on its next request. Clients and visits they entered stay with the
-              organization.
+              {t('membersModal.removingSomeoneRevokesTheirAccessImmediatelyTheirCurrentSessionS')}
             </p>
           </section>
 
           {/* Invite */}
           <form onSubmit={handleInvite} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             <h3 style={{ fontSize: '14px', color: 'var(--rose-gold-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <UserPlus size={16} /> Invite someone
+              <UserPlus size={16} /> {t('membersModal.inviteSomeone')}
             </h3>
             <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
               <input
@@ -295,15 +294,15 @@ export const MembersModal: React.FC<MembersModalProps> = ({ orgId, orgName, onCl
                 value={inviteRole}
                 onChange={e => setInviteRole(e.target.value as OrgRole)}
               >
-                <option value="ORG_USER">Member</option>
-                <option value="ORG_ADMIN">Administrator</option>
+                <option value="ORG_USER">{t('membersModal.member')}</option>
+                <option value="ORG_ADMIN">{t('membersModal.administrator')}</option>
               </select>
               <button type="submit" className="btn-rose" disabled={inviting || !inviteEmail.trim()}>
-                {inviting ? 'Sending…' : 'Invite'}
+                {inviting ?t('membersModal.sending') :t('membersModal.invite')}
               </button>
             </div>
             <p style={{ color: 'var(--text-muted)', fontSize: '12px' }}>
-              They need an account already — invitations match an existing email address.
+              {t('membersModal.theyNeedAnAccountAlreadyInvitationsMatchAnExistingEmailAddress')}
             </p>
           </form>
         </div>

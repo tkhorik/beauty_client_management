@@ -17,6 +17,9 @@ import { getToken, clearToken } from '../auth/tokenStore';
 import { getActiveOrgId } from '../auth/orgStore';
 import { refreshAccessToken, type SessionResult } from '../auth/session';
 import { API_BASE_URL } from '../config';
+import { effectiveAcceptLanguage } from '../i18n/store';
+import type { LanguagePreference } from '../types';
+import { translatedApiError } from '../i18n/errors';
 
 /**
  * Names the organization a request is scoped to.
@@ -40,9 +43,9 @@ const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === 'true';
  */
 export class ApiError extends Error {
   status: number;
-  body: { error?: string; errors?: Record<string, string> };
+  body: { error?: string; errors?: Record<string, string>; code?: string; fieldErrors?: Record<string, { code: string; args?: Record<string, string | number> }>; languagePreference?: LanguagePreference; languageRevision?: number; preference?: LanguagePreference; revision?: number };
 
-  constructor(status: number, body: { error?: string; errors?: Record<string, string> }) {
+  constructor(status: number, body: ApiError['body']) {
     super(body.error ?? 'Request failed');
     this.status = status;
     this.body = body;
@@ -83,9 +86,7 @@ export const EMAIL_UNVERIFIED_EVENT = 'beauty:email-unverified';
  * app is broken — when the fix is a link sitting in their inbox.
  */
 export function writeErrorMessage(err: unknown, fallback: string): string {
-  if (err instanceof EmailNotVerifiedError) {
-    return 'Your changes were not saved. Confirm your email address first — see the banner at the top of the page for a fresh link.';
-  }
+  if (err instanceof ApiError) return translatedApiError(err, fallback);
   return fallback;
 }
 
@@ -232,6 +233,7 @@ class ApiService {
     const send = (token: string | null) => {
       const headers = new Headers(init.headers);
       if (token) headers.set('Authorization', `Bearer ${token}`);
+      if (!headers.has('Accept-Language')) headers.set('Accept-Language', effectiveAcceptLanguage());
 
       // Every data request is scoped to one organization, and the header is
       // attached here rather than at each call site so a new endpoint cannot
@@ -589,6 +591,20 @@ class ApiService {
       throw new ApiError(res.status, body);
     }
     return res.json();
+  }
+
+  async updateLanguagePreference(preference: LanguagePreference, expectedRevision: number, expectedAccountId: string): Promise<{ preference: LanguagePreference; revision: number }> {
+    const res = await this.authFetch(`${API_BASE_URL}/users/me/language`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ preference, expectedRevision, expectedAccountId }),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) throw new ApiError(res.status, body);
+    return {
+      preference: body.preference ?? body.languagePreference,
+      revision: body.revision ?? body.languageRevision,
+    };
   }
 
   async updateProfile(fullName: string): Promise<UserProfile> {

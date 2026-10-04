@@ -1,11 +1,16 @@
 package com.beauty.app
 
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import android.os.Bundle
 import android.content.Intent
+import android.content.Context
+import android.net.ConnectivityManager
+import android.net.Network
 import com.beauty.app.ui.AppLink
 import com.beauty.app.ui.AppLinkInbox
 import com.beauty.app.ui.AppLinkViewModel
-import androidx.activity.ComponentActivity
+import androidx.appcompat.app.AppCompatActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -81,7 +86,7 @@ data class DirectoryClient(
     val visitsCount: Int
 )
 
-class MainActivity : ComponentActivity() {
+class MainActivity : AppCompatActivity() {
     private val links by lazy { ViewModelProvider(this)[AppLinkViewModel::class.java] }
 
     private fun receiveLinks(incoming: Intent) {
@@ -125,15 +130,37 @@ internal fun AppNavHost(links: AppLinkViewModel) {
     val updateState by updateManager.state.collectAsState()
     val scope = rememberCoroutineScope()
     val lifecycleOwner = LocalLifecycleOwner.current
+    val languageManager = remember { AppContainer.languageManager(context) }
+    languageManager.activeAccountId = accountId
 
-    DisposableEffect(lifecycleOwner) {
+    DisposableEffect(lifecycleOwner, accountId, repository) {
+        val connectivity = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val networkCallback = object : ConnectivityManager.NetworkCallback() {
+            override fun onAvailable(network: Network) {
+                if (accountId != null) scope.launch {
+                    languageManager.detectExternalOverride(accountId)
+                    languageManager.synchronize(repository, accountId)
+                }
+            }
+        }
+        connectivity.registerDefaultNetworkCallback(networkCallback)
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_START) {
                 scope.launch { updateManager.checkForUpdates(force = false) }
+                languageManager.detectExternalOverride(accountId)
+                if (accountId != null) scope.launch { languageManager.synchronize(repository, accountId) }
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+            connectivity.unregisterNetworkCallback(networkCallback)
+        }
+    }
+
+    LaunchedEffect(accountId) {
+        languageManager.detectExternalOverride(accountId)
+        if (accountId != null) languageManager.synchronize(repository, accountId)
     }
 
     val navController = rememberNavController()
@@ -145,7 +172,9 @@ internal fun AppNavHost(links: AppLinkViewModel) {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
                 val api = com.beauty.app.data.api.KtorBeautyApi(AppContainer.buildLoginClient())
-                return AuthViewModel(api, tokenStore, orgStore) as T
+                return AuthViewModel(api, tokenStore, orgStore) {
+                    languageManager.current(null).preference.takeUnless { it == "system" }
+                } as T
             }
         }
     )
@@ -247,8 +276,8 @@ internal fun AppNavHost(links: AppLinkViewModel) {
 
         composable("verify-email") {
             Column(Modifier.fillMaxSize().padding(32.dp), verticalArrangement = Arrangement.Center) {
-                Text(if (links.verifying) "Confirming your email…" else links.verificationMessage ?: "Reopen your verification link to continue.")
-                Button(onClick = { openHome() }, enabled = !links.verifying) { Text("Continue") }
+                Text(if (links.verifying) stringResource(com.beauty.app.R.string.ui2_confirming_your_email) else links.verificationMessage?.let { com.beauty.app.ui.i18n.localizedMessage(it) } ?: stringResource(com.beauty.app.R.string.ui2_reopen_your_verification_link_to_continue))
+                Button(onClick = { openHome() }, enabled = !links.verifying) { Text(stringResource(R.string.continue_action)) }
             }
         }
 
@@ -307,7 +336,7 @@ internal fun AppNavHost(links: AppLinkViewModel) {
                 ClientDirectoryScreen(
                     viewModel = directoryViewModel,
                     repository = repository,
-                    organizationName = orgViewModel.current?.name ?: "Organization",
+                    organizationName = orgViewModel.current?.name ?: stringResource(R.string.organization),
                     onClientTap = { clientId -> navController.navigate("client/$clientId") },
                     onNewClient = { navController.navigate("new_client") },
                     onLogVisit = { clientId -> navController.navigate("client/$clientId?logVisit=true") },
@@ -380,6 +409,13 @@ internal fun AppNavHost(links: AppLinkViewModel) {
             )
             SettingsScreen(
                 viewModel = settingsViewModel,
+                accountId = accountId,
+                languageManager = languageManager,
+                onLanguageSelected = { selectedAccount ->
+                    if (selectedAccount != null) scope.launch {
+                        languageManager.synchronize(repository, selectedAccount)
+                    }
+                },
                 onBack = { navController.popBackStack() }
             )
         }
@@ -545,7 +581,7 @@ fun BeautyAppScreen(
                         refreshError = null
                     }
                     .onFailure { error ->
-                        refreshError = error.message ?: "Could not reach the server"
+                        refreshError = "NETWORK_ERROR"
                     }
                 isRefreshing = false
             }
@@ -554,10 +590,10 @@ fun BeautyAppScreen(
     if (showVisitClientPicker) {
         AlertDialog(
             onDismissRequest = { showVisitClientPicker = false },
-            title = { Text("Choose a client") },
+            title = { Text(stringResource(R.string.choose_a_client)) },
             text = {
                 if (clients.isEmpty()) {
-                    Text("No clients available. Refresh the directory or create a client on the web first.")
+                    Text(stringResource(com.beauty.app.R.string.ui2_no_clients_available_refresh_the_directory_or_create_a_client_on_))
                 } else {
                     LazyColumn(Modifier.heightIn(max = 360.dp)) {
                         items(clients, key = { it.id }) { client ->
@@ -571,7 +607,7 @@ fun BeautyAppScreen(
                     }
                 }
             },
-            confirmButton = { TextButton(onClick = { showVisitClientPicker = false }) { Text("Cancel") } }
+            confirmButton = { TextButton(onClick = { showVisitClientPicker = false }) { Text(stringResource(com.beauty.app.R.string.cancel)) } }
         )
     }
     val pullRefreshState = rememberPullRefreshState(
@@ -609,13 +645,13 @@ fun BeautyAppScreen(
                 title = {
                     Column {
                         Text(
-                            "Aura Beauty Mobile",
+                            stringResource(com.beauty.app.R.string.ui2_aura_beauty_mobile),
                             color = RoseGoldPrimary,
                             fontWeight = FontWeight.Bold,
                             fontSize = 20.sp
                         )
                         Text(
-                            "Client & Procedure Logging Studio",
+                            stringResource(com.beauty.app.R.string.ui2_client_procedure_logging_studio),
                             color = TextMuted,
                             fontSize = 12.sp
                         )
@@ -625,7 +661,7 @@ fun BeautyAppScreen(
                     IconButton(onClick = onOpenOrganizations) {
                         Icon(
                             Icons.Default.Person,
-                            contentDescription = "Organizations",
+                            contentDescription = stringResource(com.beauty.app.R.string.organizations),
                             tint = TextMuted
                         )
                     }
@@ -633,7 +669,7 @@ fun BeautyAppScreen(
                         IconButton(onClick = onOpenAdmin) {
                             Icon(
                                 Icons.Default.Shield,
-                                contentDescription = "Admin panel",
+                                contentDescription = stringResource(R.string.admin_panel),
                                 tint = RoseGoldPrimary
                             )
                         }
@@ -641,14 +677,14 @@ fun BeautyAppScreen(
                     IconButton(onClick = onOpenSettings) {
                         Icon(
                             Icons.Default.Settings,
-                            contentDescription = "Account settings",
+                            contentDescription = stringResource(R.string.account_settings),
                             tint = TextMuted
                         )
                     }
                     IconButton(onClick = onLogout) {
                         Icon(
                             Icons.Default.ExitToApp,
-                            contentDescription = "Logout",
+                            contentDescription = stringResource(com.beauty.app.R.string.sign_out),
                             tint = TextMuted
                         )
                     }
@@ -664,7 +700,7 @@ fun BeautyAppScreen(
                 containerColor = RoseGoldPrimary,
                 contentColor = Color.Black
             ) {
-                Icon(Icons.Default.Add, contentDescription = "Log Visit")
+                Icon(Icons.Default.Add, contentDescription = stringResource(R.string.log_visit))
             }
         }
     ) { paddingValues ->
@@ -689,9 +725,9 @@ fun BeautyAppScreen(
                 OutlinedTextField(
                     value = searchQuery,
                     onValueChange = { searchQuery = it },
-                    placeholder = { Text("Search clients or procedure specs...", color = TextMuted) },
+                    placeholder = { Text(stringResource(com.beauty.app.R.string.ui2_search_clients_or_procedure_specs), color = TextMuted) },
                     leadingIcon = {
-                        Icon(Icons.Default.Search, contentDescription = "Search", tint = TextMuted)
+                        Icon(Icons.Default.Search, contentDescription = stringResource(com.beauty.app.R.string.search), tint = TextMuted)
                     },
                     modifier = Modifier
                         .fillMaxWidth()
@@ -710,7 +746,7 @@ fun BeautyAppScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        "Client Directory",
+                        stringResource(R.string.client_directory),
                         color = TextLight,
                         fontWeight = FontWeight.Bold,
                         fontSize = 16.sp
@@ -749,16 +785,17 @@ fun BeautyAppScreen(
     }
 }
 
+@Composable
 private fun directorySyncLabel(
     isRefreshing: Boolean,
     lastSuccessfulSyncAt: Long,
     refreshError: String?
 ): String = when {
-    isRefreshing -> "Updating directory…"
-    refreshError != null -> "Offline — showing cached data"
-    lastSuccessfulSyncAt == 0L -> "Offline cache"
-    System.currentTimeMillis() - lastSuccessfulSyncAt < 60_000L -> "Synced just now"
-    else -> "Synced ${(System.currentTimeMillis() - lastSuccessfulSyncAt) / 60_000L} min ago"
+    isRefreshing -> stringResource(com.beauty.app.R.string.ui2_updating_directory)
+    refreshError != null -> stringResource(com.beauty.app.R.string.ui2_offline_showing_cached_data)
+    lastSuccessfulSyncAt == 0L -> stringResource(com.beauty.app.R.string.ui2_offline_cache)
+    System.currentTimeMillis() - lastSuccessfulSyncAt < 60_000L -> stringResource(com.beauty.app.R.string.ui2_synced_just_now)
+    else -> pluralStringResource(com.beauty.app.R.plurals.synced_minutes, ((System.currentTimeMillis() - lastSuccessfulSyncAt) / 60_000L).toInt(), ((System.currentTimeMillis() - lastSuccessfulSyncAt) / 60_000L).toInt())
 }
 
 @Composable
@@ -803,7 +840,7 @@ fun ClientCardItem(client: DirectoryClient, onClick: () -> Unit) {
                     color = Color(0x15E5B899)
                 ) {
                     Text(
-                        "${client.visitsCount} Visits",
+                        pluralStringResource(com.beauty.app.R.plurals.visits_count, client.visitsCount, client.visitsCount),
                         color = RoseGoldPrimary,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
@@ -819,12 +856,13 @@ fun ClientCardItem(client: DirectoryClient, onClick: () -> Unit) {
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(client.tag, color = TextMuted, fontSize = 12.sp)
-                Text("View visits →", color = ChampagneAccent, fontSize = 12.sp)
+                Text(stringResource(R.string.view_visits), color = ChampagneAccent, fontSize = 12.sp)
             }
         }
     }
 }
 
+@Composable
 private fun ClientEntity.toDirectoryClient(): DirectoryClient {
     val tags = runCatching {
         Json.decodeFromString<List<String>>(tagsJson).joinToString(" • ")
@@ -833,7 +871,7 @@ private fun ClientEntity.toDirectoryClient(): DirectoryClient {
         id = id,
         name = name,
         phone = phone,
-        tag = tags.ifBlank { "No tags" },
+        tag = tags.ifBlank { stringResource(R.string.no_tags) },
         visitsCount = totalVisits
     )
 }

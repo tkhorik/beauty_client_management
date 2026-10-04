@@ -1,5 +1,6 @@
 package com.beauty.app.ui.client
 
+import androidx.compose.ui.res.stringResource
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.util.LruCache
@@ -127,7 +128,7 @@ fun AttachmentThumbnail(
         when (load) {
             is ImageLoad.Ready -> Image(
                 load.image,
-                contentDescription = attachment.caption ?: "${attachment.tag} photo",
+                contentDescription = attachment.caption ?: if (attachment.tag == "BEFORE") stringResource(com.beauty.app.R.string.photo_before) else stringResource(com.beauty.app.R.string.photo_after),
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop
             )
@@ -136,9 +137,9 @@ fun AttachmentThumbnail(
                 strokeWidth = 2.dp,
                 color = RoseGoldPrimary
             )
-            ImageLoad.Failed -> Text("Unavailable", fontSize = 10.sp, color = TextMuted, modifier = Modifier.align(Alignment.Center))
+            ImageLoad.Failed -> Text(stringResource(com.beauty.app.R.string.unavailable), fontSize = 10.sp, color = TextMuted, modifier = Modifier.align(Alignment.Center))
         }
-        PhotoLabel(attachment.tag, Modifier.align(Alignment.BottomStart).padding(4.dp), small = true)
+        PhotoLabel(if (attachment.tag == "BEFORE") stringResource(com.beauty.app.R.string.photo_before) else stringResource(com.beauty.app.R.string.photo_after), modifier = Modifier.align(Alignment.BottomStart).padding(4.dp), small = true, tag = attachment.tag)
     }
 }
 
@@ -189,14 +190,14 @@ fun PhotoCompareDialog(
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
-                        Text("Before & After Comparison", color = RoseGoldPrimary, fontWeight = FontWeight.Bold, fontSize = 18.sp)
-                        Text("Side-by-side & slider inspection", color = TextMuted, fontSize = 12.sp)
+                        Text(stringResource(com.beauty.app.R.string.before_after_comparison), color = RoseGoldPrimary, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                        Text(stringResource(com.beauty.app.R.string.side_by_side_slider_inspection), color = TextMuted, fontSize = 12.sp)
                     }
-                    IconButton(onClick = onDismiss) { Icon(Icons.Default.Close, "Close", tint = TextMuted) }
+                    IconButton(onClick = onDismiss) { Icon(Icons.Default.Close, stringResource(com.beauty.app.R.string.close), tint = TextMuted) }
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    FilterChip(selected = !sideBySide, onClick = { sideBySide = false }, label = { Text("Slider Split") })
-                    FilterChip(selected = sideBySide, onClick = { sideBySide = true }, label = { Text("Side by Side") })
+                    FilterChip(selected = !sideBySide, onClick = { sideBySide = false }, label = { Text(stringResource(com.beauty.app.R.string.slider_split)) })
+                    FilterChip(selected = sideBySide, onClick = { sideBySide = true }, label = { Text(stringResource(com.beauty.app.R.string.side_by_side)) })
                 }
 
                 val beforeImage = (beforeLoad as? ImageLoad.Ready)?.image
@@ -207,10 +208,10 @@ fun PhotoCompareDialog(
                             CircularProgressIndicator(color = RoseGoldPrimary)
                         }
                     beforeImage == null || afterImage == null ->
-                        Text("Could not load these photos. Check your connection and try again.", color = MaterialTheme.colorScheme.error)
+                        Text(stringResource(com.beauty.app.R.string.could_not_load_these_photos_check_your_connection_and_t), color = MaterialTheme.colorScheme.error)
                     sideBySide -> Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        SidePhoto(beforeImage, "BEFORE", before?.caption ?: "Before procedure baseline photo", Modifier.weight(1f))
-                        SidePhoto(afterImage, "AFTER", after?.caption ?: "Post-procedure finished result", Modifier.weight(1f))
+                        SidePhoto(beforeImage, "BEFORE", before?.caption ?: stringResource(com.beauty.app.R.string.before_procedure_baseline_photo), Modifier.weight(1f))
+                        SidePhoto(afterImage, "AFTER", after?.caption ?: stringResource(com.beauty.app.R.string.post_procedure_finished_result), Modifier.weight(1f))
                     }
                     else -> SliderCompare(beforeImage, afterImage)
                 }
@@ -224,7 +225,7 @@ private fun SidePhoto(image: ImageBitmap, tag: String, caption: String, modifier
     Column(modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Box(Modifier.fillMaxWidth().height(220.dp).clip(RoundedCornerShape(12.dp))) {
             Image(image, contentDescription = caption, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
-            PhotoLabel(tag, Modifier.align(Alignment.TopStart).padding(8.dp))
+            PhotoLabel(if (tag == "BEFORE") stringResource(com.beauty.app.R.string.photo_before) else stringResource(com.beauty.app.R.string.photo_after), modifier = Modifier.align(Alignment.TopStart).padding(8.dp), tag = tag)
         }
         Text(caption, fontSize = 12.sp)
     }
@@ -256,17 +257,17 @@ private fun SliderCompare(before: ImageBitmap, after: ImageBitmap) {
                     }
                 }
         ) {
-            Image(after, contentDescription = "After procedure", modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+            Image(after, contentDescription = stringResource(com.beauty.app.R.string.after_procedure), modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
             Image(
                 before,
-                contentDescription = "Before procedure",
+                contentDescription = stringResource(com.beauty.app.R.string.before_procedure),
                 modifier = Modifier
                     .fillMaxSize()
                     .drawWithContent { clipRect(right = size.width * split) { this@drawWithContent.drawContent() } },
                 contentScale = ContentScale.Crop
             )
-            PhotoLabel("AFTER PROCEDURE", Modifier.align(Alignment.TopEnd).padding(12.dp), tag = "AFTER")
-            if (split > 0.25f) PhotoLabel("BEFORE PROCEDURE", Modifier.align(Alignment.TopStart).padding(12.dp), tag = "BEFORE")
+            PhotoLabel(stringResource(com.beauty.app.R.string.after_procedure_2), Modifier.align(Alignment.TopEnd).padding(12.dp), tag = "AFTER")
+            if (split > 0.25f) PhotoLabel(stringResource(com.beauty.app.R.string.before_procedure_2), Modifier.align(Alignment.TopStart).padding(12.dp), tag = "BEFORE")
             val handleX = maxWidth * split
             Box(
                 Modifier
@@ -287,7 +288,7 @@ private fun SliderCompare(before: ImageBitmap, after: ImageBitmap) {
         }
         Slider(value = split, onValueChange = { split = it }, modifier = Modifier.fillMaxWidth())
         Text(
-            "Drag across the photo to split Before & After results",
+            stringResource(com.beauty.app.R.string.drag_across_the_photo_to_split_before_after_results),
             color = TextMuted,
             fontSize = 12.sp,
             modifier = Modifier.align(Alignment.CenterHorizontally)

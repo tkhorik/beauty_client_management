@@ -453,7 +453,11 @@ data class ValidateCreationTokenResponse(
 )
 
 @Serializable
-data class UpdateLanguageRequest(val preference: String, val expectedRevision: Long)
+data class UpdateLanguageRequest(
+    val preference: String,
+    val expectedRevision: Long,
+    val expectedAccountId: String? = null
+)
 
 @Serializable
 data class LanguageResponse(val preference: String, val revision: Long)

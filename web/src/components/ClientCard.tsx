@@ -1,6 +1,7 @@
 import React from 'react';
 import type { Client } from '../types';
 import { Phone, Calendar, Tag, ChevronRight, AlertCircle } from 'lucide-react';
+import { useAppTranslation, useLocale } from '../i18n/LocaleProvider';
 
 interface ClientCardProps {
   client: Client;
@@ -9,6 +10,8 @@ interface ClientCardProps {
 }
 
 export const ClientCard: React.FC<ClientCardProps> = ({ client, onSelect, onLogVisit }) => {
+  const { t } = useAppTranslation();
+  const { formatDate } = useLocale();
   const customFieldsKeys = Object.keys(client.customFields);
 
   return (
@@ -54,7 +57,7 @@ export const ClientCard: React.FC<ClientCardProps> = ({ client, onSelect, onLogV
             borderRadius: '12px',
             border: '1px solid rgba(229, 184, 153, 0.2)'
           }}>
-            {client.totalVisits} {client.totalVisits === 1 ? 'Visit' : 'Visits'}
+            {t('counts.visits', { count: client.totalVisits })}
           </span>
         </div>
 
@@ -84,7 +87,7 @@ export const ClientCard: React.FC<ClientCardProps> = ({ client, onSelect, onLogV
             border: '1px dashed var(--border-color)'
           }}>
             <p style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--rose-gold-primary)', fontWeight: 600, marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <AlertCircle size={12} /> Custom Specs & Attributes
+              <AlertCircle size={12} /> {t('clientCard.customSpecsAndAttributes')}
             </p>
             {customFieldsKeys.slice(0, 3).map(key => (
               <div key={key} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '4px' }}>
@@ -107,7 +110,7 @@ export const ClientCard: React.FC<ClientCardProps> = ({ client, onSelect, onLogV
         borderTop: '1px solid rgba(255,255,255,0.05)'
       }}>
         <span style={{ fontSize: '12px', color: 'var(--text-dim)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-          <Calendar size={12} /> Updated {new Date(client.updatedAt).toLocaleDateString()}
+          <Calendar size={12} /> {t('clients.updated', { date: formatDate(client.updatedAt) })}
         </span>
         <button 
           onClick={(e) => {
@@ -117,7 +120,7 @@ export const ClientCard: React.FC<ClientCardProps> = ({ client, onSelect, onLogV
           className="btn-secondary"
           style={{ padding: '6px 12px', fontSize: '12px' }}
         >
-          Log Visit <ChevronRight size={14} />
+          {t('clientCard.logVisit')} <ChevronRight size={14} />
         </button>
       </div>
     </div>

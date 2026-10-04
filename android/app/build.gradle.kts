@@ -51,6 +51,7 @@ android {
         applicationId = "com.beauty.app"
         minSdk = 24
         targetSdk = 34
+        resourceConfigurations += listOf("en", "ru")
         // versionCode must strictly increase on every published release —
         // Android refuses to install an APK whose versionCode is <= the one
         // already on the device, so a stale value silently blocks upgrades.
@@ -193,6 +194,7 @@ dependencies {
     implementation("androidx.core:core-ktx:1.12.0")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.7.0")
     implementation("androidx.activity:activity-compose:1.8.2")
+    implementation("androidx.appcompat:appcompat:1.7.0")
 
     // Jetpack Compose
     implementation(platform("androidx.compose:compose-bom:2024.02.00"))
@@ -232,6 +234,8 @@ dependencies {
     testImplementation("io.ktor:ktor-client-mock:2.3.8")
     testImplementation("org.mockito.kotlin:mockito-kotlin:5.2.1")
 
+    androidTestImplementation("androidx.compose.ui:ui-test-junit4")
+    debugImplementation("androidx.compose.ui:ui-test-manifest")
     androidTestImplementation("androidx.test.ext:junit:1.1.5")
     androidTestImplementation("androidx.test:runner:1.5.2")
     androidTestImplementation("androidx.test:core:1.5.0")

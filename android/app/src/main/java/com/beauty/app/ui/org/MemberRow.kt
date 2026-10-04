@@ -1,5 +1,6 @@
 package com.beauty.app.ui.org
 
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
@@ -48,7 +49,7 @@ internal fun MemberRow(
         Column(modifier = Modifier.weight(1f)) {
             Text(member.fullName, fontSize = 14.sp)
             Text(
-                "${member.email} · ${member.role.removePrefix("ORG_").lowercase()} · ${member.status.lowercase()}",
+                "${member.email} · ${com.beauty.app.ui.i18n.roleLabel(member.role)} · ${com.beauty.app.ui.i18n.statusLabel(member.status)}",
                 color = TextMuted,
                 fontSize = 12.sp
             )
@@ -58,16 +59,16 @@ internal fun MemberRow(
         // DELETE, so only the wording differs.
         if (member.status == "PENDING") {
             IconButton(onClick = onApprove) {
-                Icon(Icons.Default.Check, contentDescription = "Approve", tint = RoseGoldPrimary)
+                Icon(Icons.Default.Check, contentDescription = stringResource(com.beauty.app.R.string.approve), tint = RoseGoldPrimary)
             }
             IconButton(onClick = { pendingAction = MemberDestructiveAction.Decline }) {
-                Icon(Icons.Default.Close, contentDescription = "Decline", tint = TextMuted)
+                Icon(Icons.Default.Close, contentDescription = stringResource(com.beauty.app.R.string.decline), tint = TextMuted)
             }
         } else {
             if (member.status == "ACTIVE") {
                 TextButton(onClick = onToggleRole) {
                     Text(
-                        if (member.role == "ORG_ADMIN") "Demote" else "Promote",
+                        if (member.role == "ORG_ADMIN") stringResource(com.beauty.app.R.string.demote) else stringResource(com.beauty.app.R.string.promote),
                         color = RoseGoldPrimary,
                         fontSize = 12.sp
                     )
@@ -84,7 +85,7 @@ internal fun MemberRow(
             ) {
                 Icon(
                     Icons.Default.Delete,
-                    contentDescription = if (member.status == "INVITED") "Withdraw invitation" else "Remove",
+                    contentDescription = if (member.status == "INVITED") stringResource(com.beauty.app.R.string.withdraw_invitation) else stringResource(com.beauty.app.R.string.remove),
                     tint = TextMuted
                 )
             }
@@ -94,19 +95,19 @@ internal fun MemberRow(
     pendingAction?.let { action ->
         val (title, message, confirmLabel) = when (action) {
             MemberDestructiveAction.Decline -> Triple(
-                "Decline request?",
-                "Decline ${member.fullName} (${member.email})'s request to join? They will not gain access to this organization's data.",
-                "Decline"
+                stringResource(com.beauty.app.R.string.decline_request),
+                stringResource(com.beauty.app.R.string.decline_member_confirmation, member.fullName, member.email),
+                stringResource(com.beauty.app.R.string.decline)
             )
             MemberDestructiveAction.WithdrawInvitation -> Triple(
-                "Withdraw invitation?",
-                "Withdraw the invitation for ${member.fullName} (${member.email})? They will no longer be able to accept it.",
-                "Withdraw"
+                stringResource(com.beauty.app.R.string.withdraw_invitation_2),
+                stringResource(com.beauty.app.R.string.withdraw_member_confirmation, member.fullName, member.email),
+                stringResource(com.beauty.app.R.string.withdraw)
             )
             MemberDestructiveAction.Remove -> Triple(
-                "Remove member?",
-                "Remove ${member.fullName} (${member.email}) from this organization? Their access will be revoked immediately. Clients and visits they entered will stay with the organization.",
-                "Remove"
+                stringResource(com.beauty.app.R.string.remove_member),
+                stringResource(com.beauty.app.R.string.remove_member_confirmation, member.fullName, member.email),
+                stringResource(com.beauty.app.R.string.remove)
             )
         }
         AlertDialog(
@@ -126,7 +127,7 @@ internal fun MemberRow(
                 ) { Text(confirmLabel) }
             },
             dismissButton = {
-                TextButton(onClick = { pendingAction = null }) { Text("Cancel") }
+                TextButton(onClick = { pendingAction = null }) { Text(stringResource(com.beauty.app.R.string.cancel)) }
             }
         )
     }

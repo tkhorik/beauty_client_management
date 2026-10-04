@@ -3,6 +3,9 @@ import { useAuth } from '../auth/AuthContext';
 import { api, ApiError } from '../services/api';
 import { PASSWORD_MIN_LENGTH, validatePasswordLocally } from '../utils/passwordRules';
 import { X, User, Lock, Settings as SettingsIcon } from 'lucide-react';
+import { LanguageSelector } from './LanguageSelector';
+import { useAppTranslation } from '../i18n/LocaleProvider';
+import { translatedFieldErrors, translatedApiError } from '../i18n/errors';
 
 interface SettingsModalProps {
   onClose: () => void;
@@ -28,6 +31,7 @@ const bannerStyle = (kind: 'error' | 'success') =>
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
   const { user, updateUser, login, logout } = useAuth();
+  const { t } = useAppTranslation();
 
   // -- Profile (name) form --
   const [fullName, setFullName] = useState(user?.fullName ?? '');
@@ -51,7 +55,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
 
     const trimmed = fullName.trim();
     if (!trimmed) {
-      setProfileErrors({ fullName: 'Name is required.' });
+      setProfileErrors({ fullName: t('auth.nameRequired') });
       return;
     }
     setProfileErrors({});
@@ -61,12 +65,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
       updateUser(updated);
       setProfileSuccess(true);
     } catch (err) {
-      if (err instanceof ApiError && err.body.errors) {
-        setProfileErrors(err.body.errors);
-      } else if (err instanceof ApiError && err.body.error) {
-        setProfileErrors({ fullName: err.body.error });
+      if (err instanceof ApiError && err.body.fieldErrors) {
+        setProfileErrors(translatedFieldErrors(err.body));
+      } else if (err instanceof ApiError) {
+        setProfileErrors({ fullName: translatedApiError(err, t('common.error')) });
       } else {
-        setProfileErrors({ fullName: 'Could not save changes. Please try again.' });
+        setProfileErrors({ fullName: t('common.error') });
       }
     } finally {
       setProfileSaving(false);
@@ -79,16 +83,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
 
     const errors: FieldErrors = {};
     if (!currentPassword) {
-      errors.currentPassword = 'Enter your current password.';
+      errors.currentPassword = t('settings.currentPasswordRequired');
     }
     const newPasswordError = validatePasswordLocally(newPassword);
     if (newPasswordError) {
       errors.newPassword = newPasswordError;
     } else if (newPassword === currentPassword) {
-      errors.newPassword = 'New password must be different from the current password.';
+      errors.newPassword = t('apiErrors.PASSWORD_UNCHANGED');
     }
     if (newPassword !== confirmNewPassword) {
-      errors.confirmNewPassword = 'Passwords do not match.';
+      errors.confirmNewPassword = t('auth.passwordsMismatch');
     }
     if (Object.keys(errors).length > 0) {
       setPasswordErrors(errors);
@@ -109,11 +113,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
       setPasswordSuccess(true);
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) {
-        setPasswordErrors({ currentPassword: 'Current password is incorrect.' });
-      } else if (err instanceof ApiError && err.body.errors) {
-        setPasswordErrors(err.body.errors);
+        setPasswordErrors({ currentPassword: t('apiErrors.CURRENT_PASSWORD_INCORRECT') });
+      } else if (err instanceof ApiError && err.body.fieldErrors) {
+        setPasswordErrors(translatedFieldErrors(err.body));
       } else {
-        setPasswordErrors({ newPassword: 'Could not change password. Please try again.' });
+        setPasswordErrors({ newPassword: t('common.error') });
       }
     } finally {
       setPasswordSaving(false);
@@ -160,34 +164,40 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
           }}
         >
           <h2 className="text-gradient" style={{ fontSize: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <SettingsIcon size={20} /> Account Settings
+            <SettingsIcon size={20} /> {t('settings.title')}
           </h2>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
+          <button aria-label={t('common.close')} onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
             <X size={22} />
           </button>
         </div>
 
         <div style={{ padding: '24px', flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '28px' }}>
 
+          <div>
+            <h3 style={{ fontSize: '14px', color: 'var(--rose-gold-primary)', marginBottom: '8px' }}>{t('language.label')}</h3>
+            <p style={{ color: 'var(--text-muted)', fontSize: '12px', marginBottom: '10px' }}>{t('settings.languageDescription')}</p>
+            <LanguageSelector />
+          </div>
+
           {/* Email (read-only) */}
           <div>
             <label style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px', display: 'block' }}>
-              Email
+              {t('settingsModal.email')}
             </label>
             <input className="input-field" value={user.email} disabled style={{ opacity: 0.6, cursor: 'not-allowed' }} />
             <div style={{ color: 'var(--text-muted)', fontSize: '12px', marginTop: '5px' }}>
-              Email is your sign-in identifier and can't be changed here yet.
+              {t('settingsModal.emailIsYourSignInIdentifierAndCanTBeChangedHereYet')}
             </div>
           </div>
 
           {/* Profile form */}
           <form onSubmit={handleProfileSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
             <h3 style={{ fontSize: '14px', color: 'var(--rose-gold-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <User size={16} /> Profile
+              <User size={16} /> {t('settingsModal.profile')}
             </h3>
             <div>
               <label style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px', display: 'block' }}>
-                Full Name
+                {t('settingsModal.fullName')}
               </label>
               <input
                 type="text"
@@ -199,11 +209,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
               {profileErrors.fullName && <div style={fieldErrorStyle}>{profileErrors.fullName}</div>}
             </div>
 
-            {profileSuccess && <div style={bannerStyle('success')}>Profile updated.</div>}
+            {profileSuccess && <div style={bannerStyle('success')}>{t('settingsModal.profileUpdated')}</div>}
 
             <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
               <button type="submit" className="btn-rose" disabled={profileSaving}>
-                {profileSaving ? 'Saving…' : 'Save Name'}
+                {profileSaving ? t('common.saving') :t('settingsModal.saveName')}
               </button>
             </div>
           </form>
@@ -213,12 +223,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
           {/* Password form */}
           <form onSubmit={handlePasswordSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
             <h3 style={{ fontSize: '14px', color: 'var(--rose-gold-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <Lock size={16} /> Change Password
+              <Lock size={16} /> {t('settingsModal.changePassword')}
             </h3>
 
             <div>
               <label style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px', display: 'block' }}>
-                Current Password
+                {t('settingsModal.currentPassword')}
               </label>
               <input
                 type="password"
@@ -233,7 +243,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
 
             <div>
               <label style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px', display: 'block' }}>
-                New Password
+                {t('settingsModal.newPassword')}
               </label>
               <input
                 type="password"
@@ -248,14 +258,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                 <div style={fieldErrorStyle}>{passwordErrors.newPassword}</div>
               ) : (
                 <div style={{ color: 'var(--text-muted)', fontSize: '12px', marginTop: '5px' }}>
-                  At least {PASSWORD_MIN_LENGTH} characters. A memorable phrase beats a short, complex password.
+                  {t('password.guidance', { min: PASSWORD_MIN_LENGTH })}
                 </div>
               )}
             </div>
 
             <div>
               <label style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px', display: 'block' }}>
-                Confirm New Password
+                {t('settingsModal.confirmNewPassword')}
               </label>
               <input
                 type="password"
@@ -270,13 +280,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
 
             {passwordSuccess && (
               <div style={bannerStyle('success')}>
-                Password changed. You've been signed out of every other device.
+                {t('settingsModal.passwordChangedYouVeBeenSignedOutOfEveryOtherDevice')}
               </div>
             )}
 
             <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
               <button type="submit" className="btn-rose" disabled={passwordSaving}>
-                {passwordSaving ? 'Changing…' : 'Change Password'}
+                {passwordSaving ?t('settingsModal.changing') :t('settingsModal.changePassword')}
               </button>
             </div>
           </form>
@@ -291,7 +301,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
               logout();
             }}
           >
-            Sign Out
+            {t('settingsModal.signOut')}
           </button>
         </div>
       </div>

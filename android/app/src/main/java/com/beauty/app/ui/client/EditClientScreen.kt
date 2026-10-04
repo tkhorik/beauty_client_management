@@ -1,5 +1,7 @@
 package com.beauty.app.ui.client
 
+import com.beauty.app.ui.i18n.localizedMessage
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -39,7 +41,7 @@ fun EditClientScreen(
             TopAppBar(
                 title = {
                     Text(
-                        if (viewModel.isNewClient) "New Client" else "Edit Client",
+                        if (viewModel.isNewClient) stringResource(com.beauty.app.R.string.new_client) else stringResource(com.beauty.app.R.string.edit_client),
                         color = RoseGoldPrimary,
                         fontWeight = FontWeight.Bold,
                         fontSize = 20.sp
@@ -49,7 +51,7 @@ fun EditClientScreen(
                     IconButton(onClick = onBack) {
                         Icon(
                             Icons.Default.ArrowBack,
-                            contentDescription = "Back",
+                            contentDescription = stringResource(com.beauty.app.R.string.back),
                             tint = TextLight
                         )
                     }
@@ -75,7 +77,7 @@ fun EditClientScreen(
                     }
                 EditClientViewModel.ExistingClientState.Missing ->
                     Text(
-                        "This client is no longer available. Return to the directory and refresh it.",
+                        stringResource(com.beauty.app.R.string.ui2_this_client_is_no_longer_available_return_to_the_directory_and_re),
                         color = MaterialTheme.colorScheme.error
                     )
                 // Branches rather than early `return@Column`s: returning out of an
@@ -98,7 +100,7 @@ private fun ColumnScope.ClientForm(
         OutlinedTextField(
             value = viewModel.name,
             onValueChange = { viewModel.updateName(it) },
-            label = { Text("Full Name *", color = TextMuted) },
+            label = { Text(stringResource(com.beauty.app.R.string.full_name_2), color = TextMuted) },
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
             colors = outlinedColors()
@@ -108,7 +110,7 @@ private fun ColumnScope.ClientForm(
         OutlinedTextField(
             value = viewModel.phone,
             onValueChange = { viewModel.updatePhone(it) },
-            label = { Text("Phone Number *", color = TextMuted) },
+            label = { Text(stringResource(com.beauty.app.R.string.phone_number), color = TextMuted) },
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
             colors = outlinedColors()
@@ -118,14 +120,14 @@ private fun ColumnScope.ClientForm(
         OutlinedTextField(
             value = viewModel.email,
             onValueChange = { viewModel.updateEmail(it) },
-            label = { Text("Email (Optional)", color = TextMuted) },
+            label = { Text(stringResource(com.beauty.app.R.string.email_optional), color = TextMuted) },
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
             colors = outlinedColors()
         )
 
         // Tags section
-        Text("Tags", color = RoseGoldPrimary, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+        Text(stringResource(com.beauty.app.R.string.tags), color = RoseGoldPrimary, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -134,7 +136,7 @@ private fun ColumnScope.ClientForm(
             OutlinedTextField(
                 value = tagInput,
                 onValueChange = onTagInputChange,
-                label = { Text("Add tag", color = TextMuted) },
+                label = { Text(stringResource(com.beauty.app.R.string.add_tag), color = TextMuted) },
                 singleLine = true,
                 modifier = Modifier.weight(1f),
                 colors = outlinedColors()
@@ -144,7 +146,7 @@ private fun ColumnScope.ClientForm(
                 border = ButtonDefaults.outlinedButtonBorder.copy(
                     brush = androidx.compose.ui.graphics.SolidColor(RoseGoldPrimary)
                 )
-            ) { Text("Add", color = RoseGoldPrimary) }
+            ) { Text(stringResource(com.beauty.app.R.string.add_action), color = RoseGoldPrimary) }
         }
         // Existing tags as chips
         if (viewModel.tags.isNotEmpty()) {
@@ -165,7 +167,7 @@ private fun ColumnScope.ClientForm(
                             ) {
                                 Icon(
                                     Icons.Default.Close,
-                                    contentDescription = "Remove tag",
+                                    contentDescription = stringResource(com.beauty.app.R.string.remove_tag),
                                     tint = TextMuted,
                                     modifier = Modifier.size(12.dp)
                                 )
@@ -186,13 +188,13 @@ private fun ColumnScope.ClientForm(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("Custom Attributes", color = RoseGoldPrimary, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+            Text(stringResource(com.beauty.app.R.string.custom_attributes), color = RoseGoldPrimary, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
             OutlinedButton(
                 onClick = { viewModel.addCustomField() },
                 border = ButtonDefaults.outlinedButtonBorder.copy(
                     brush = androidx.compose.ui.graphics.SolidColor(RoseGoldPrimary)
                 )
-            ) { Text("+ Add", color = RoseGoldPrimary, fontSize = 12.sp) }
+            ) { Text(stringResource(com.beauty.app.R.string.add), color = RoseGoldPrimary, fontSize = 12.sp) }
         }
         viewModel.customFields.forEachIndexed { index, field ->
             Row(
@@ -203,7 +205,7 @@ private fun ColumnScope.ClientForm(
                 OutlinedTextField(
                     value = field.key,
                     onValueChange = { viewModel.updateCustomField(index, it, field.value) },
-                    label = { Text("Attribute", color = TextMuted) },
+                    label = { Text(stringResource(com.beauty.app.R.string.attribute), color = TextMuted) },
                     singleLine = true,
                     modifier = Modifier.weight(1f),
                     colors = outlinedColors()
@@ -211,13 +213,13 @@ private fun ColumnScope.ClientForm(
                 OutlinedTextField(
                     value = field.value,
                     onValueChange = { viewModel.updateCustomField(index, field.key, it) },
-                    label = { Text("Value", color = TextMuted) },
+                    label = { Text(stringResource(com.beauty.app.R.string.value_label), color = TextMuted) },
                     singleLine = true,
                     modifier = Modifier.weight(1f),
                     colors = outlinedColors()
                 )
                 IconButton(onClick = { viewModel.removeCustomField(index) }) {
-                    Icon(Icons.Default.Close, contentDescription = "Remove", tint = Color(0xFFf87171))
+                    Icon(Icons.Default.Close, contentDescription = stringResource(com.beauty.app.R.string.remove), tint = Color(0xFFf87171))
                 }
             }
         }
@@ -225,7 +227,7 @@ private fun ColumnScope.ClientForm(
         // Error
         if (viewModel.saveState is EditClientViewModel.SaveState.Error) {
             Text(
-                text = (viewModel.saveState as EditClientViewModel.SaveState.Error).message,
+                text = localizedMessage((viewModel.saveState as EditClientViewModel.SaveState.Error).message),
                 color = MaterialTheme.colorScheme.error,
                 fontSize = 13.sp
             )
@@ -251,7 +253,7 @@ private fun ColumnScope.ClientForm(
                 )
             } else {
                 Text(
-                    text = if (viewModel.isNewClient) "Create Client" else "Save Changes",
+                    text = if (viewModel.isNewClient) stringResource(com.beauty.app.R.string.create_client) else stringResource(com.beauty.app.R.string.save_changes),
                     color = Color.Black,
                     fontWeight = FontWeight.Bold,
                     fontSize = 15.sp

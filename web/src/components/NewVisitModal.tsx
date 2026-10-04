@@ -1,3 +1,4 @@
+import { useAppTranslation } from '../i18n/LocaleProvider';
 import React, { useState } from 'react';
 import type { Client, Visit } from '../types';
 import { api, writeErrorMessage } from '../services/api';
@@ -17,6 +18,7 @@ export const NewVisitModal: React.FC<NewVisitModalProps> = ({
   onClose,
   onSuccess
 }) => {
+  const { t } = useAppTranslation();
   const [selectedClientId, setSelectedClientId] = useState(client?.id || (clientsList[0]?.id || ''));
   const [visitDateTime, setVisitDateTime] = useState(new Date().toISOString().slice(0, 16));
   const [durationMinutes, setDurationMinutes] = useState(60);
@@ -36,19 +38,19 @@ export const NewVisitModal: React.FC<NewVisitModalProps> = ({
       const compressedDataUrl = await compressImage(file, 1200, 0.85);
       if (tag === 'BEFORE') setBeforePhoto(compressedDataUrl);
       else setAfterPhoto(compressedDataUrl);
-    } catch (err) {
-      alert('Failed to compress image file.');
+    } catch {
+      alert(t('newVisitModal.failedToCompressImageFile'));
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedClientId) {
-      alert('Please select a client.');
+      alert(t('newVisitModal.pleaseSelectAClient'));
       return;
     }
     if (!procedureNotes.trim()) {
-      alert('Please enter procedure notes and details.');
+      alert(t('newVisitModal.pleaseEnterProcedureNotesAndDetails'));
       return;
     }
 
@@ -64,17 +66,17 @@ export const NewVisitModal: React.FC<NewVisitModalProps> = ({
 
       // Upload Before photo if attached
       if (beforePhoto) {
-        await api.addAttachment(visit.id, beforePhoto, 'BEFORE', 'Baseline before procedure photo');
+        await api.addAttachment(visit.id, beforePhoto, 'BEFORE');
       }
       // Upload After photo if attached
       if (afterPhoto) {
-        await api.addAttachment(visit.id, afterPhoto, 'AFTER', 'Finished procedure photo result');
+        await api.addAttachment(visit.id, afterPhoto, 'AFTER');
       }
 
       onSuccess();
       onClose();
     } catch (err) {
-      alert(writeErrorMessage(err, 'Failed to log visit record'));
+      alert(writeErrorMessage(err,t('newVisitModal.failedToLogVisitRecord')));
     } finally {
       setIsSubmitting(false);
     }
@@ -111,9 +113,9 @@ export const NewVisitModal: React.FC<NewVisitModalProps> = ({
           background: 'rgba(15, 14, 19, 0.9)'
         }}>
           <h2 className="text-gradient" style={{ fontSize: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Calendar size={20} /> Log Procedure Visit Entry
+            <Calendar size={20} /> {t('newVisitModal.logProcedureVisitEntry')}
           </h2>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
+          <button aria-label={t('common.close')} onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
             <X size={22} />
           </button>
         </div>
@@ -123,7 +125,7 @@ export const NewVisitModal: React.FC<NewVisitModalProps> = ({
           
           {/* Client Select */}
           <div>
-            <label style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px', display: 'block' }}>Client Profile *</label>
+            <label style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px', display: 'block' }}>{t('newVisitModal.clientProfile')}</label>
             <select
               className="input-field"
               value={selectedClientId}
@@ -141,7 +143,7 @@ export const NewVisitModal: React.FC<NewVisitModalProps> = ({
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '14px' }}>
             <div>
-              <label style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px', display: 'block' }}>Date & Time *</label>
+              <label style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px', display: 'block' }}>{t('newVisitModal.dateAndTime')}</label>
               <input
                 type="datetime-local"
                 required
@@ -152,7 +154,7 @@ export const NewVisitModal: React.FC<NewVisitModalProps> = ({
             </div>
 
             <div>
-              <label style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px', display: 'block' }}>Duration (Mins)</label>
+              <label style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px', display: 'block' }}>{t('newVisitModal.durationMins')}</label>
               <input
                 type="number"
                 min="15"
@@ -164,16 +166,16 @@ export const NewVisitModal: React.FC<NewVisitModalProps> = ({
             </div>
 
             <div>
-              <label style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px', display: 'block' }}>Visit Status</label>
+              <label style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px', display: 'block' }}>{t('newVisitModal.visitStatus')}</label>
               <select
                 className="input-field"
                 value={status}
                 onChange={(e) => setStatus(e.target.value as any)}
                 style={{ height: '42px' }}
               >
-                <option value="COMPLETED" style={{ background: '#181622' }}>COMPLETED</option>
-                <option value="SCHEDULED" style={{ background: '#181622' }}>SCHEDULED</option>
-                <option value="CANCELLED" style={{ background: '#181622' }}>CANCELLED</option>
+                <option value="COMPLETED" style={{ background: '#181622' }}>{t('newVisitModal.cOMPLETED')}</option>
+                <option value="SCHEDULED" style={{ background: '#181622' }}>{t('newVisitModal.sCHEDULED')}</option>
+                <option value="CANCELLED" style={{ background: '#181622' }}>{t('newVisitModal.cANCELLED')}</option>
               </select>
             </div>
           </div>
@@ -181,13 +183,13 @@ export const NewVisitModal: React.FC<NewVisitModalProps> = ({
           {/* Procedure Notes */}
           <div>
             <label style={{ fontSize: '12px', color: 'var(--rose-gold-primary)', fontWeight: 600, marginBottom: '6px', display: 'block' }}>
-              Procedure Details & Formula Notes *
+              {t('newVisitModal.procedureDetailsAndFormulaNotes')}
             </label>
             <textarea
               required
               rows={4}
               className="input-field"
-              placeholder="Enter lash mapping specs, hair dye formula ratios, laser intensity levels, or skin treatment details..."
+              placeholder={t('newVisitModal.enterLashMappingSpecsHairDyeFormulaRatiosLaserIntensityLevelsOrS')}
               value={procedureNotes}
               onChange={(e) => setProcedureNotes(e.target.value)}
               style={{ lineHeight: '1.5', fontFamily: 'inherit' }}
@@ -197,7 +199,7 @@ export const NewVisitModal: React.FC<NewVisitModalProps> = ({
           {/* Before & After Photo Attachments */}
           <div>
             <label style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '8px', display: 'block', fontWeight: 600 }}>
-              Attach Procedure Media (Compressed before upload)
+              {t('newVisitModal.attachProcedureMediaCompressedBeforeUpload')}
             </label>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
               
@@ -210,18 +212,18 @@ export const NewVisitModal: React.FC<NewVisitModalProps> = ({
                 background: 'rgba(15,14,19,0.5)',
                 position: 'relative'
               }}>
-                <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--rose-gold-primary)', textTransform: 'uppercase' }}>BEFORE PHOTO</span>
+                <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--rose-gold-primary)', textTransform: 'uppercase' }}>{t('newVisitModal.bEFOREPHOTO')}</span>
                 {beforePhoto ? (
                   <div style={{ marginTop: '10px', height: '120px', borderRadius: '8px', overflow: 'hidden', position: 'relative' }}>
-                    <img src={beforePhoto} alt="Before" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                    <button type="button" onClick={() => setBeforePhoto(null)} style={{ position: 'absolute', top: '6px', right: '6px', background: 'rgba(0,0,0,0.7)', border: 'none', color: '#fff', borderRadius: '50%', padding: '4px', cursor: 'pointer' }}>
+                    <img src={beforePhoto} alt={t('newVisitModal.before')} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    <button type="button" aria-label={t('common.remove')} onClick={() => setBeforePhoto(null)} style={{ position: 'absolute', top: '6px', right: '6px', background: 'rgba(0,0,0,0.7)', border: 'none', color: '#fff', borderRadius: '50%', padding: '4px', cursor: 'pointer' }}>
                       <X size={14} />
                     </button>
                   </div>
                 ) : (
                   <label style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', marginTop: '12px', cursor: 'pointer' }}>
                     <Camera size={24} color="var(--rose-gold-primary)" />
-                    <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Upload Before Photo</span>
+                    <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{t('newVisitModal.uploadBeforePhoto')}</span>
                     <input type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => handlePhotoUpload(e, 'BEFORE')} />
                   </label>
                 )}
@@ -236,18 +238,18 @@ export const NewVisitModal: React.FC<NewVisitModalProps> = ({
                 background: 'rgba(15,14,19,0.5)',
                 position: 'relative'
               }}>
-                <span style={{ fontSize: '11px', fontWeight: 700, color: '#2dd4bf', textTransform: 'uppercase' }}>AFTER PHOTO</span>
+                <span style={{ fontSize: '11px', fontWeight: 700, color: '#2dd4bf', textTransform: 'uppercase' }}>{t('newVisitModal.aFTERPHOTO')}</span>
                 {afterPhoto ? (
                   <div style={{ marginTop: '10px', height: '120px', borderRadius: '8px', overflow: 'hidden', position: 'relative' }}>
-                    <img src={afterPhoto} alt="After" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                    <button type="button" onClick={() => setAfterPhoto(null)} style={{ position: 'absolute', top: '6px', right: '6px', background: 'rgba(0,0,0,0.7)', border: 'none', color: '#fff', borderRadius: '50%', padding: '4px', cursor: 'pointer' }}>
+                    <img src={afterPhoto} alt={t('newVisitModal.after')} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    <button type="button" aria-label={t('common.remove')} onClick={() => setAfterPhoto(null)} style={{ position: 'absolute', top: '6px', right: '6px', background: 'rgba(0,0,0,0.7)', border: 'none', color: '#fff', borderRadius: '50%', padding: '4px', cursor: 'pointer' }}>
                       <X size={14} />
                     </button>
                   </div>
                 ) : (
                   <label style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', marginTop: '12px', cursor: 'pointer' }}>
                     <Camera size={24} color="#2dd4bf" />
-                    <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Upload After Photo</span>
+                    <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{t('newVisitModal.uploadAfterPhoto')}</span>
                     <input type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => handlePhotoUpload(e, 'AFTER')} />
                   </label>
                 )}
@@ -257,9 +259,9 @@ export const NewVisitModal: React.FC<NewVisitModalProps> = ({
           </div>
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '12px', paddingTop: '16px', borderTop: '1px solid var(--border-color)' }}>
-            <button type="button" className="btn-secondary" onClick={onClose}>Cancel</button>
+            <button type="button" className="btn-secondary" onClick={onClose}>{t('newVisitModal.cancel')}</button>
             <button type="submit" className="btn-rose" disabled={isSubmitting}>
-              {isSubmitting ? 'Saving Visit Record...' : 'Log Visit Record'}
+              {isSubmitting ?t('newVisitModal.savingVisitRecord') :t('newVisitModal.logVisitRecord')}
             </button>
           </div>
         </form>

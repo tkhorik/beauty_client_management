@@ -1,3 +1,5 @@
+import i18n from 'i18next';
+
 /**
  * Password rules shared by every web form that sets a password
  * (`LoginPage`'s registration form and `SettingsModal`'s change-password
@@ -18,10 +20,10 @@ export function byteLength(value: string): number {
 /** Returns a user-facing message for an invalid password, or null when it's fine. */
 export function validatePasswordLocally(password: string): string | null {
   if (password.length < PASSWORD_MIN_LENGTH) {
-    return `Password must be at least ${PASSWORD_MIN_LENGTH} characters.`;
+    return i18n.t('apiErrors.PASSWORD_TOO_SHORT', { min: PASSWORD_MIN_LENGTH });
   }
   if (byteLength(password) > PASSWORD_MAX_BYTES) {
-    return `Password must be at most ${PASSWORD_MAX_BYTES} bytes long.`;
+    return i18n.t('apiErrors.PASSWORD_TOO_LONG', { max: PASSWORD_MAX_BYTES });
   }
   return null;
 }

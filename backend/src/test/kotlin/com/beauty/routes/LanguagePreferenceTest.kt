@@ -62,6 +62,15 @@ class LanguagePreferenceTest {
             bearerAuth(token); contentType(ContentType.Application.Json)
             setBody("""{"preference":"ru"}""")
         }.status)
+        val accountMismatch = client.put("/api/users/me/language") {
+            bearerAuth(b["token"]!!.jsonPrimitive.content); contentType(ContentType.Application.Json)
+            setBody(buildJsonObject {
+                put("preference", "ru"); put("expectedRevision", 0)
+                put("expectedAccountId", a["user"]!!.jsonObject["id"]!!.jsonPrimitive.content)
+            }.toString())
+        }
+        assertEquals(HttpStatusCode.Forbidden, accountMismatch.status)
+        assertEquals("ACCOUNT_CHANGED", Json.parseToJsonElement(accountMismatch.bodyAsText()).jsonObject["code"]!!.jsonPrimitive.content)
         val other = client.get("/api/users/me") { bearerAuth(b["token"]!!.jsonPrimitive.content) }
         assertEquals("en", Json.parseToJsonElement(other.bodyAsText()).jsonObject["languagePreference"]!!.jsonPrimitive.content)
         assertEquals(HttpStatusCode.Unauthorized, client.put("/api/users/me/language") {

@@ -97,7 +97,7 @@ class ClientDirectoryViewModel(
 
     private fun showFailure(error: Exception) {
         blocked = error is ResponseException && error.response.status.value in listOf(401, 403, 404)
-        message = if (blocked) "Access is unavailable. Check your account and organization."
-            else "Could not reach the server — showing cached clients."
+        message = if (blocked) "ACCESS_DENIED"
+            else "NO_CACHED_CLIENTS"
     }
 }

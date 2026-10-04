@@ -21,14 +21,22 @@ import io.ktor.client.plugins.expectSuccess
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.client.request.url
+import io.ktor.client.request.header
 import io.ktor.http.ContentType
+import io.ktor.http.HttpHeaders
 import io.ktor.http.contentType
 import io.ktor.http.isSuccess
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.json.Json
+import java.util.Locale
+import androidx.appcompat.app.AppCompatDelegate
 
 object AppContainer {
     private val json = Json { ignoreUnknownKeys = true }
+
+    private fun effectiveLanguageTag(): String =
+        AppCompatDelegate.getApplicationLocales().toLanguageTags()
+            .ifBlank { android.os.LocaleList.getDefault().toLanguageTags() }
 
     /**
      * A client with **no Auth plugin**, used only to call `/api/auth/refresh`.
@@ -49,7 +57,10 @@ object AppContainer {
             connectTimeoutMillis = 10_000
             requestTimeoutMillis = 15_000
         }
-        defaultRequest { url(BuildConfig.API_BASE_URL) }
+        defaultRequest {
+            url(BuildConfig.API_BASE_URL)
+            header(HttpHeaders.AcceptLanguage, effectiveLanguageTag())
+        }
     }
 
     /** Build an HttpClient that automatically attaches Bearer tokens from TokenStore. */
@@ -63,7 +74,10 @@ object AppContainer {
                 connectTimeoutMillis = 10_000
                 requestTimeoutMillis = 15_000
             }
-            defaultRequest { url(BuildConfig.API_BASE_URL) }
+            defaultRequest {
+                url(BuildConfig.API_BASE_URL)
+                header(HttpHeaders.AcceptLanguage, effectiveLanguageTag())
+            }
             install(Auth) {
                 bearer {
                     loadTokens {
@@ -118,6 +132,13 @@ object AppContainer {
 
     fun tokenStore(context: Context): TokenStore = TokenStore(context)
 
+    @Volatile private var languageManagerInstance: com.beauty.app.i18n.LanguagePreferenceManager? = null
+    fun languageManager(context: Context): com.beauty.app.i18n.LanguagePreferenceManager =
+        languageManagerInstance ?: synchronized(this) {
+            languageManagerInstance ?: com.beauty.app.i18n.LanguagePreferenceManager(context.applicationContext)
+                .also { languageManagerInstance = it }
+        }
+
     /**
      * The active-organization store.
      *
@@ -137,7 +158,10 @@ object AppContainer {
             connectTimeoutMillis = 10_000
             requestTimeoutMillis = 15_000
         }
-        defaultRequest { url(BuildConfig.API_BASE_URL) }
+        defaultRequest {
+            url(BuildConfig.API_BASE_URL)
+            header(HttpHeaders.AcceptLanguage, effectiveLanguageTag())
+        }
     }
 
     fun repository(context: Context, tokenStore: TokenStore): BeautyRepository {

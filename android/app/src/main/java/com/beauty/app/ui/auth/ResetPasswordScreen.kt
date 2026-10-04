@@ -1,5 +1,7 @@
 package com.beauty.app.ui.auth
 
+import com.beauty.app.ui.i18n.localizedMessage
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -35,9 +37,9 @@ fun ResetPasswordScreen(
     initialToken: String? = null,
     onTokenUsed: () -> Unit = {}
 ) {
-    var link by remember { mutableStateOf("") }
-    var newPassword by remember { mutableStateOf("") }
-    var confirmPassword by remember { mutableStateOf("") }
+    var link by viewModel::resetLink
+    var newPassword by viewModel::resetNewPassword
+    var confirmPassword by viewModel::resetConfirmPassword
     var showPassword by remember { mutableStateOf(false) }
     val state = viewModel.resetPasswordState
     val loading = state is AuthViewModel.ResetPasswordState.Loading
@@ -69,31 +71,31 @@ fun ResetPasswordScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
+                com.beauty.app.ui.i18n.LanguageSelector(accountId = null, modifier = Modifier.fillMaxWidth())
                 if (state is AuthViewModel.ResetPasswordState.Done) {
                     Text(
-                        text = "Password changed",
+                        text = stringResource(com.beauty.app.R.string.password_changed),
                         color = RoseGoldPrimary,
                         fontWeight = FontWeight.Bold,
                         fontSize = 22.sp
                     )
                     Text(
-                        text = "You've been signed out on every device. Sign in with your new password.",
+                        text = stringResource(com.beauty.app.R.string.ui2_you_ve_been_signed_out_on_every_device_sign_in_with_your_new_pass),
                         color = TextMuted,
                         fontSize = 14.sp,
                         textAlign = TextAlign.Center
                     )
-                    PrimaryButton(text = "Sign in", loading = false, onClick = onNavigateBackToLogin)
+                    PrimaryButton(text = stringResource(com.beauty.app.R.string.sign_in_2), loading = false, onClick = onNavigateBackToLogin)
                 } else {
                     Text(
-                        text = "Choose a new password",
+                        text = stringResource(com.beauty.app.R.string.choose_a_new_password),
                         color = RoseGoldPrimary,
                         fontWeight = FontWeight.Bold,
                         fontSize = 22.sp
                     )
                     if (initialToken == null) {
                     Text(
-                        text = "Copy the reset link from the email (long-press it, then Copy link) " +
-                            "and paste it below.",
+                        text = stringResource(com.beauty.app.R.string.reset_link_help),
                         color = TextMuted,
                         fontSize = 14.sp,
                         textAlign = TextAlign.Center
@@ -102,21 +104,21 @@ fun ResetPasswordScreen(
                     ResetField(
                         value = link,
                         onValueChange = { link = it },
-                        label = "Reset link",
+                        label = stringResource(com.beauty.app.R.string.reset_link),
                         error = fieldErrors["link"],
                         enabled = !loading,
                         keyboardType = KeyboardType.Uri
                     )
                     } else {
-                        Text("Reset link received. Choose your new password.", color = TextMuted)
-                        fieldErrors["link"]?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                        Text(stringResource(com.beauty.app.R.string.reset_link_received_choose_your_new_password), color = TextMuted)
+                        fieldErrors["link"]?.let { Text(localizedMessage(it), color = MaterialTheme.colorScheme.error) }
                     }
                     ResetField(
                         value = newPassword,
                         onValueChange = { newPassword = it },
-                        label = "New password",
+                        label = stringResource(com.beauty.app.R.string.new_password),
                         error = fieldErrors["newPassword"],
-                        helper = "At least ${AuthValidation.PASSWORD_MIN_LENGTH} characters.",
+                        helper = stringResource(com.beauty.app.R.string.password_minimum, AuthValidation.PASSWORD_MIN_LENGTH),
                         enabled = !loading,
                         keyboardType = KeyboardType.Password,
                         hidden = !showPassword,
@@ -124,7 +126,7 @@ fun ResetPasswordScreen(
                             IconButton(onClick = { showPassword = !showPassword }) {
                                 Icon(
                                     imageVector = if (showPassword) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
-                                    contentDescription = if (showPassword) "Hide password" else "Show password",
+                                    contentDescription = if (showPassword) stringResource(com.beauty.app.R.string.hide_password) else stringResource(com.beauty.app.R.string.show_password),
                                     tint = TextMuted
                                 )
                             }
@@ -133,7 +135,7 @@ fun ResetPasswordScreen(
                     ResetField(
                         value = confirmPassword,
                         onValueChange = { confirmPassword = it },
-                        label = "Confirm new password",
+                        label = stringResource(com.beauty.app.R.string.confirm_new_password),
                         error = fieldErrors["confirmPassword"],
                         enabled = !loading,
                         keyboardType = KeyboardType.Password,
@@ -141,10 +143,10 @@ fun ResetPasswordScreen(
                     )
 
                     (state as? AuthViewModel.ResetPasswordState.Error)?.message?.let { message ->
-                        Text(text = message, color = MaterialTheme.colorScheme.error, fontSize = 13.sp)
+                        Text(text = localizedMessage(message), color = MaterialTheme.colorScheme.error, fontSize = 13.sp)
                     }
 
-                    PrimaryButton(text = "Set new password", loading = loading) {
+                    PrimaryButton(text = stringResource(com.beauty.app.R.string.set_new_password), loading = loading) {
                         viewModel.resetPassword(
                             token = initialToken ?: tokenFromWebAppLink(link, "token", "/reset-password"),
                             newPassword = newPassword,
@@ -154,11 +156,11 @@ fun ResetPasswordScreen(
 
                     if (fieldErrors.containsKey("link")) {
                         TextButton(onClick = onRequestNewLink, enabled = !loading) {
-                            Text(text = "Request a new link", color = RoseGoldPrimary, fontSize = 13.sp)
+                            Text(text = stringResource(com.beauty.app.R.string.request_a_new_link), color = RoseGoldPrimary, fontSize = 13.sp)
                         }
                     }
                     TextButton(onClick = onNavigateBackToLogin, enabled = !loading) {
-                        Text(text = "Back to sign in", color = RoseGoldPrimary, fontSize = 13.sp)
+                        Text(text = stringResource(com.beauty.app.R.string.back_to_sign_in), color = RoseGoldPrimary, fontSize = 13.sp)
                     }
                 }
             }
@@ -183,7 +185,7 @@ private fun ResetField(
         onValueChange = onValueChange,
         label = { Text(label, color = TextMuted) },
         isError = error != null,
-        supportingText = (error ?: helper)?.let { text -> { Text(text) } },
+        supportingText = (error ?: helper)?.let { text -> { Text(if (error != null) localizedMessage(text) else text) } },
         visualTransformation = if (hidden) PasswordVisualTransformation() else VisualTransformation.None,
         trailingIcon = trailingIcon,
         keyboardOptions = KeyboardOptions(keyboardType = keyboardType),

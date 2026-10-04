@@ -1,5 +1,6 @@
 package com.beauty.app.ui.client
 
+import com.beauty.app.data.api.safeMessage
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -136,11 +137,11 @@ class EditClientViewModel(
             val normalizedEmail = email.trim().takeIf { it.isNotEmpty() }?.let(AuthValidation::normaliseEmail)
             when {
                 trimmedName.isEmpty() -> {
-                    saveState = SaveState.Error("Client name is required.")
+                    saveState = SaveState.Error("CLIENT_NAME_REQUIRED")
                     return@launch
                 }
                 trimmedPhone.isEmpty() -> {
-                    saveState = SaveState.Error("Phone number is required.")
+                    saveState = SaveState.Error("PHONE_REQUIRED")
                     return@launch
                 }
                 normalizedEmail != null -> AuthValidation.emailError(normalizedEmail)?.let {
@@ -159,7 +160,7 @@ class EditClientViewModel(
 
             if (duplicateKey != null) {
                 saveState = SaveState.Error(
-                    "Custom field \"$duplicateKey\" is entered more than once. Field names must be unique."
+                    "DUPLICATE_FIELD:$duplicateKey"
                 )
                 return@launch
             }
@@ -198,12 +199,12 @@ class EditClientViewModel(
                 repository.upsertClientLocally(dto.toEntity(organizationId))
                 SaveState.Success
             } catch (e: ClientRequestException) {
-                SaveState.Error("Save failed: ${e.response.status.value}")
+                SaveState.Error(e.safeMessage("ACTION_FAILED"))
             } catch (e: Exception) {
                 // Cancellation must reach the parent scope; treating it as a
                 // failed save leaves a stale error after navigation.
                 if (e is kotlinx.coroutines.CancellationException) throw e
-                SaveState.Error(e.message ?: "Server could not be reached.")
+                SaveState.Error("NETWORK_ERROR")
             }
         }
     }

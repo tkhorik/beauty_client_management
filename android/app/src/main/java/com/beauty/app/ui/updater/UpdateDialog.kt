@@ -1,5 +1,6 @@
 package com.beauty.app.ui.updater
 
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -84,14 +85,14 @@ fun UpdateDialog(
                     ) {
                         Icon(
                             Icons.Default.SystemUpdate,
-                            contentDescription = "Update",
+                            contentDescription = stringResource(com.beauty.app.R.string.update),
                             tint = RoseGoldPrimary
                         )
                     }
 
                     Column {
                         Text(
-                            text = "New Version Available",
+                            text = stringResource(com.beauty.app.R.string.new_version_available),
                             color = TextLight,
                             fontWeight = FontWeight.Bold,
                             fontSize = 18.sp
@@ -124,7 +125,7 @@ fun UpdateDialog(
                 // Changelog / Release Notes
                 if (release.notes.isNotBlank()) {
                     Text(
-                        text = "What's new in this release:",
+                        text = stringResource(com.beauty.app.R.string.what_s_new_in_this_release),
                         color = TextLight,
                         fontWeight = FontWeight.SemiBold,
                         fontSize = 14.sp
@@ -155,7 +156,7 @@ fun UpdateDialog(
                 // Size info
                 if (release.apkSize > 0L && distributionMode != UpdateDistributionMode.PLAY_STORE) {
                     Text(
-                        text = "Download size: ${formatBytes(release.apkSize)}",
+                        text = stringResource(com.beauty.app.R.string.download_size, formatBytes(release.apkSize)),
                         color = TextMuted,
                         fontSize = 12.sp
                     )
@@ -209,7 +210,7 @@ fun UpdateDialog(
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text(
-                            text = "To install this update, you'll need to allow Aura Beauty to install unknown apps in settings.",
+                            text = stringResource(com.beauty.app.R.string.ui2_to_install_this_update_you_ll_need_to_allow_aura_beauty_to_instal),
                             color = ChampagneAccent,
                             fontSize = 12.sp,
                             modifier = Modifier.padding(10.dp)
@@ -229,12 +230,12 @@ fun UpdateDialog(
                                 onClick = onCancelDownload,
                                 shape = RoundedCornerShape(10.dp)
                             ) {
-                                Text("Cancel", color = TextLight)
+                                Text(stringResource(com.beauty.app.R.string.cancel), color = TextLight)
                             }
                         }
                         is UpdateState.ReadyToInstall -> {
                             TextButton(onClick = onDismiss) {
-                                Text("Later", color = TextMuted)
+                                Text(stringResource(com.beauty.app.R.string.later), color = TextMuted)
                             }
                             Spacer(modifier = Modifier.width(8.dp))
                             Button(
@@ -245,7 +246,7 @@ fun UpdateDialog(
                                 colors = ButtonDefaults.buttonColors(containerColor = EmeraldStatus)
                             ) {
                                 Text(
-                                    text = if (needsInstallPermission) "Grant Permission" else "Install Now",
+                                    text = if (needsInstallPermission) stringResource(com.beauty.app.R.string.grant_permission) else stringResource(com.beauty.app.R.string.install_now),
                                     color = Color.Black,
                                     fontWeight = FontWeight.Bold
                                 )
@@ -253,7 +254,7 @@ fun UpdateDialog(
                         }
                         else -> {
                             TextButton(onClick = onDismiss) {
-                                Text("Later", color = TextMuted)
+                                Text(stringResource(com.beauty.app.R.string.later), color = TextMuted)
                             }
                             Spacer(modifier = Modifier.width(8.dp))
 
@@ -263,7 +264,7 @@ fun UpdateDialog(
                                     shape = RoundedCornerShape(10.dp),
                                     colors = ButtonDefaults.buttonColors(containerColor = RoseGoldPrimary)
                                 ) {
-                                    Text("Open Google Play", color = Color.Black, fontWeight = FontWeight.Bold)
+                                    Text(stringResource(com.beauty.app.R.string.open_google_play), color = Color.Black, fontWeight = FontWeight.Bold)
                                 }
                             } else {
                                 Button(
@@ -271,7 +272,7 @@ fun UpdateDialog(
                                     shape = RoundedCornerShape(10.dp),
                                     colors = ButtonDefaults.buttonColors(containerColor = RoseGoldPrimary)
                                 ) {
-                                    Text("Download & Install", color = Color.Black, fontWeight = FontWeight.Bold)
+                                    Text(stringResource(com.beauty.app.R.string.download_install), color = Color.Black, fontWeight = FontWeight.Bold)
                                 }
                             }
                         }
@@ -282,13 +283,14 @@ fun UpdateDialog(
     }
 }
 
+@Composable
 private fun formatBytes(bytes: Long): String {
-    if (bytes <= 0) return "0 B"
+    if (bytes <= 0) return stringResource(com.beauty.app.R.string.size_bytes, 0)
     val kb = bytes / 1024f
     val mb = kb / 1024f
     return if (mb >= 1.0f) {
-        String.format(Locale.US, "%.1f MB", mb)
+        stringResource(com.beauty.app.R.string.size_megabytes, String.format(Locale.getDefault(), "%.1f", mb))
     } else {
-        String.format(Locale.US, "%.0f KB", kb)
+        stringResource(com.beauty.app.R.string.size_kilobytes, String.format(Locale.getDefault(), "%.0f", kb))
     }
 }

@@ -51,20 +51,20 @@ internal class AppLinkViewModel : ViewModel() {
                 if (link.token != null) {
                     api.verifyEmail(link.token)
                     try { refreshProfile() } catch (e: CancellationException) { throw e } catch (_: Exception) { }
-                    "Email confirmed."
+                    "EMAIL_CONFIRMED"
                 } else if (link.status == "success") {
-                    "Email confirmed."
+                    "EMAIL_CONFIRMED"
                 } else {
-                    "This verification link is invalid or has expired."
+                    "INVALID_VERIFICATION_TOKEN"
                 }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: ClientRequestException) {
                 if (e.response.status == HttpStatusCode.BadRequest)
-                    "This verification link is invalid or has expired."
-                else "Could not verify your email. Please try again."
+                    "INVALID_VERIFICATION_TOKEN"
+                else "VERIFY_FAILED"
             } catch (e: Exception) {
-                "Could not reach the server. Reopen the link to try again."
+                "VERIFY_NETWORK"
             } finally {
                 verifying = false
                 profileRevision++
