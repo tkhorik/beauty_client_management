@@ -1,6 +1,7 @@
 import { setToken, clearToken } from './tokenStore';
 import { API_BASE_URL } from '../config';
 import type { UserProfile } from '../types';
+import { effectiveAcceptLanguage } from '../i18n/store';
 
 /**
  * Tells the backend to deliver the refresh token as an httpOnly cookie rather
@@ -15,10 +16,10 @@ export const AUTH_TRANSPORT_HEADERS: Record<string, string> = {
  * refresh cookie. Without it the cookie is silently ignored on cross-origin
  * requests — which is exactly the dev setup (Vite on :5174, API on :8080).
  */
-const AUTH_FETCH_INIT: RequestInit = {
+const authFetchInit = (): RequestInit => ({
   credentials: 'include',
-  headers: { 'Content-Type': 'application/json', ...AUTH_TRANSPORT_HEADERS },
-};
+  headers: { 'Content-Type': 'application/json', 'Accept-Language': effectiveAcceptLanguage(), ...AUTH_TRANSPORT_HEADERS },
+});
 
 interface AuthResponseBody {
   token: string;
@@ -56,7 +57,7 @@ export function refreshAccessToken(): Promise<SessionResult | null> {
   inFlightRefresh = (async () => {
     try {
       const res = await fetch(`${API_BASE_URL}/auth/refresh`, {
-        ...AUTH_FETCH_INIT,
+        ...authFetchInit(),
         method: 'POST',
         body: JSON.stringify({}),
       });
@@ -96,7 +97,7 @@ export async function restoreSession(): Promise<SessionResult | null> {
 export async function endSession(): Promise<void> {
   try {
     await fetch(`${API_BASE_URL}/auth/logout`, {
-      ...AUTH_FETCH_INIT,
+      ...authFetchInit(),
       method: 'POST',
       body: JSON.stringify({}),
     });

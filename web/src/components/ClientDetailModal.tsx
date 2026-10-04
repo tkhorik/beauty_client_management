@@ -1,3 +1,4 @@
+import { useAppTranslation, useLocale } from '../i18n/LocaleProvider';
 import React, { useState } from 'react';
 import type { Client, Visit, Attachment } from '../types';
 import { X, Calendar, Clock, Plus, Trash2, Edit3, Edit2, Camera, FileText, Sliders } from 'lucide-react';
@@ -21,6 +22,8 @@ export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
   onOpenNewVisit,
   onOpenPhotoCompare
 }) => {
+  const { t } = useAppTranslation();
+  const { formatDate } = useLocale();
   const [customFields, setCustomFields] = useState<Record<string, string | number | boolean>>(client.customFields || {});
   const [newKey, setNewKey] = useState('');
   const [newValue, setNewValue] = useState('');
@@ -50,14 +53,14 @@ export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
       setIsEditingFields(false);
       onRefresh();
     } catch (err) {
-      alert(writeErrorMessage(err, 'Failed to save custom fields'));
+      alert(writeErrorMessage(err,t('clientDetailModal.failedToSaveCustomFields')));
     } finally {
       setIsSaving(false);
     }
   };
 
   const handleDeleteClient = async () => {
-    if (confirm(`Are you sure you want to delete ${client.name} and all visit logs?`)) {
+    if (confirm(t('clientDetailModal.confirmDelete', { name: client.name }))) {
       try {
         await api.deleteClient(client.id);
       } catch (err) {
@@ -65,7 +68,7 @@ export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
         // fell back to localStorage and "succeeded". A refused delete now
         // throws, and without this the modal would close as if the record were
         // gone while the server still has it.
-        alert(writeErrorMessage(err, 'Failed to delete this client.'));
+        alert(writeErrorMessage(err,t('clientDetailModal.failedToDeleteThisClient')));
         return;
       }
       onRefresh();
@@ -107,25 +110,25 @@ export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
               <h2 className="text-gradient" style={{ fontSize: '24px' }}>{client.name}</h2>
               <span style={{ fontSize: '12px', background: 'rgba(229,184,153,0.15)', color: 'var(--rose-gold-primary)', padding: '4px 10px', borderRadius: '12px', border: '1px solid rgba(229,184,153,0.3)', fontWeight: 600 }}>
-                {client.totalVisits} Total Visits
+                {client.totalVisits} {t('clientDetailModal.totalVisits')}
               </span>
             </div>
             <p style={{ color: 'var(--text-muted)', fontSize: '13px', marginTop: '4px' }}>
-              Phone: <strong style={{ color: '#fff' }}>{client.phone}</strong> {client.email && `| Email: ${client.email}`}
+              {t('clientDetailModal.phone')} <strong style={{ color: '#fff' }}>{client.phone}</strong> {client.email && `| ${t('auth.email')}: ${client.email}`}
             </p>
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <button className="btn-secondary" onClick={() => setIsEditClientOpen(true)} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <Edit2 size={16} /> Edit Client
+              <Edit2 size={16} /> {t('clientDetailModal.editClient')}
             </button>
             <button className="btn-rose" onClick={() => onOpenNewVisit(client)}>
-              <Plus size={16} /> Log New Visit
+              <Plus size={16} /> {t('clientDetailModal.logNewVisit')}
             </button>
-            <button onClick={handleDeleteClient} style={{ background: 'rgba(239,68,68,0.15)', color: '#f87171', border: '1px solid rgba(239,68,68,0.3)', padding: '10px 14px', borderRadius: 'var(--radius-sm)', cursor: 'pointer' }}>
+            <button aria-label={t('common.delete')} onClick={handleDeleteClient} style={{ background: 'rgba(239,68,68,0.15)', color: '#f87171', border: '1px solid rgba(239,68,68,0.3)', padding: '10px 14px', borderRadius: 'var(--radius-sm)', cursor: 'pointer' }}>
               <Trash2 size={16} />
             </button>
-            <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
+            <button aria-label={t('common.close')} onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
               <X size={24} />
             </button>
           </div>
@@ -138,19 +141,19 @@ export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
           <div className="glass-panel" style={{ padding: '20px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
               <h3 style={{ fontSize: '16px', color: 'var(--rose-gold-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Sliders size={18} /> Dynamic Custom Client Attributes (JSONB)
+                <Sliders size={18} /> {t('clientDetailModal.dynamicCustomClientAttributesJSONB')}
               </h3>
               {!isEditingFields ? (
                 <button className="btn-secondary" style={{ padding: '4px 10px', fontSize: '12px' }} onClick={() => setIsEditingFields(true)}>
-                  <Edit3 size={14} /> Edit Attributes
+                  <Edit3 size={14} /> {t('clientDetailModal.editAttributes')}
                 </button>
               ) : (
                 <div style={{ display: 'flex', gap: '8px' }}>
                   <button className="btn-rose" style={{ padding: '4px 12px', fontSize: '12px' }} onClick={handleSaveFields} disabled={isSaving}>
-                    {isSaving ? 'Saving...' : 'Save Changes'}
+                    {isSaving ?t('clientDetailModal.saving') :t('clientDetailModal.saveChanges')}
                   </button>
                   <button className="btn-secondary" style={{ padding: '4px 10px', fontSize: '12px' }} onClick={() => setIsEditingFields(false)}>
-                    Cancel
+                    {t('clientDetailModal.cancel')}
                   </button>
                 </div>
               )}
@@ -165,7 +168,7 @@ export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
                     <span style={{ fontSize: '13px', color: '#fff', fontWeight: 600 }}>{String(customFields[key])}</span>
                   </div>
                   {isEditingFields && (
-                    <button onClick={() => handleRemoveField(key)} style={{ background: 'none', border: 'none', color: '#f87171', cursor: 'pointer' }}>
+                    <button aria-label={t('common.remove')} onClick={() => handleRemoveField(key)} style={{ background: 'none', border: 'none', color: '#f87171', cursor: 'pointer' }}>
                       <Trash2 size={14} />
                     </button>
                   )}
@@ -178,7 +181,7 @@ export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
               <div style={{ display: 'flex', gap: '10px', marginTop: '16px', paddingTop: '14px', borderTop: '1px dashed var(--border-color)' }}>
                 <input
                   type="text"
-                  placeholder="Attribute Name (e.g. Skin Tone, Dye Ratio)"
+                  placeholder={t('clientDetailModal.attributeNameEGSkinToneDyeRatio')}
                   className="input-field"
                   value={newKey}
                   onChange={(e) => setNewKey(e.target.value)}
@@ -186,14 +189,14 @@ export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
                 />
                 <input
                   type="text"
-                  placeholder="Value (e.g. Warm Olive, 1:1)"
+                  placeholder={t('clientDetailModal.valueEGWarmOlive11')}
                   className="input-field"
                   value={newValue}
                   onChange={(e) => setNewValue(e.target.value)}
                   style={{ flex: '1 1 200px' }}
                 />
                 <button className="btn-secondary" onClick={handleAddField}>
-                  <Plus size={16} /> Add Attribute
+                  <Plus size={16} /> {t('clientDetailModal.addAttribute')}
                 </button>
               </div>
             )}
@@ -202,15 +205,15 @@ export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
           {/* Chronological Visit History Timeline */}
           <div>
             <h3 style={{ fontSize: '18px', color: '#fff', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Calendar size={20} color="var(--rose-gold-primary)" /> Visit History & Procedure Timeline
+              <Calendar size={20} color="var(--rose-gold-primary)" /> {t('clientDetailModal.visitHistoryAndProcedureTimeline')}
             </h3>
 
             {visits.length === 0 ? (
               <div className="glass-panel" style={{ padding: '30px', textAlign: 'center', color: 'var(--text-muted)' }}>
                 <FileText size={32} style={{ marginBottom: '10px', opacity: 0.5 }} />
-                <p>No visit logs found for this client yet.</p>
+                <p>{t('clientDetailModal.noVisitLogsFoundForThisClientYet')}</p>
                 <button className="btn-rose" style={{ marginTop: '14px' }} onClick={() => onOpenNewVisit(client)}>
-                  <Plus size={16} /> Log First Visit
+                  <Plus size={16} /> {t('clientDetailModal.logFirstVisit')}
                 </button>
               </div>
             ) : (
@@ -228,18 +231,18 @@ export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
                         <div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                             <span style={{ fontSize: '15px', fontWeight: 700, color: '#fff' }}>
-                              {new Date(visit.visitDateTime).toLocaleDateString(undefined, { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                              {formatDate(visit.visitDateTime, { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
                             </span>
-                            <span className={`tag-badge ${statusClass}`}>{visit.status}</span>
+                            <span className={`tag-badge ${statusClass}`}>{t(visit.status === 'COMPLETED' ? 'newVisitModal.cOMPLETED' : visit.status === 'SCHEDULED' ? 'newVisitModal.sCHEDULED' : 'newVisitModal.cANCELLED')}</span>
                           </div>
                           <span style={{ fontSize: '12px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '4px' }}>
-                            <Clock size={12} /> Duration: {visit.durationMinutes} minutes
+                            <Clock size={12} /> {t('clientDetailModal.duration')} {t('counts.minutes', { count: visit.durationMinutes })}
                           </span>
                         </div>
 
                         {hasBeforeAfter && (
                           <button className="btn-rose" style={{ padding: '6px 12px', fontSize: '12px' }} onClick={() => onOpenPhotoCompare(attachments)}>
-                            <Camera size={14} /> Compare Before/After
+                            <Camera size={14} /> {t('clientDetailModal.compareBeforeAfter')}
                           </button>
                         )}
                       </div>
@@ -252,13 +255,13 @@ export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
                       {/* Photo Attachments Grid */}
                       {attachments.length > 0 && (
                         <div>
-                          <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '8px', fontWeight: 600 }}>Attachments ({attachments.length} Photos/Files):</p>
+                          <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '8px', fontWeight: 600 }}>{t('clientDetailModal.attachmentCount', { count: attachments.length })}</p>
                           <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
                             {attachments.map(att => (
                               <div key={att.id} style={{ position: 'relative', width: '100px', height: '100px', borderRadius: '10px', overflow: 'hidden', border: '1px solid var(--border-color)' }}>
-                                <img src={att.fileUrl} alt={att.caption || 'Attachment'} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                <img src={att.fileUrl} alt={att.caption || t('clientDetailModal.attachment')} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                                 <span style={{ position: 'absolute', bottom: '4px', left: '4px', background: 'rgba(0,0,0,0.8)', color: att.tag === 'BEFORE' ? 'var(--rose-gold-primary)' : att.tag === 'AFTER' ? '#2dd4bf' : '#fff', padding: '2px 6px', borderRadius: '6px', fontSize: '9px', fontWeight: 700 }}>
-                                  {att.tag}
+                                  {t(att.tag === 'BEFORE' ? 'newVisitModal.before' : att.tag === 'AFTER' ? 'newVisitModal.after' : att.tag === 'PROCEDURE' ? 'attachment.procedure' : 'attachment.document')}
                                 </span>
                               </div>
                             ))}

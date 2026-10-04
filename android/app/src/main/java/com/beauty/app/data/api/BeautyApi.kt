@@ -102,8 +102,16 @@ data class AuthRequest(val email: String, val password: String)
 data class RegisterRequest(
     val email: String,
     val password: String,
-    val fullName: String
+    val fullName: String,
+    val languagePreference: String? = null
 )
+
+/** Account language is a preference, not a detected locale. */
+@Serializable
+data class LanguagePreferenceRequest(val preference: String, val expectedRevision: Long, val expectedAccountId: String? = null)
+
+@Serializable
+data class LanguagePreferenceResponse(val preference: String, val revision: Long)
 
 /**
  * The backend's 400 body for rejected input: `field name -> message`, so the
@@ -112,8 +120,16 @@ data class RegisterRequest(
 @Serializable
 data class ValidationErrorResponse(
     val error: String = "Validation failed",
-    val errors: Map<String, String> = emptyMap()
+    val errors: Map<String, String> = emptyMap(),
+    val code: String = "VALIDATION_FAILED",
+    val fieldErrors: Map<String, FieldErrorDto> = emptyMap()
 )
+
+@Serializable
+data class FieldErrorDto(val code: String, val args: Map<String, Int> = emptyMap())
+
+@Serializable
+data class ApiErrorResponse(val code: String? = null, val error: String? = null)
 
 @Serializable
 data class UserDto(
@@ -143,7 +159,9 @@ data class UserDto(
      * Defaults to `USER`, the same safe direction as [emailVerified]: a server
      * that does not send the field grants nothing extra rather than everything.
      */
-    val globalRole: String = "USER"
+    val globalRole: String = "USER",
+    val languagePreference: String = "system",
+    val languageRevision: Long = 0
 ) {
     val isSuperAdmin: Boolean get() = globalRole == "SUPER_ADMIN"
 }
@@ -463,6 +481,7 @@ interface BeautyApi {
     /** The signed-in user's own profile. The JWT carries id and email only, not the display name. */
     suspend fun getCurrentUser(): UserDto
     suspend fun updateProfile(request: UpdateProfileRequest): UserDto
+    suspend fun updateLanguagePreference(request: LanguagePreferenceRequest): LanguagePreferenceResponse
 
     /** Returns a brand-new session: the backend revokes every other session on a successful change. */
     suspend fun changePassword(request: ChangePasswordRequest): AuthResponse
@@ -694,6 +713,12 @@ class KtorBeautyApi(private val client: HttpClient) : BeautyApi {
             setBody(request)
         }.body()
 
+    override suspend fun updateLanguagePreference(request: LanguagePreferenceRequest): LanguagePreferenceResponse =
+        client.put("api/users/me/language") {
+            contentType(ContentType.Application.Json)
+            setBody(request)
+        }.body()
+
     override suspend fun changePassword(request: ChangePasswordRequest): AuthResponse =
         client.post("api/users/me/password") {
             contentType(ContentType.Application.Json)
@@ -730,21 +755,26 @@ class KtorBeautyApi(private val client: HttpClient) : BeautyApi {
 }
 
 /** User-facing messages never contain URLs, server bodies, tokens, or database details. */
-fun Throwable.safeMessage(fallback: String = "Server could not be reached. Please try again."): String = when {
-    this is PendingVisitsException -> message ?: "Upload pending visits before deleting this client."
-    this is SessionChangedException -> "Your session changed. Please reopen this screen."
-    this is PhotoDraftException -> message ?: "Photo could not be uploaded."
-    this is ResponseException -> when (response.status.value) {
-        401 -> "Your session has expired. Please sign in again."
-        403 -> "This action is not allowed. Check your account verification and organization access."
-        404 -> "This record is no longer available. Refresh and try again."
-        409 -> "This change conflicts with the current record. Refresh and try again."
-        413 -> "This photo is too large. Please select a smaller image."
-        429 -> "Too many requests. Please wait a moment and try again."
-        400, 422 -> "Please check the details and try again."
-        else -> fallback
+suspend fun Throwable.safeMessage(fallback: String = "NETWORK_ERROR"): String {
+    if (this is kotlinx.coroutines.CancellationException) throw this
+    if (this is PendingVisitsException) return "PENDING_UPLOADS"
+    if (this is SessionChangedException) return "SESSION_CHANGED"
+    if (this is PhotoDraftException) return "PHOTO_UNAVAILABLE"
+    if (this is ResponseException) {
+        val code = runCatching { response.body<ApiErrorResponse>().code }.getOrNull()
+        if (!code.isNullOrBlank()) return code
+        return when (response.status.value) {
+            401 -> "SESSION_EXPIRED"
+            403 -> "ACCESS_DENIED"
+            404 -> "RECORD_UNAVAILABLE"
+            409 -> "RECORD_CONFLICT"
+            413 -> "PHOTO_TOO_LARGE"
+            429 -> "TOO_MANY_ATTEMPTS"
+            400, 422 -> "VALIDATION_FAILED"
+            else -> fallback
+        }
     }
-    else -> fallback
+    return fallback
 }
 
 class PendingVisitsException(message: String = "Upload pending visits before deleting this client.") : IllegalStateException(message)

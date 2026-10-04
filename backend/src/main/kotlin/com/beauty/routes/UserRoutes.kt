@@ -5,6 +5,10 @@ import com.beauty.auth.VerificationPolicy
 import com.beauty.config.AppSettings
 import com.beauty.db.DatabaseFactory.dbQuery
 import com.beauty.db.UsersTable
+import com.beauty.i18n.Languages
+import com.beauty.models.UpdateLanguageRequest
+import com.beauty.models.LanguageResponse
+import org.jetbrains.exposed.sql.and
 import com.beauty.models.ChangePasswordRequest
 import com.beauty.models.UpdateProfileRequest
 import com.beauty.models.ValidationErrorResponse
@@ -50,17 +54,59 @@ fun Route.userRoutes() {
     fun userRowToDto(row: org.jetbrains.exposed.sql.ResultRow) = userDto(row, verification)
 
     route("/api/users/me") {
+        put("/language") {
+            val userId = call.userId()
+            if (userId == null) {
+                call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Invalid token", "code" to "INVALID_TOKEN"))
+                return@put
+            }
+            val req = try {
+                call.receive<UpdateLanguageRequest>()
+            } catch (_: io.ktor.server.plugins.BadRequestException) {
+                call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Invalid language preference or revision", "code" to "INVALID_LANGUAGE"))
+                return@put
+            }
+            // A delayed client request may retry after its session has changed.
+            // Never apply the previous account's pending preference to the new caller.
+            if (req.expectedAccountId != null && req.expectedAccountId != userId) {
+                call.respond(HttpStatusCode.Forbidden, mapOf("error" to "The active account changed", "code" to "ACCOUNT_CHANGED"))
+                return@put
+            }
+            if (req.preference !in Languages.preferences || req.expectedRevision < 0) {
+                call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Invalid language preference or revision", "code" to "INVALID_LANGUAGE"))
+                return@put
+            }
+            // Row locking serializes different selections as well as idempotent retries.
+            val result = dbQuery {
+                val row = UsersTable.select { UsersTable.id eq userId }.forUpdate().singleOrNull()
+                    ?: return@dbQuery null
+                val current = LanguageResponse(row[UsersTable.languagePreference], row[UsersTable.languageRevision])
+                if (current.preference == req.preference) return@dbQuery current to true
+                if (current.revision != req.expectedRevision) return@dbQuery current to false
+                UsersTable.update({ (UsersTable.id eq userId) and (UsersTable.languageRevision eq req.expectedRevision) }) {
+                    it[languagePreference] = req.preference
+                    it[languageRevision] = current.revision + 1
+                }
+                LanguageResponse(req.preference, current.revision + 1) to true
+            }
+            if (result == null) {
+                call.respond(HttpStatusCode.NotFound, mapOf("error" to "User not found", "code" to "USER_NOT_FOUND"))
+            } else {
+                call.respond(if (result.second) HttpStatusCode.OK else HttpStatusCode.Conflict, result.first)
+            }
+        }
+
         /** Lets the client (re)hydrate the profile it doesn't otherwise have — the JWT carries only id and email, not the display name. */
         get {
             val userId = call.userId()
             if (userId == null) {
-                call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Invalid token"))
+                call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Invalid token", "code" to "INVALID_TOKEN"))
                 return@get
             }
 
             val row = dbQuery { UsersTable.select { UsersTable.id eq userId }.singleOrNull() }
             if (row == null) {
-                call.respond(HttpStatusCode.NotFound, mapOf("error" to "User not found"))
+                call.respond(HttpStatusCode.NotFound, mapOf("error" to "User not found", "code" to "USER_NOT_FOUND"))
                 return@get
             }
 
@@ -70,17 +116,17 @@ fun Route.userRoutes() {
         patch {
             val userId = call.userId()
             if (userId == null) {
-                call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Invalid token"))
+                call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Invalid token", "code" to "INVALID_TOKEN"))
                 return@patch
             }
 
             val req = call.receive<UpdateProfileRequest>()
             val fullName = req.fullName.trim()
 
-            Validation.validateFullName(fullName)?.let { message ->
+            Validation.fullNameIssue(fullName)?.let { message ->
                 call.respond(
                     HttpStatusCode.BadRequest,
-                    ValidationErrorResponse(errors = mapOf("fullName" to message))
+                    ValidationErrorResponse.from(mapOf("fullName" to message))
                 )
                 return@patch
             }
@@ -92,7 +138,7 @@ fun Route.userRoutes() {
                 if (updated == 0) null else UsersTable.select { UsersTable.id eq userId }.singleOrNull()
             }
             if (row == null) {
-                call.respond(HttpStatusCode.NotFound, mapOf("error" to "User not found"))
+                call.respond(HttpStatusCode.NotFound, mapOf("error" to "User not found", "code" to "USER_NOT_FOUND"))
                 return@patch
             }
 
@@ -112,28 +158,28 @@ fun Route.userRoutes() {
         post("/password") {
             val userId = call.userId()
             if (userId == null) {
-                call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Invalid token"))
+                call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Invalid token", "code" to "INVALID_TOKEN"))
                 return@post
             }
 
             val req = call.receive<ChangePasswordRequest>()
 
-            Validation.validatePassword(req.newPassword)?.let { message ->
+            Validation.passwordIssue(req.newPassword)?.let { message ->
                 call.respond(
                     HttpStatusCode.BadRequest,
-                    ValidationErrorResponse(errors = mapOf("newPassword" to message))
+                    ValidationErrorResponse.from(mapOf("newPassword" to message))
                 )
                 return@post
             }
 
             val row = dbQuery { UsersTable.select { UsersTable.id eq userId }.singleOrNull() }
             if (row == null) {
-                call.respond(HttpStatusCode.NotFound, mapOf("error" to "User not found"))
+                call.respond(HttpStatusCode.NotFound, mapOf("error" to "User not found", "code" to "USER_NOT_FOUND"))
                 return@post
             }
 
             if (!BCrypt.checkpw(req.currentPassword, row[UsersTable.passwordHash])) {
-                call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Current password is incorrect"))
+                call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Current password is incorrect", "code" to "CURRENT_PASSWORD_INCORRECT"))
                 return@post
             }
 
@@ -142,7 +188,7 @@ fun Route.userRoutes() {
             if (BCrypt.checkpw(req.newPassword, row[UsersTable.passwordHash])) {
                 call.respond(
                     HttpStatusCode.BadRequest,
-                    ValidationErrorResponse(errors = mapOf("newPassword" to "New password must be different from the current password."))
+                    ValidationErrorResponse.from(mapOf("newPassword" to com.beauty.validation.ValidationIssue("PASSWORD_UNCHANGED", "New password must be different from the current password.")))
                 )
                 return@post
             }

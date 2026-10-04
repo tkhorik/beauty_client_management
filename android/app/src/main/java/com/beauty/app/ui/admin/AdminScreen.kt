@@ -1,5 +1,8 @@
 package com.beauty.app.ui.admin
 
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -23,10 +26,10 @@ import com.beauty.app.ui.theme.CardSurface
 import com.beauty.app.ui.theme.RoseGoldPrimary
 import com.beauty.app.ui.theme.TextMuted
 
-private enum class AdminTab(val label: String) {
-    USERS("Users"),
-    ORGANIZATIONS("Organizations"),
-    LINKS("Links")
+private enum class AdminTab(val label: Int) {
+    USERS(com.beauty.app.R.string.users),
+    ORGANIZATIONS(com.beauty.app.R.string.organizations),
+    LINKS(com.beauty.app.R.string.links)
 }
 
 /**
@@ -52,7 +55,7 @@ fun AdminScreen(viewModel: AdminViewModel, onDone: () -> Unit) {
             TopAppBar(
                 title = {
                     Text(
-                        managingOrg?.name ?: "Admin panel",
+                        managingOrg?.name ?: stringResource(com.beauty.app.R.string.admin_panel),
                         color = RoseGoldPrimary,
                         fontWeight = FontWeight.Bold
                     )
@@ -63,7 +66,7 @@ fun AdminScreen(viewModel: AdminViewModel, onDone: () -> Unit) {
                     // this screen rather than a destination of its own, so
                     // leaving it should not leave the panel.
                     IconButton(onClick = { if (managingOrg != null) viewModel.stopManagingMembers() else onDone() }) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = TextMuted)
+                        Icon(Icons.Default.ArrowBack, contentDescription = stringResource(com.beauty.app.R.string.back), tint = TextMuted)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = CardSurface)
@@ -78,7 +81,7 @@ fun AdminScreen(viewModel: AdminViewModel, onDone: () -> Unit) {
                         Tab(
                             selected = tab == entry,
                             onClick = { tab = entry; viewModel.clearMessages() },
-                            text = { Text(entry.label, fontSize = 13.sp) }
+                            text = { Text(stringResource(entry.label), fontSize = 13.sp) }
                         )
                     }
                 }
@@ -91,7 +94,7 @@ fun AdminScreen(viewModel: AdminViewModel, onDone: () -> Unit) {
             // composable lambda skips closing its group and crashes the slot table.
             when {
                 viewModel.initialLoading ->
-                    Text("Loading…", color = TextMuted, modifier = Modifier.padding(16.dp))
+                    Text(stringResource(com.beauty.app.R.string.loading), color = TextMuted, modifier = Modifier.padding(16.dp))
                 managingOrg != null -> MembersTab(viewModel, managingOrg)
                 tab == AdminTab.USERS -> UsersTab(viewModel)
                 tab == AdminTab.ORGANIZATIONS -> OrganizationsTab(viewModel)
@@ -108,7 +111,7 @@ private fun Banner(message: String, isError: Boolean) {
         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)
     ) {
         Text(
-            message,
+            com.beauty.app.ui.i18n.localizedMessage(message),
             modifier = Modifier.padding(12.dp),
             fontSize = 13.sp,
             color = if (isError) MaterialTheme.colorScheme.onErrorContainer else TextMuted
@@ -143,8 +146,8 @@ private fun UserRow(user: AdminUserDto, isSelf: Boolean, onToggleSuspended: () -
             Text(
                 buildString {
                     append(user.fullName)
-                    if (user.isSuperAdmin) append("  · SUPER ADMIN")
-                    if (user.isSuspended) append("  · SUSPENDED")
+                    if (user.isSuperAdmin) append("  · " + stringResource(com.beauty.app.R.string.role_super_admin))
+                    if (user.isSuspended) append("  · " + stringResource(com.beauty.app.R.string.status_suspended))
                 },
                 fontSize = 14.sp,
                 fontWeight = if (user.isSuperAdmin) FontWeight.SemiBold else FontWeight.Normal
@@ -153,9 +156,8 @@ private fun UserRow(user: AdminUserDto, isSelf: Boolean, onToggleSuspended: () -
                 buildString {
                     append(user.email)
                     append(" · ")
-                    append(user.organizationCount)
-                    append(if (user.organizationCount == 1) " organization" else " organizations")
-                    if (!user.emailVerified) append(" · unverified")
+                    append(pluralStringResource(com.beauty.app.R.plurals.organizations_count, user.organizationCount, user.organizationCount))
+                    if (!user.emailVerified) append(" · " + stringResource(com.beauty.app.R.string.unverified))
                 },
                 color = TextMuted,
                 fontSize = 12.sp
@@ -164,11 +166,11 @@ private fun UserRow(user: AdminUserDto, isSelf: Boolean, onToggleSuspended: () -
         // The server refuses a self-suspend with a 409 anyway; not drawing the
         // button is how the operator finds that out without pressing it.
         if (isSelf) {
-            Text("You", color = TextMuted, fontSize = 12.sp)
+            Text(stringResource(com.beauty.app.R.string.you), color = TextMuted, fontSize = 12.sp)
         } else {
             TextButton(onClick = onToggleSuspended) {
                 Text(
-                    if (user.isSuspended) "Unsuspend" else "Suspend",
+                    if (user.isSuspended) stringResource(com.beauty.app.R.string.unsuspend) else stringResource(com.beauty.app.R.string.suspend),
                     color = if (user.isSuspended) RoseGoldPrimary else MaterialTheme.colorScheme.error,
                     fontSize = 12.sp
                 )
@@ -192,8 +194,7 @@ private fun OrganizationsTab(viewModel: AdminViewModel) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(org.name, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
                     Text(
-                        "${org.slug} · created by ${org.createdByEmail ?: "unknown"} · " +
-                            "${org.memberCount} member${if (org.memberCount == 1) "" else "s"}",
+                        stringResource(com.beauty.app.R.string.organization_created_by, org.slug, org.createdByEmail ?: stringResource(com.beauty.app.R.string.unknown)) + " · " + pluralStringResource(com.beauty.app.R.plurals.members_count, org.memberCount, org.memberCount),
                         color = TextMuted,
                         fontSize = 12.sp
                     )
@@ -202,12 +203,12 @@ private fun OrganizationsTab(viewModel: AdminViewModel) {
                 // the organization switcher cannot: that list is built from
                 // memberships, while the backend's permission is not.
                 TextButton(onClick = { viewModel.manageMembers(org) }) {
-                    Text("Members", color = RoseGoldPrimary, fontSize = 12.sp)
+                    Text(stringResource(com.beauty.app.R.string.members), color = RoseGoldPrimary, fontSize = 12.sp)
                 }
             }
         }
         if (viewModel.organizations.isEmpty()) {
-            item { Text("No organizations yet.", color = TextMuted, fontSize = 13.sp) }
+            item { Text(stringResource(com.beauty.app.R.string.no_organizations_yet), color = TextMuted, fontSize = 13.sp) }
         }
     }
 }
@@ -235,8 +236,7 @@ private fun MembersTab(viewModel: AdminViewModel, org: AdminOrganizationDto) {
         }
         item {
             Text(
-                "Pending and invited members are listed here too. Removing someone revokes " +
-                    "their access immediately; the organization keeps their clients and visits.",
+                stringResource(com.beauty.app.R.string.admin_members_help),
                 color = TextMuted,
                 fontSize = 12.sp
             )
@@ -251,9 +251,9 @@ private fun MembersTab(viewModel: AdminViewModel, org: AdminOrganizationDto) {
 @Composable
 private fun LinksTab(viewModel: AdminViewModel) {
     val clipboard = LocalClipboardManager.current
-    var label by remember { mutableStateOf("") }
-    var maxUses by remember { mutableStateOf("1") }
-    var expiresInHours by remember { mutableStateOf("168") }
+    var label by rememberSaveable { mutableStateOf("") }
+    var maxUses by rememberSaveable { mutableStateOf("1") }
+    var expiresInHours by rememberSaveable { mutableStateOf("168") }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize().padding(16.dp),
@@ -268,15 +268,15 @@ private fun LinksTab(viewModel: AdminViewModel) {
                         modifier = Modifier.padding(12.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Text("New link — copy it now", color = RoseGoldPrimary, fontSize = 13.sp)
+                        Text(stringResource(com.beauty.app.R.string.new_link_copy_it_now), color = RoseGoldPrimary, fontSize = 13.sp)
                         Text(token, fontSize = 12.sp)
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             Button(
                                 onClick = { clipboard.setText(AnnotatedString(token)) },
                                 colors = ButtonDefaults.buttonColors(containerColor = RoseGoldPrimary)
-                            ) { Text("Copy") }
+                            ) { Text(stringResource(com.beauty.app.R.string.copy)) }
                             TextButton(onClick = { viewModel.dismissFreshToken() }) {
-                                Text("Dismiss", color = TextMuted)
+                                Text(stringResource(com.beauty.app.R.string.dismiss), color = TextMuted)
                             }
                         }
                     }
@@ -288,11 +288,11 @@ private fun LinksTab(viewModel: AdminViewModel) {
 
         item {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Issue a link", color = RoseGoldPrimary, fontSize = 13.sp)
+                Text(stringResource(com.beauty.app.R.string.issue_a_link), color = RoseGoldPrimary, fontSize = 13.sp)
                 OutlinedTextField(
                     value = label,
                     onValueChange = { label = it },
-                    label = { Text("Label (optional)") },
+                    label = { Text(stringResource(com.beauty.app.R.string.label_optional)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -300,14 +300,14 @@ private fun LinksTab(viewModel: AdminViewModel) {
                     OutlinedTextField(
                         value = maxUses,
                         onValueChange = { maxUses = it.filter(Char::isDigit) },
-                        label = { Text("Max uses") },
+                        label = { Text(stringResource(com.beauty.app.R.string.max_uses)) },
                         singleLine = true,
                         modifier = Modifier.weight(1f)
                     )
                     OutlinedTextField(
                         value = expiresInHours,
                         onValueChange = { expiresInHours = it.filter(Char::isDigit) },
-                        label = { Text("Expires in (h)") },
+                        label = { Text(stringResource(com.beauty.app.R.string.expires_in_h)) },
                         singleLine = true,
                         modifier = Modifier.weight(1f)
                     )
@@ -322,7 +322,7 @@ private fun LinksTab(viewModel: AdminViewModel) {
                     onClick = { viewModel.issueLink(label, uses ?: 1, hours ?: 168L) },
                     enabled = uses != null && uses >= 1 && hours != null && hours >= 1,
                     colors = ButtonDefaults.buttonColors(containerColor = RoseGoldPrimary)
-                ) { Text("Issue link") }
+                ) { Text(stringResource(com.beauty.app.R.string.issue_link)) }
             }
         }
     }
@@ -332,12 +332,12 @@ private fun LinksTab(viewModel: AdminViewModel) {
 private fun LinkRow(link: OrganizationCreationTokenDto, viewModel: AdminViewModel) {
     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.weight(1f)) {
-            Text(link.label ?: "Untitled link", fontSize = 14.sp)
+            Text(link.label ?: stringResource(com.beauty.app.R.string.untitled_link), fontSize = 14.sp)
             Text(
                 buildString {
-                    append("${link.usesCount}/${link.maxUses} used · expires ${link.expiresAt.take(10)}")
-                    if (link.isRevoked) append(" · revoked")
-                    else if (link.isExhausted) append(" · exhausted")
+                    append(stringResource(com.beauty.app.R.string.link_usage, link.usesCount, link.maxUses, com.beauty.app.ui.i18n.localizedIsoDate(link.expiresAt)))
+                    if (link.isRevoked) append(" · " + stringResource(com.beauty.app.R.string.revoked))
+                    else if (link.isExhausted) append(" · " + stringResource(com.beauty.app.R.string.exhausted))
                 },
                 color = TextMuted,
                 fontSize = 12.sp
@@ -345,7 +345,7 @@ private fun LinkRow(link: OrganizationCreationTokenDto, viewModel: AdminViewMode
         }
         if (!link.isRevoked) {
             IconButton(onClick = { viewModel.revokeLink(link.id) }) {
-                Icon(Icons.Default.Delete, contentDescription = "Revoke link", tint = TextMuted)
+                Icon(Icons.Default.Delete, contentDescription = stringResource(com.beauty.app.R.string.revoke_link), tint = TextMuted)
             }
         }
     }

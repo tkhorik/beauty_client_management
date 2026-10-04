@@ -25,6 +25,8 @@ import com.beauty.app.data.api.UpdateClientRequest
 import com.beauty.app.data.api.UpdateProfileRequest
 import com.beauty.app.data.api.UpdateUserAdminRequest
 import com.beauty.app.data.api.UserDto
+import com.beauty.app.data.api.LanguagePreferenceRequest
+import com.beauty.app.data.api.LanguagePreferenceResponse
 import com.beauty.app.data.api.VisitAttachmentDto
 import com.beauty.app.data.api.VisitDto
 import com.beauty.app.data.api.VisitHistoryDto
@@ -58,6 +60,7 @@ abstract class FakeBeautyApi(private val reason: String = "not used in this test
     override suspend fun resendVerificationEmail(): Unit = error(reason)
     override suspend fun getCurrentUser(): UserDto = error(reason)
     override suspend fun updateProfile(request: UpdateProfileRequest): UserDto = error(reason)
+    override suspend fun updateLanguagePreference(request: LanguagePreferenceRequest): LanguagePreferenceResponse = error(reason)
     override suspend fun changePassword(request: ChangePasswordRequest): AuthResponse = error(reason)
     override suspend fun getOrganizations(): List<OrganizationDto> = error(reason)
     override suspend fun createOrganization(request: CreateOrganizationRequest): OrganizationDto = error(reason)

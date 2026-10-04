@@ -9,6 +9,7 @@ import com.beauty.app.data.BeautyRepository
 import com.beauty.app.data.api.MemberDto
 import com.beauty.app.data.api.OrganizationDto
 import com.beauty.app.data.api.ValidationErrorResponse
+import com.beauty.app.data.api.fieldMessageCodes
 import com.beauty.app.data.local.OrgStore
 import io.ktor.client.call.body
 import io.ktor.client.plugins.ClientRequestException
@@ -39,6 +40,9 @@ class OrganizationViewModel(
         private set
     var notice by mutableStateOf<String?>(null)
         private set
+
+    // Sensitive link is held only in this retained ViewModel, never saved state.
+    var creationLinkDraft by mutableStateOf("")
 
     /** Where the pasted organization-creation link stands. */
     enum class CreationLinkStatus { NONE, CHECKING, VALID, INVALID }
@@ -102,7 +106,7 @@ class OrganizationViewModel(
                 loadOrganizations()
                 loadGlobalRole()
             } catch (e: Exception) {
-                error = e.friendlyMessage("Could not load your organizations.")
+                error = e.friendlyMessage("COULD_NOT_LOAD_ORGANIZATIONS")
             } finally {
                 loading = false
             }
@@ -199,17 +203,17 @@ class OrganizationViewModel(
                 val created = repository.createOrganization(name.trim(), slug?.trim()?.lowercase(), token)
                 if (creationToken == token) clearCreationLink()
                 select(created.id)
-                notice = "Created ${created.name}. You are its administrator."
+                notice = "ORGANIZATION_CREATED:${created.name}"
                 refresh()
                 onCreated()
             } catch (e: Exception) {
                 val fieldErrors = (e as? ClientRequestException)
                     ?.let { runCatching { it.response.body<ValidationErrorResponse>() }.getOrNull() }
-                    ?.errors.orEmpty()
+                    ?.fieldMessageCodes().orEmpty()
                 if (fieldErrors.isNotEmpty()) {
                     createFieldErrors = fieldErrors
                 } else {
-                    error = e.friendlyMessage("Could not create the organization.")
+                    error = e.friendlyMessage("COULD_NOT_CREATE_ORGANIZATION")
                 }
             } finally {
                 creating = false
@@ -226,13 +230,13 @@ class OrganizationViewModel(
                 // ACTIVE means there was a standing invitation and this was the
                 // acceptance; PENDING means an administrator still has to act.
                 notice = if (result.isActive) {
-                    "You have joined ${result.name}."
+                    "ORGANIZATION_JOINED:${result.name}"
                 } else {
-                    "Request sent to ${result.name}. An administrator has to approve it."
+                    "ORGANIZATION_REQUESTED:${result.name}"
                 }
                 refresh()
             } catch (e: Exception) {
-                error = e.friendlyMessage("Could not send the request.")
+                error = e.friendlyMessage("COULD_NOT_SEND_REQUEST")
 
                 // Re-read the list even though the request failed. A refusal —
                 // "you are already a member" above all — is the strongest
@@ -263,29 +267,29 @@ class OrganizationViewModel(
             try {
                 members = repository.getMembers(orgId)
             } catch (e: Exception) {
-                error = e.friendlyMessage("Could not load members.")
+                error = e.friendlyMessage("COULD_NOT_LOAD_MEMBERS")
             }
         }
     }
 
-    fun approve(orgId: String, userId: String) = memberAction(orgId, "Request approved.") {
+    fun approve(orgId: String, userId: String) = memberAction(orgId, "REQUEST_APPROVED") {
         repository.approveMember(orgId, userId)
     }
 
-    fun remove(orgId: String, userId: String) = memberAction(orgId, "Member removed.") {
+    fun remove(orgId: String, userId: String) = memberAction(orgId, "MEMBER_REMOVED") {
         repository.removeMember(orgId, userId)
     }
 
     /** Answers a join request with no. Same DELETE as [remove]; only the outcome message differs. */
-    fun decline(orgId: String, userId: String) = memberAction(orgId, "Request declined.") {
+    fun decline(orgId: String, userId: String) = memberAction(orgId, "REQUEST_DECLINED") {
         repository.removeMember(orgId, userId)
     }
 
-    fun changeRole(orgId: String, userId: String, role: String) = memberAction(orgId, "Role updated.") {
+    fun changeRole(orgId: String, userId: String, role: String) = memberAction(orgId, "ROLE_UPDATED") {
         repository.changeMemberRole(orgId, userId, role)
     }
 
-    fun invite(orgId: String, email: String, role: String) = memberAction(orgId, "Invitation sent.") {
+    fun invite(orgId: String, email: String, role: String) = memberAction(orgId, "INVITATION_SENT") {
         repository.inviteMember(orgId, email.trim().lowercase(), role)
     }
 
@@ -307,7 +311,7 @@ class OrganizationViewModel(
                 // re-read rather than left stale.
                 refresh()
             } catch (e: Exception) {
-                error = e.friendlyMessage("That action failed.")
+                error = e.friendlyMessage("ACTION_FAILED")
             }
         }
     }
@@ -322,9 +326,8 @@ class OrganizationViewModel(
  */
 private suspend fun Exception.friendlyMessage(fallback: String): String {
     if (this is ClientRequestException) {
-        val body = runCatching { response.body<Map<String, String>>() }.getOrNull()
-        body?.get("error")?.let { return it }
-        return "$fallback (${response.status.value})"
+        val body = runCatching { response.body<com.beauty.app.data.api.ApiErrorResponse>() }.getOrNull()
+        return body?.code ?: fallback
     }
-    return message ?: fallback
+    return fallback
 }

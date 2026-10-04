@@ -1,5 +1,6 @@
 package com.beauty.app.ui.updater
 
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -28,18 +29,18 @@ fun UpdateBanner(
 ) {
     val (title, actionLabel, accentColor) = when (state) {
         is UpdateState.Available -> Triple(
-            "New update available: v${state.release.versionName}",
-            "Update",
+            stringResource(com.beauty.app.R.string.update_banner_available, state.release.versionName),
+            stringResource(com.beauty.app.R.string.update),
             RoseGoldPrimary
         )
         is UpdateState.Downloading -> Triple(
-            "Downloading update… ${(state.progress * 100).toInt()}%",
-            "View",
+            stringResource(com.beauty.app.R.string.update_banner_downloading, (state.progress * 100).toInt()),
+            stringResource(com.beauty.app.R.string.view),
             RoseGoldPrimary
         )
         is UpdateState.ReadyToInstall -> Triple(
-            "Update v${state.release.versionName} ready to install",
-            "Install",
+            stringResource(com.beauty.app.R.string.update_banner_ready, state.release.versionName),
+            stringResource(com.beauty.app.R.string.install),
             EmeraldStatus
         )
         else -> return
@@ -78,7 +79,7 @@ fun UpdateBanner(
                         fontSize = 13.sp
                     )
                     Text(
-                        text = "Tap to review changes & install",
+                        text = stringResource(com.beauty.app.R.string.ui2_tap_to_review_changes_install),
                         color = TextMuted,
                         fontSize = 11.sp
                     )

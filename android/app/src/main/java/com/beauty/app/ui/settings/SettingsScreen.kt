@@ -1,5 +1,6 @@
 package com.beauty.app.ui.settings
 
+import com.beauty.app.ui.i18n.localizedMessage
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -17,7 +18,9 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.res.stringResource
 import com.beauty.app.ui.auth.AuthValidation
+import com.beauty.app.ui.i18n.LanguageSelector
 import com.beauty.app.ui.theme.CardSurface
 import com.beauty.app.ui.theme.EmeraldStatus
 import com.beauty.app.ui.theme.RoseGoldPrimary
@@ -28,11 +31,14 @@ import com.beauty.app.ui.theme.TextMuted
 @Composable
 fun SettingsScreen(
     viewModel: SettingsViewModel,
+    accountId: String?,
+    languageManager: com.beauty.app.i18n.LanguagePreferenceManager,
+    onLanguageSelected: (String?) -> Unit,
     onBack: () -> Unit
 ) {
-    var currentPassword by remember { mutableStateOf("") }
-    var newPassword by remember { mutableStateOf("") }
-    var confirmNewPassword by remember { mutableStateOf("") }
+    var currentPassword by viewModel::currentPasswordDraft
+    var newPassword by viewModel::newPasswordDraft
+    var confirmNewPassword by viewModel::confirmPasswordDraft
     var showPassword by remember { mutableStateOf(false) }
     val profileState = viewModel.profileState
     val profileError = profileState as? SettingsViewModel.ProfileState.Error
@@ -58,11 +64,11 @@ fun SettingsScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Text("Account Settings", color = RoseGoldPrimary, fontWeight = FontWeight.Bold, fontSize = 20.sp)
+                    Text(stringResource(com.beauty.app.R.string.account_settings_2), color = RoseGoldPrimary, fontWeight = FontWeight.Bold, fontSize = 20.sp)
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = TextLight)
+                        Icon(Icons.Default.ArrowBack, contentDescription = stringResource(com.beauty.app.R.string.back), tint = TextLight)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = CardSurface)
@@ -78,20 +84,37 @@ fun SettingsScreen(
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
 
+            Card(
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = CardSurface)
+            ) {
+                Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(stringResource(com.beauty.app.R.string.language), color = RoseGoldPrimary, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    LanguageSelector(accountId = accountId, modifier = Modifier.fillMaxWidth(), onSelected = onLanguageSelected)
+                    when (languageManager.notice) {
+                        com.beauty.app.i18n.LanguagePreferenceManager.SyncResult.Conflict ->
+                            Text(stringResource(com.beauty.app.R.string.language_conflict), color = TextMuted)
+                        com.beauty.app.i18n.LanguagePreferenceManager.SyncResult.PendingOffline ->
+                            Text(stringResource(com.beauty.app.R.string.language_saved_offline), color = TextMuted)
+                        else -> Unit
+                    }
+                }
+            }
+
             // Profile card
             Card(
                 shape = RoundedCornerShape(16.dp),
                 colors = CardDefaults.cardColors(containerColor = CardSurface)
             ) {
                 Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text("Profile", color = RoseGoldPrimary, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    Text(stringResource(com.beauty.app.R.string.profile), color = RoseGoldPrimary, fontWeight = FontWeight.Bold, fontSize = 16.sp)
 
                     SettingsTextField(
                         value = viewModel.email,
                         onValueChange = {},
-                        label = "Email",
+                        label = stringResource(com.beauty.app.R.string.email),
                         enabled = false,
-                        helper = "Your sign-in identifier — can't be changed here yet."
+                        helper = stringResource(com.beauty.app.R.string.your_sign_in_identifier_can_t_be_changed_here_yet)
                     )
 
                     SettingsTextField(
@@ -100,15 +123,15 @@ fun SettingsScreen(
                             viewModel.updateFullName(it)
                             viewModel.resetProfileState()
                         },
-                        label = "Full Name",
+                        label = stringResource(com.beauty.app.R.string.full_name),
                         error = profileFieldErrors["fullName"]
                     )
 
                     profileError?.message?.let {
-                        Text(it, color = MaterialTheme.colorScheme.error, fontSize = 13.sp)
+                        Text(localizedMessage(it), color = MaterialTheme.colorScheme.error, fontSize = 13.sp)
                     }
                     if (profileState is SettingsViewModel.ProfileState.Success) {
-                        Text("Profile updated.", color = EmeraldStatus, fontSize = 13.sp)
+                        Text(stringResource(com.beauty.app.R.string.profile_updated), color = EmeraldStatus, fontSize = 13.sp)
                     }
 
                     Button(
@@ -123,7 +146,7 @@ fun SettingsScreen(
                         if (isProfileLoading) {
                             CircularProgressIndicator(modifier = Modifier.size(18.dp), color = Color.Black, strokeWidth = 2.dp)
                         } else {
-                            Text("Save Name", color = Color.Black, fontWeight = FontWeight.Bold)
+                            Text(stringResource(com.beauty.app.R.string.save_name), color = Color.Black, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -135,12 +158,12 @@ fun SettingsScreen(
                 colors = CardDefaults.cardColors(containerColor = CardSurface)
             ) {
                 Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text("Change Password", color = RoseGoldPrimary, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    Text(stringResource(com.beauty.app.R.string.change_password), color = RoseGoldPrimary, fontWeight = FontWeight.Bold, fontSize = 16.sp)
 
                     SettingsTextField(
                         value = currentPassword,
                         onValueChange = { currentPassword = it; viewModel.resetPasswordState() },
-                        label = "Current Password",
+                        label = stringResource(com.beauty.app.R.string.current_password),
                         error = passwordFieldErrors["currentPassword"],
                         isPassword = true,
                         showPassword = showPassword,
@@ -150,10 +173,10 @@ fun SettingsScreen(
                     SettingsTextField(
                         value = newPassword,
                         onValueChange = { newPassword = it; viewModel.resetPasswordState() },
-                        label = "New Password",
+                        label = stringResource(com.beauty.app.R.string.new_password_2),
                         error = passwordFieldErrors["newPassword"],
                         helper = if (passwordFieldErrors["newPassword"] == null) {
-                            "At least ${AuthValidation.PASSWORD_MIN_LENGTH} characters."
+                            stringResource(com.beauty.app.R.string.password_minimum, AuthValidation.PASSWORD_MIN_LENGTH)
                         } else {
                             null
                         },
@@ -165,7 +188,7 @@ fun SettingsScreen(
                     SettingsTextField(
                         value = confirmNewPassword,
                         onValueChange = { confirmNewPassword = it; viewModel.resetPasswordState() },
-                        label = "Confirm New Password",
+                        label = stringResource(com.beauty.app.R.string.confirm_new_password_2),
                         error = passwordFieldErrors["confirmNewPassword"],
                         isPassword = true,
                         showPassword = showPassword,
@@ -173,11 +196,11 @@ fun SettingsScreen(
                     )
 
                     passwordError?.message?.let {
-                        Text(it, color = MaterialTheme.colorScheme.error, fontSize = 13.sp)
+                        Text(localizedMessage(it), color = MaterialTheme.colorScheme.error, fontSize = 13.sp)
                     }
                     if (passwordState is SettingsViewModel.PasswordState.Success) {
                         Text(
-                            "Password changed. You've been signed out of every other device.",
+                            stringResource(com.beauty.app.R.string.ui2_password_changed_you_ve_been_signed_out_of_every_other_device),
                             color = EmeraldStatus,
                             fontSize = 13.sp
                         )
@@ -195,7 +218,7 @@ fun SettingsScreen(
                         if (isPasswordLoading) {
                             CircularProgressIndicator(modifier = Modifier.size(18.dp), color = Color.Black, strokeWidth = 2.dp)
                         } else {
-                            Text("Change Password", color = Color.Black, fontWeight = FontWeight.Bold)
+                            Text(stringResource(com.beauty.app.R.string.change_password), color = Color.Black, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -239,7 +262,7 @@ private fun SettingsTextField(
                     IconButton(onClick = onToggleShowPassword) {
                         Icon(
                             imageVector = if (showPassword) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
-                            contentDescription = if (showPassword) "Hide password" else "Show password",
+                            contentDescription = if (showPassword) stringResource(com.beauty.app.R.string.hide_password) else stringResource(com.beauty.app.R.string.show_password),
                             tint = TextMuted
                         )
                     }
@@ -261,7 +284,7 @@ private fun SettingsTextField(
 
         when {
             error != null -> Text(
-                text = error,
+                text = localizedMessage(error),
                 color = MaterialTheme.colorScheme.error,
                 fontSize = 12.sp,
                 modifier = Modifier.padding(start = 4.dp, top = 4.dp)

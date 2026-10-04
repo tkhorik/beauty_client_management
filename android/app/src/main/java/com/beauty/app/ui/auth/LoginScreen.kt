@@ -1,5 +1,8 @@
 package com.beauty.app.ui.auth
 
+import androidx.compose.runtime.saveable.rememberSaveable
+import com.beauty.app.ui.i18n.localizedMessage
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -21,6 +24,7 @@ import com.beauty.app.ui.theme.CardSurface
 import com.beauty.app.ui.theme.RoseGoldPrimary
 import com.beauty.app.ui.theme.TextLight
 import com.beauty.app.ui.theme.TextMuted
+import com.beauty.app.ui.i18n.LanguageSelector
 
 @Composable
 fun LoginScreen(
@@ -29,8 +33,8 @@ fun LoginScreen(
     onNavigateToRegister: () -> Unit,
     onNavigateToForgotPassword: () -> Unit
 ) {
-    var email by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
+    var email by rememberSaveable { mutableStateOf("") }
+    var password by viewModel::loginPassword
     var showPassword by remember { mutableStateOf(false) }
 
     // Navigate on success
@@ -69,16 +73,18 @@ fun LoginScreen(
             ) {
                 // Title
                 Text(
-                    text = "Aura Beauty Log",
+                    text = stringResource(com.beauty.app.R.string.aura_beauty_log),
                     color = RoseGoldPrimary,
                     fontWeight = FontWeight.Bold,
                     fontSize = 24.sp
                 )
                 Text(
-                    text = "Sign in to continue",
+                    text = stringResource(com.beauty.app.R.string.sign_in_to_continue),
                     color = TextMuted,
                     fontSize = 14.sp
                 )
+
+                LanguageSelector(accountId = null, modifier = Modifier.fillMaxWidth())
 
                 Spacer(modifier = Modifier.height(8.dp))
 
@@ -86,7 +92,7 @@ fun LoginScreen(
                 OutlinedTextField(
                     value = email,
                     onValueChange = { email = it },
-                    label = { Text("Email", color = TextMuted) },
+                    label = { Text(stringResource(com.beauty.app.R.string.email), color = TextMuted) },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
@@ -102,7 +108,7 @@ fun LoginScreen(
                 OutlinedTextField(
                     value = password,
                     onValueChange = { password = it },
-                    label = { Text("Password", color = TextMuted) },
+                    label = { Text(stringResource(com.beauty.app.R.string.password), color = TextMuted) },
                     visualTransformation = if (showPassword) {
                         VisualTransformation.None
                     } else {
@@ -112,7 +118,7 @@ fun LoginScreen(
                         IconButton(onClick = { showPassword = !showPassword }) {
                             Icon(
                                 imageVector = if (showPassword) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
-                                contentDescription = if (showPassword) "Hide password" else "Show password",
+                                contentDescription = if (showPassword) stringResource(com.beauty.app.R.string.hide_password) else stringResource(com.beauty.app.R.string.show_password),
                                 tint = TextMuted
                             )
                         }
@@ -131,7 +137,7 @@ fun LoginScreen(
                 // Error message
                 if (viewModel.loginState is AuthViewModel.LoginState.Error) {
                     Text(
-                        text = (viewModel.loginState as AuthViewModel.LoginState.Error).message,
+                        text = localizedMessage((viewModel.loginState as AuthViewModel.LoginState.Error).message),
                         color = MaterialTheme.colorScheme.error,
                         fontSize = 13.sp
                     )
@@ -155,7 +161,7 @@ fun LoginScreen(
                         )
                     } else {
                         Text(
-                            text = "Sign In",
+                            text = stringResource(com.beauty.app.R.string.sign_in),
                             color = Color.Black,
                             fontWeight = FontWeight.Bold,
                             fontSize = 15.sp
@@ -168,7 +174,7 @@ fun LoginScreen(
                     enabled = viewModel.loginState !is AuthViewModel.LoginState.Loading
                 ) {
                     Text(
-                        text = "Forgot password?",
+                        text = stringResource(com.beauty.app.R.string.forgot_password),
                         color = RoseGoldPrimary,
                         fontSize = 13.sp
                     )
@@ -179,7 +185,7 @@ fun LoginScreen(
                     enabled = viewModel.loginState !is AuthViewModel.LoginState.Loading
                 ) {
                     Text(
-                        text = "First time here? Create an account",
+                        text = stringResource(com.beauty.app.R.string.first_time_here_create_an_account),
                         color = RoseGoldPrimary,
                         fontSize = 13.sp
                     )

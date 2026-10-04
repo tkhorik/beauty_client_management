@@ -7,6 +7,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.beauty.app.data.BeautyRepository
 import com.beauty.app.data.api.ValidationErrorResponse
+import com.beauty.app.data.api.fieldMessageCodes
 import com.beauty.app.data.local.TokenStore
 import com.beauty.app.ui.auth.AuthValidation
 import io.ktor.client.call.body
@@ -24,6 +25,11 @@ class SettingsViewModel(
     private val repository: BeautyRepository,
     private val tokenStore: TokenStore
 ) : ViewModel() {
+
+    // In-memory only: retain through locale recreation, never through process death.
+    var currentPasswordDraft by mutableStateOf("")
+    var newPasswordDraft by mutableStateOf("")
+    var confirmPasswordDraft by mutableStateOf("")
 
     sealed interface ProfileState {
         object Idle : ProfileState
@@ -82,16 +88,16 @@ class SettingsViewModel(
             } catch (e: ClientRequestException) {
                 if (e.response.status == HttpStatusCode.BadRequest) {
                     val parsed = runCatching { e.response.body<ValidationErrorResponse>() }.getOrNull()
-                    if (parsed != null && parsed.errors.isNotEmpty()) {
-                        ProfileState.Error(fieldErrors = parsed.errors)
+                    if (parsed != null && parsed.fieldMessageCodes().isNotEmpty()) {
+                        ProfileState.Error(fieldErrors = parsed.fieldMessageCodes())
                     } else {
-                        ProfileState.Error(message = "Please check the details you entered.")
+                        ProfileState.Error(message = "VALIDATION_FAILED")
                     }
                 } else {
-                    ProfileState.Error(message = "Could not save changes. Please try again.")
+                    ProfileState.Error(message = "PROFILE_FAILED")
                 }
             } catch (e: Exception) {
-                ProfileState.Error(message = "Server could not be reached.")
+                ProfileState.Error(message = "NETWORK_ERROR")
             }
         }
     }
@@ -99,11 +105,11 @@ class SettingsViewModel(
     fun changePassword(currentPassword: String, newPassword: String, confirmNewPassword: String) {
         val localErrors = buildMap {
             if (currentPassword.isEmpty()) {
-                put("currentPassword", "Enter your current password.")
+                put("currentPassword", "CURRENT_PASSWORD_REQUIRED")
             }
             val newPasswordError = AuthValidation.passwordError(newPassword)
                 ?: if (newPassword == currentPassword) {
-                    "New password must be different from the current password."
+                    "PASSWORD_UNCHANGED"
                 } else {
                     null
                 }
@@ -131,20 +137,20 @@ class SettingsViewModel(
             } catch (e: ClientRequestException) {
                 when (e.response.status) {
                     HttpStatusCode.Unauthorized -> PasswordState.Error(
-                        fieldErrors = mapOf("currentPassword" to "Current password is incorrect.")
+                        fieldErrors = mapOf("currentPassword" to "CURRENT_PASSWORD_INCORRECT")
                     )
                     HttpStatusCode.BadRequest -> {
                         val parsed = runCatching { e.response.body<ValidationErrorResponse>() }.getOrNull()
-                        if (parsed != null && parsed.errors.isNotEmpty()) {
-                            PasswordState.Error(fieldErrors = parsed.errors)
+                        if (parsed != null && parsed.fieldMessageCodes().isNotEmpty()) {
+                            PasswordState.Error(fieldErrors = parsed.fieldMessageCodes())
                         } else {
-                            PasswordState.Error(message = "Please check the details you entered.")
+                            PasswordState.Error(message = "VALIDATION_FAILED")
                         }
                     }
-                    else -> PasswordState.Error(message = "Could not change password. Please try again.")
+                    else -> PasswordState.Error(message = "PASSWORD_CHANGE_FAILED")
                 }
             } catch (e: Exception) {
-                PasswordState.Error(message = "Server could not be reached.")
+                PasswordState.Error(message = "NETWORK_ERROR")
             }
         }
     }

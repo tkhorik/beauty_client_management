@@ -128,11 +128,11 @@ fun Route.organizationRoutes() {
             val slug = (req.slug?.trim()?.lowercase() ?: Validation.slugify(name))
 
             val errors = buildMap {
-                Validation.validateOrganizationName(name)?.let { put("name", it) }
-                Validation.validateOrganizationSlug(slug)?.let { put("slug", it) }
+                Validation.nameIssue(name)?.let { put("name", it) }
+                Validation.slugIssue(slug)?.let { put("slug", it) }
             }
             if (errors.isNotEmpty()) {
-                call.respond(HttpStatusCode.BadRequest, ValidationErrorResponse(errors = errors))
+                call.respond(HttpStatusCode.BadRequest, ValidationErrorResponse.from(errors))
                 return@post
             }
 
@@ -177,7 +177,7 @@ fun Route.organizationRoutes() {
                 ) {
                     call.respond(
                         HttpStatusCode.Conflict,
-                        ValidationErrorResponse(errors = mapOf("slug" to "That organization handle is already taken."))
+                        ValidationErrorResponse.from(mapOf("slug" to com.beauty.validation.ValidationIssue("SLUG_TAKEN", "That organization handle is already taken.")))
                     )
                     return@post
                 }
@@ -235,7 +235,7 @@ fun Route.organizationRoutes() {
                 OrganizationsTable.select { OrganizationsTable.slug eq slug }.singleOrNull()
             }
             if (org == null) {
-                call.respond(HttpStatusCode.NotFound, mapOf("error" to "No organization with that handle."))
+                call.respond(HttpStatusCode.NotFound, mapOf("error" to "No organization with that handle.", "code" to "ORGANIZATION_NOT_FOUND"))
                 return@post
             }
 
@@ -246,7 +246,7 @@ fun Route.organizationRoutes() {
                 MembershipStatus.ACTIVE -> {
                     call.respond(
                         HttpStatusCode.Conflict,
-                        mapOf("error" to "You are already a member of this organization.")
+                        mapOf("error" to "You are already a member of this organization.", "code" to "ALREADY_A_MEMBER")
                     )
                     return@post
                 }
@@ -329,7 +329,7 @@ fun Route.organizationRoutes() {
 
                 val existing = memberships.membership(targetUserId, orgId)
                 if (existing == null || existing.status != MembershipStatus.PENDING) {
-                    call.respond(HttpStatusCode.NotFound, mapOf("error" to "No pending request from that user."))
+                    call.respond(HttpStatusCode.NotFound, mapOf("error" to "No pending request from that user.", "code" to "REQUEST_NOT_FOUND"))
                     return@post
                 }
 
@@ -360,7 +360,7 @@ fun Route.organizationRoutes() {
                 if (target == null) {
                     call.respond(
                         HttpStatusCode.NotFound,
-                        mapOf("error" to "No account with that email address. Ask them to register first.")
+                        mapOf("error" to "No account with that email address. Ask them to register first.", "code" to "ACCOUNT_NOT_FOUND")
                     )
                     return@post
                 }
@@ -370,7 +370,7 @@ fun Route.organizationRoutes() {
 
                 when (existing?.status) {
                     MembershipStatus.ACTIVE -> {
-                        call.respond(HttpStatusCode.Conflict, mapOf("error" to "That user is already a member."))
+                        call.respond(HttpStatusCode.Conflict, mapOf("error" to "That user is already a member.", "code" to "ALREADY_A_MEMBER"))
                         return@post
                     }
                     // They asked, the admin is now asking back: both sides agree,
@@ -382,7 +382,7 @@ fun Route.organizationRoutes() {
                     MembershipStatus.SUSPENDED -> {
                         call.respond(
                             HttpStatusCode.Conflict,
-                            mapOf("error" to "That user is suspended in this organization. Unsuspend them first.")
+                            mapOf("error" to "That user is suspended in this organization. Unsuspend them first.", "code" to "MEMBER_SUSPENDED")
                         )
                         return@post
                     }
@@ -415,7 +415,7 @@ fun Route.organizationRoutes() {
                 val role = OrgRole.parse(call.receive<ChangeMemberRoleRequest>().role)
                 val existing = memberships.membership(targetUserId, orgId)
                 if (existing == null || existing.status != MembershipStatus.ACTIVE) {
-                    call.respond(HttpStatusCode.NotFound, mapOf("error" to "That user is not a member."))
+                    call.respond(HttpStatusCode.NotFound, mapOf("error" to "That user is not a member.", "code" to "NOT_A_MEMBER"))
                     return@patch
                 }
 
@@ -425,7 +425,7 @@ fun Route.organizationRoutes() {
                 ) {
                     call.respond(
                         HttpStatusCode.Conflict,
-                        mapOf("error" to "This is the only administrator. Promote someone else first.")
+                        mapOf("error" to "This is the only administrator. Promote someone else first.", "code" to "LAST_ADMIN")
                     )
                     return@patch
                 }
@@ -455,7 +455,7 @@ fun Route.organizationRoutes() {
 
                 val existing = memberships.membership(targetUserId, orgId)
                 if (existing == null) {
-                    call.respond(HttpStatusCode.NotFound, mapOf("error" to "That user is not a member."))
+                    call.respond(HttpStatusCode.NotFound, mapOf("error" to "That user is not a member.", "code" to "NOT_A_MEMBER"))
                     return@delete
                 }
 
@@ -465,7 +465,7 @@ fun Route.organizationRoutes() {
                 ) {
                     call.respond(
                         HttpStatusCode.Conflict,
-                        mapOf("error" to "This is the only administrator. Promote someone else first.")
+                        mapOf("error" to "This is the only administrator. Promote someone else first.", "code" to "LAST_ADMIN")
                     )
                     return@delete
                 }

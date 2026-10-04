@@ -1,7 +1,8 @@
+import { useAppTranslation, useLocale } from '../i18n/LocaleProvider';
 import React, { useCallback, useEffect, useState } from 'react';
 import { X, ShieldCheck, Users, Building2, Link2, Copy, Check, Trash2, Ban, RotateCcw, UserCog } from 'lucide-react';
 import type { AdminUser, AdminOrganization, OrganizationCreationLink } from '../types';
-import { api, ApiError } from '../services/api';
+import { api, writeErrorMessage } from '../services/api';
 import { MembersModal } from './MembersModal';
 import { useAuth } from '../auth/AuthContext';
 
@@ -36,6 +37,7 @@ const bannerStyle = (kind: 'error' | 'success') =>
  * client-side bug here can make the UI wrong but never insecure.
  */
 export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
+  const { t } = useAppTranslation();
   const { user } = useAuth();
   const [tab, setTab] = useState<Tab>('users');
 
@@ -83,11 +85,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
       setOrgs(o);
       setLinks(l);
     } catch (err) {
-      setError(err instanceof ApiError && err.body.error ? err.body.error : 'Could not load admin data.');
+      setError(writeErrorMessage(err, t('adminPanel.couldNotLoadAdminData')));
     } finally {
       setInitialLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     void loadAll();
@@ -101,7 +103,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
       setNotice(success);
       await loadAll();
     } catch (err) {
-      setError(err instanceof ApiError && err.body.error ? err.body.error : 'That action failed.');
+      setError(writeErrorMessage(err, t('adminPanel.thatActionFailed')));
     }
   }
 
@@ -144,17 +146,17 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
           }}
         >
           <h2 className="text-gradient" style={{ fontSize: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <ShieldCheck size={20} /> Admin panel
+            <ShieldCheck size={20} /> {t('adminPanel.adminPanel')}
           </h2>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
+          <button aria-label={t('common.close')} onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
             <X size={22} />
           </button>
         </div>
 
         <div style={{ display: 'flex', gap: '4px', padding: '12px 24px 0', borderBottom: '1px solid var(--border-color)' }}>
-          <TabButton active={tab === 'users'} onClick={() => setTab('users')} icon={<Users size={15} />} label={`Users (${users.length})`} />
-          <TabButton active={tab === 'organizations'} onClick={() => setTab('organizations')} icon={<Building2 size={15} />} label={`Organizations (${orgs.length})`} />
-          <TabButton active={tab === 'links'} onClick={() => setTab('links')} icon={<Link2 size={15} />} label={`Creation links (${links.length})`} />
+          <TabButton active={tab === 'users'} onClick={() => setTab('users')} icon={<Users size={15} />} label={t('adminPanel.usersTab', { count: users.length })} />
+          <TabButton active={tab === 'organizations'} onClick={() => setTab('organizations')} icon={<Building2 size={15} />} label={t('adminPanel.organizationsTab', { count: orgs.length })} />
+          <TabButton active={tab === 'links'} onClick={() => setTab('links')} icon={<Link2 size={15} />} label={t('adminPanel.linksTab', { count: links.length })} />
         </div>
 
         <div style={{ padding: '24px', flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -162,7 +164,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
           {notice && <div style={bannerStyle('success')}>{notice}</div>}
 
           {initialLoading ? (
-            <p style={{ color: 'var(--text-muted)', fontSize: '13px' }}>Loading…</p>
+            <p style={{ color: 'var(--text-muted)', fontSize: '13px' }}>{t('adminPanel.loading')}</p>
           ) : tab === 'users' ? (
             <UsersTab users={users} selfId={user?.id} onRun={run} />
           ) : tab === 'organizations' ? (
@@ -232,7 +234,9 @@ const UsersTab: React.FC<{
   users: AdminUser[];
   selfId: string | undefined;
   onRun: (action: () => Promise<void>, success: string) => Promise<void>;
-}> = ({ users, selfId, onRun }) => (
+}> = ({ users, selfId, onRun }) => {
+  const { t } = useAppTranslation();
+  return (
   <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
     {users.map(u => (
       <div
@@ -253,45 +257,46 @@ const UsersTab: React.FC<{
             {u.fullName}
             {u.globalRole === 'SUPER_ADMIN' && (
               <span style={{ fontSize: '10px', color: 'var(--rose-gold-primary)', border: '1px solid var(--rose-gold-primary)', borderRadius: '999px', padding: '1px 7px' }}>
-                SUPER ADMIN
+                {t('adminPanel.sUPERADMIN')}
               </span>
             )}
             {u.suspendedAt && (
               <span style={{ fontSize: '10px', color: '#e87c8a', border: '1px solid rgba(220,50,80,0.4)', borderRadius: '999px', padding: '1px 7px' }}>
-                SUSPENDED
+                {t('adminPanel.sUSPENDED')}
               </span>
             )}
           </div>
           <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-            {u.email} · {u.organizationCount} organization{u.organizationCount === 1 ? '' : 's'}
-            {!u.emailVerified && ' · unverified'}
+            {u.email} · {t('counts.organizations', { count: u.organizationCount })}
+            {!u.emailVerified && t('adminPanel.unverified')}
           </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           {u.id === selfId ? (
-            <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>You</span>
+            <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{t('adminPanel.you')}</span>
           ) : u.suspendedAt ? (
             <button
               className="btn-secondary"
               style={{ padding: '6px 12px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}
-              onClick={() => onRun(() => api.setUserSuspended(u.id, false), `${u.fullName} unsuspended.`)}
+              onClick={() => onRun(() => api.setUserSuspended(u.id, false), t('adminPanel.userUnsuspended', { name: u.fullName }))}
             >
-              <RotateCcw size={13} /> Unsuspend
+              <RotateCcw size={13} /> {t('adminPanel.unsuspend')}
             </button>
           ) : (
             <button
               className="btn-secondary"
               style={{ padding: '6px 12px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px', color: '#e87c8a' }}
-              onClick={() => onRun(() => api.setUserSuspended(u.id, true), `${u.fullName} suspended.`)}
+              onClick={() => onRun(() => api.setUserSuspended(u.id, true), t('adminPanel.userSuspended', { name: u.fullName }))}
             >
-              <Ban size={13} /> Suspend
+              <Ban size={13} /> {t('adminPanel.suspend')}
             </button>
           )}
         </div>
       </div>
     ))}
   </div>
-);
+  );
+};
 
 // ---------------------------------------------------------------------------
 // Organizations
@@ -300,7 +305,9 @@ const UsersTab: React.FC<{
 const OrganizationsTab: React.FC<{
   orgs: AdminOrganization[];
   onManageMembers: (org: AdminOrganization) => void;
-}> = ({ orgs, onManageMembers }) => (
+}> = ({ orgs, onManageMembers }) => {
+  const { t } = useAppTranslation();
+  return (
   <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
     {orgs.map(o => (
       <div
@@ -319,27 +326,28 @@ const OrganizationsTab: React.FC<{
         <div style={{ minWidth: 0 }}>
           <div style={{ fontSize: '14px' }}>{o.name}</div>
           <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-            {o.slug} · created by {o.createdByEmail ?? 'unknown'}
+            {o.slug} {t('adminPanel.createdBy')} {o.createdByEmail ?? t('adminPanel.unknown')}
           </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-            {o.memberCount} active member{o.memberCount === 1 ? '' : 's'}
+            {t('counts.activeMembers', { count: o.memberCount })}
           </span>
           <button
             className="btn-secondary"
             style={{ padding: '6px 12px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}
             onClick={() => onManageMembers(o)}
-            title={`Manage members of ${o.name}`}
+            title={t('adminPanel.manageOrganization', { name: o.name })}
           >
-            <UserCog size={13} /> Manage members
+            <UserCog size={13} /> {t('adminPanel.manageMembers')}
           </button>
         </div>
       </div>
     ))}
-    {orgs.length === 0 && <p style={{ color: 'var(--text-muted)', fontSize: '13px' }}>No organizations yet.</p>}
+    {orgs.length === 0 && <p style={{ color: 'var(--text-muted)', fontSize: '13px' }}>{t('adminPanel.noOrganizationsYet')}</p>}
   </div>
-);
+  );
+};
 
 // ---------------------------------------------------------------------------
 // Creation links
@@ -357,6 +365,8 @@ const LinksTab: React.FC<{
   freshLink: { url: string; token: string } | null;
   onFreshLink: (link: { url: string; token: string } | null) => void;
 }> = ({ links, onRun, freshLink, onFreshLink }) => {
+  const { t } = useAppTranslation();
+  const { formatDate } = useLocale();
   const [label, setLabel] = useState('');
   const [maxUses, setMaxUses] = useState(5);
   const [expiresInHours, setExpiresInHours] = useState(168);
@@ -373,9 +383,9 @@ const LinksTab: React.FC<{
       const url = `${window.location.origin}/?orgToken=${encodeURIComponent(result.token)}`;
       onFreshLink({ url, token: result.token });
       setLabel('');
-      await onRun(async () => {}, 'Link created.');
+      await onRun(async () => {},t('adminPanel.linkCreated'));
     } catch (err) {
-      setIssueError(err instanceof ApiError && err.body.error ? err.body.error : 'Could not create the link.');
+      setIssueError(writeErrorMessage(err, t('adminPanel.couldNotCreateTheLink')));
     } finally {
       setIssuing(false);
     }
@@ -391,17 +401,17 @@ const LinksTab: React.FC<{
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       <form onSubmit={handleIssue} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-        <h3 style={{ fontSize: '14px', color: 'var(--rose-gold-primary)' }}>Issue a new link</h3>
+        <h3 style={{ fontSize: '14px', color: 'var(--rose-gold-primary)' }}>{t('adminPanel.issueANewLink')}</h3>
         <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
           <input
             className="input-field"
             style={{ flex: '1 1 200px' }}
             value={label}
             onChange={e => setLabel(e.target.value)}
-            placeholder="Label (optional) — e.g. Q3 salon batch"
+            placeholder={t('adminPanel.labelOptionalEGQ3SalonBatch')}
           />
           <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: 'var(--text-muted)' }}>
-            Uses
+            {t('adminPanel.uses')}
             <input
               className="input-field"
               style={{ width: '70px' }}
@@ -412,21 +422,21 @@ const LinksTab: React.FC<{
             />
           </label>
           <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: 'var(--text-muted)' }}>
-            Expires in
+            {t('adminPanel.expiresIn')}
             <select
               className="input-field"
               style={{ width: 'auto' }}
               value={expiresInHours}
               onChange={e => setExpiresInHours(Number(e.target.value))}
             >
-              <option value={24}>1 day</option>
-              <option value={168}>7 days</option>
-              <option value={720}>30 days</option>
-              <option value={8760}>1 year</option>
+              <option value={24}>{t('adminPanel.1Day')}</option>
+              <option value={168}>{t('adminPanel.7Days')}</option>
+              <option value={720}>{t('adminPanel.30Days')}</option>
+              <option value={8760}>{t('adminPanel.1Year')}</option>
             </select>
           </label>
           <button type="submit" className="btn-rose" disabled={issuing}>
-            {issuing ? 'Creating…' : 'Create link'}
+            {issuing ?t('adminPanel.creating') :t('adminPanel.createLink')}
           </button>
         </div>
         {issueError && <div style={bannerStyle('error')}>{issueError}</div>}
@@ -434,7 +444,7 @@ const LinksTab: React.FC<{
 
       {freshLink && (
         <div style={{ ...bannerStyle('success'), display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          <div>This link is shown once — copy it now and hand it to whoever should create the organization.</div>
+          <div>{t('adminPanel.thisLinkIsShownOnceCopyItNowAndHandItToWhoeverShouldCreateTheOrg')}</div>
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
             <code style={{ flex: 1, fontSize: '12px', wordBreak: 'break-all', background: 'rgba(0,0,0,0.3)', padding: '8px 10px', borderRadius: '6px' }}>
               {freshLink.url}
@@ -443,8 +453,8 @@ const LinksTab: React.FC<{
               className="btn-secondary"
               style={{ padding: '8px', display: 'flex' }}
               onClick={copyLink}
-              title="Copy link"
-              aria-label="Copy link"
+              title={t('adminPanel.copyLink')}
+              aria-label={t('adminPanel.copyLink')}
             >
               {copied ? <Check size={16} /> : <Copy size={16} />}
             </button>
@@ -453,7 +463,7 @@ const LinksTab: React.FC<{
       )}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-        <h3 style={{ fontSize: '14px', color: 'var(--rose-gold-primary)' }}>All links</h3>
+        <h3 style={{ fontSize: '14px', color: 'var(--rose-gold-primary)' }}>{t('adminPanel.allLinks')}</h3>
         {links.map(l => {
           const expired = new Date(l.expiresAt).getTime() < Date.now();
           const exhausted = l.usesCount >= l.maxUses;
@@ -474,25 +484,25 @@ const LinksTab: React.FC<{
               }}
             >
               <div style={{ minWidth: 0 }}>
-                <div style={{ fontSize: '14px' }}>{l.label || <span style={{ color: 'var(--text-muted)' }}>(no label)</span>}</div>
+                <div style={{ fontSize: '14px' }}>{l.label || <span style={{ color: 'var(--text-muted)' }}>{t('adminPanel.noLabel')}</span>}</div>
                 <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                  {l.usesCount}/{l.maxUses} used · issued by {l.createdByEmail} ·{' '}
-                  {l.revokedAt ? 'revoked' : expired ? 'expired' : exhausted ? 'exhausted' : `expires ${new Date(l.expiresAt).toLocaleDateString()}`}
+                  {l.usesCount}/{l.maxUses} {t('adminPanel.usedIssuedBy')} {l.createdByEmail} ·{' '}
+                  {l.revokedAt ?t('adminPanel.revoked') : expired ?t('adminPanel.expired') : exhausted ?t('adminPanel.exhausted') : t('adminPanel.expiresOn', { date: formatDate(l.expiresAt) })}
                 </div>
               </div>
               {!l.revokedAt && !expired && !exhausted && (
                 <button
                   className="btn-secondary"
                   style={{ padding: '6px 12px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px', color: '#e87c8a' }}
-                  onClick={() => onRun(() => api.revokeCreationLink(l.id), 'Link revoked.')}
+                  onClick={() => onRun(() => api.revokeCreationLink(l.id),t('adminPanel.linkRevoked'))}
                 >
-                  <Trash2 size={13} /> Revoke
+                  <Trash2 size={13} /> {t('adminPanel.revoke')}
                 </button>
               )}
             </div>
           );
         })}
-        {links.length === 0 && <p style={{ color: 'var(--text-muted)', fontSize: '13px' }}>No links issued yet.</p>}
+        {links.length === 0 && <p style={{ color: 'var(--text-muted)', fontSize: '13px' }}>{t('adminPanel.noLinksIssuedYet')}</p>}
       </div>
     </div>
   );

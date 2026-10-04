@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { Sparkles } from 'lucide-react';
+import { LanguageSelector } from './LanguageSelector';
 
 /**
  * The centred glass panel that `LoginPage` uses, extracted so the three pages
@@ -34,6 +35,7 @@ export function AuthLayout({
         padding: '40px',
         borderRadius: '20px',
       }}>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '10px' }}><LanguageSelector compact /></div>
         <div style={{ textAlign: 'center', marginBottom: '28px' }}>
           <Sparkles size={36} color="var(--rose-gold-primary)" style={{ marginBottom: '12px' }} />
           <h1 className="text-gradient" style={{ fontSize: '24px', marginBottom: '6px' }}>

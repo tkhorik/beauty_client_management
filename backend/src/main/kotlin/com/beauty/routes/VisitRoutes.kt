@@ -105,7 +105,7 @@ fun Route.visitRoutes(storage: FileStorageService) {
 
         get("/{id}") {
             val ctx = requireOrgAccess(memberships, allowGlobal = true) ?: return@get
-            val id = call.parameters["id"] ?: return@get call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Missing ID"))
+            val id = call.parameters["id"] ?: return@get call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Missing ID", "code" to "MISSING_ID"))
 
             val visit = dbQuery {
                 val row = VisitsTable
@@ -127,7 +127,7 @@ fun Route.visitRoutes(storage: FileStorageService) {
             if (visit != null) {
                 call.respond(visit)
             } else {
-                call.respond(HttpStatusCode.NotFound, mapOf("error" to "Visit not found"))
+                call.respond(HttpStatusCode.NotFound, mapOf("error" to "Visit not found", "code" to "VISIT_NOT_FOUND"))
             }
         }
 
@@ -184,7 +184,7 @@ fun Route.visitRoutes(storage: FileStorageService) {
 
             if (created == null) {
                 // Same wording the client would get for a genuinely unknown id.
-                call.respond(HttpStatusCode.NotFound, mapOf("error" to "Client not found"))
+                call.respond(HttpStatusCode.NotFound, mapOf("error" to "Client not found", "code" to "CLIENT_NOT_FOUND"))
             } else {
                 call.respond(HttpStatusCode.Created, created)
             }
@@ -192,7 +192,7 @@ fun Route.visitRoutes(storage: FileStorageService) {
 
         put("/{id}") {
             val ctx = requireOrgAccess(memberships, allowGlobal = true) ?: return@put
-            val id = call.parameters["id"] ?: return@put call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Missing ID"))
+            val id = call.parameters["id"] ?: return@put call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Missing ID", "code" to "MISSING_ID"))
             val req = call.receive<UpdateVisitRequest>()
 
             val updated = dbQuery {
@@ -232,13 +232,13 @@ fun Route.visitRoutes(storage: FileStorageService) {
             if (updated != null) {
                 call.respond(updated)
             } else {
-                call.respond(HttpStatusCode.NotFound, mapOf("error" to "Visit not found"))
+                call.respond(HttpStatusCode.NotFound, mapOf("error" to "Visit not found", "code" to "VISIT_NOT_FOUND"))
             }
         }
 
         delete("/{id}") {
             val ctx = requireOrgAccess(memberships, allowGlobal = true) ?: return@delete
-            val id = call.parameters["id"] ?: return@delete call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Missing ID"))
+            val id = call.parameters["id"] ?: return@delete call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Missing ID", "code" to "MISSING_ID"))
 
             val deletedFiles = dbQuery {
                 // Prove the visit is in scope before removing its attachments,
@@ -261,7 +261,7 @@ fun Route.visitRoutes(storage: FileStorageService) {
                 storage.deleteMultiple(deletedFiles)
                 call.respond(HttpStatusCode.OK, mapOf("message" to "Visit deleted successfully"))
             } else {
-                call.respond(HttpStatusCode.NotFound, mapOf("error" to "Visit not found"))
+                call.respond(HttpStatusCode.NotFound, mapOf("error" to "Visit not found", "code" to "VISIT_NOT_FOUND"))
             }
         }
     }

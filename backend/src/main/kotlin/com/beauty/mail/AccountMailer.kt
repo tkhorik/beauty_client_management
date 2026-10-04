@@ -12,6 +12,7 @@ import java.nio.charset.StandardCharsets
 import java.time.Duration
 import java.time.format.DateTimeFormatter
 import java.time.LocalDateTime
+import java.util.Locale
 
 /**
  * Ties together "mint a one-time token" and "send the email carrying it".
@@ -66,17 +67,18 @@ class AccountMailer(
         return "${settings.publicUrl}$path?token=$encoded"
     }
 
-    suspend fun sendVerification(userId: String, email: String, fullName: String) {
+    suspend fun sendVerification(userId: String, email: String, fullName: String, language: String = "en") {
         val token = tokens.issue(userId, TokenPurpose.EMAIL_VERIFICATION, verificationTtl)
         val template = EmailTemplates.verification(
             fullName = fullName,
             link = link("/api/auth/verify-email", token),
-            expiryHours = settings.verificationTokenHours
+            expiryHours = settings.verificationTokenHours,
+            language = language
         )
         dispatch("verification", template.copy(to = email))
     }
 
-    suspend fun sendPasswordReset(userId: String, email: String, fullName: String) {
+    suspend fun sendPasswordReset(userId: String, email: String, fullName: String, language: String = "en") {
         val token = tokens.issue(userId, TokenPurpose.PASSWORD_RESET, resetTtl)
         val template = EmailTemplates.passwordReset(
             fullName = fullName,
@@ -84,7 +86,8 @@ class AccountMailer(
             // password, so the link must land on a form. Verification needs no
             // input and so can be redeemed by the API directly.
             link = link("/reset-password", token),
-            expiryMinutes = settings.resetTokenMinutes
+            expiryMinutes = settings.resetTokenMinutes,
+            language = language
         )
         dispatch("password reset", template.copy(to = email))
     }
@@ -99,11 +102,15 @@ class AccountMailer(
      * Not `suspend`, unlike the other two — this notice carries no token, so
      * there is nothing to mint and nothing to write before the send.
      */
-    fun sendPasswordChangedNotice(email: String, fullName: String) {
+    fun sendPasswordChangedNotice(email: String, fullName: String, language: String = "en") {
         val template = EmailTemplates.passwordChanged(
             fullName = fullName,
-            whenText = LocalDateTime.now().format(NOTICE_TIME_FORMAT),
-            supportLink = "${settings.publicUrl}/forgot-password"
+            whenText = LocalDateTime.now().format(DateTimeFormatter.ofPattern(
+                if (language == "ru") "d MMMM yyyy, HH:mm" else "d MMMM yyyy 'at' HH:mm",
+                Locale.forLanguageTag(language)
+            )),
+            supportLink = "${settings.publicUrl}/forgot-password",
+            language = language
         )
         // Worth its own line in the log if it fails: this is the notification
         // that makes an account takeover visible to its owner, so a silent
@@ -139,8 +146,4 @@ class AccountMailer(
         }
     }
 
-    private companion object {
-        val NOTICE_TIME_FORMAT: DateTimeFormatter =
-            DateTimeFormatter.ofPattern("d MMMM yyyy 'at' HH:mm")
-    }
 }

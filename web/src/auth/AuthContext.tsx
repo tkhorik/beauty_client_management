@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
 import { setToken, clearToken, clearLegacyToken } from './tokenStore';
 import { endSession, restoreSession } from './session';
 import type { UserProfile } from '../types';
@@ -15,6 +15,8 @@ interface AuthContextValue {
    * form at an already-authenticated user.
    */
   initialising: boolean;
+  /** Changes for every login/logout lifecycle, even for the same account id. */
+  sessionGeneration: number;
   /** Called after login, register, or a password change — every endpoint that mints a brand-new session. */
   login: (token: string, user: UserProfile) => void;
   logout: () => void;
@@ -32,6 +34,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setTokenState] = useState<string | null>(null);
   const [user, setUserState] = useState<UserProfile | null>(null);
   const [initialising, setInitialising] = useState(true);
+  const [sessionGeneration, setSessionGeneration] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -45,6 +48,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (!cancelled) {
           setTokenState(restored?.token ?? null);
           setUserState(restored?.user ?? null);
+          setSessionGeneration(value => value + 1);
         }
       })
       .finally(() => {
@@ -60,6 +64,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setToken(t);
     setTokenState(t);
     setUserState(u);
+    setSessionGeneration(value => value + 1);
   }
 
   function logout() {
@@ -70,15 +75,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     clearToken();
     setTokenState(null);
     setUserState(null);
+    setSessionGeneration(value => value + 1);
     void endSession();
   }
 
-  function updateUser(u: UserProfile) {
-    setUserState(u);
-  }
+  const updateUser = useCallback((u: UserProfile) => {
+    setUserState(current => {
+      // A delayed profile read must not replace another account or regress a
+      // language write that completed after that read was issued.
+      if (!current || current.id !== u.id) return current;
+      if ((current.languageRevision ?? 0) > (u.languageRevision ?? 0)) {
+        return { ...u, languagePreference: current.languagePreference, languageRevision: current.languageRevision };
+      }
+      return u;
+    });
+  }, []);
 
   return (
-    <AuthContext.Provider value={{ token, user, initialising, login, logout, updateUser }}>
+    <AuthContext.Provider value={{ token, user, initialising, sessionGeneration, login, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   );

@@ -90,14 +90,14 @@ fun Route.adminRoutes() {
                 if (targetUserId == callerId) {
                     call.respond(
                         HttpStatusCode.Conflict,
-                        mapOf("error" to "You cannot suspend your own account.")
+                        mapOf("error" to "You cannot suspend your own account.", "code" to "CANNOT_SUSPEND_SELF")
                     )
                     return@patch
                 }
 
                 val target = dbQuery { UsersTable.select { UsersTable.id eq targetUserId }.singleOrNull() }
                 if (target == null) {
-                    call.respond(HttpStatusCode.NotFound, mapOf("error" to "No such user."))
+                    call.respond(HttpStatusCode.NotFound, mapOf("error" to "No such user.", "code" to "USER_NOT_FOUND"))
                     return@patch
                 }
 
@@ -171,14 +171,14 @@ fun Route.adminRoutes() {
                 val req = call.receive<CreateOrganizationCreationTokenRequest>()
 
                 val errors = buildMap {
-                    if (req.maxUses < 1) put("maxUses", "Must allow at least one use.")
-                    if (req.expiresInHours < 1) put("expiresInHours", "Must expire at least one hour from now.")
+                    if (req.maxUses < 1) put("maxUses", com.beauty.validation.ValidationIssue("MAX_USES_TOO_SMALL", "Must allow at least one use."))
+                    if (req.expiresInHours < 1) put("expiresInHours", com.beauty.validation.ValidationIssue("EXPIRY_TOO_SHORT", "Must expire at least one hour from now."))
                     if (req.expiresInHours > MAX_EXPIRY_HOURS) {
-                        put("expiresInHours", "Cannot exceed $MAX_EXPIRY_HOURS hours (about a year).")
+                        put("expiresInHours", com.beauty.validation.ValidationIssue("EXPIRY_TOO_LONG", "Cannot exceed $MAX_EXPIRY_HOURS hours (about a year).", mapOf("max" to MAX_EXPIRY_HOURS.toInt())))
                     }
                 }
                 if (errors.isNotEmpty()) {
-                    call.respond(HttpStatusCode.BadRequest, ValidationErrorResponse(errors = errors))
+                    call.respond(HttpStatusCode.BadRequest, ValidationErrorResponse.from(errors))
                     return@post
                 }
 
@@ -214,7 +214,7 @@ fun Route.adminRoutes() {
                 val id = call.parameters["id"]!!
 
                 if (!creationTokens.revoke(id)) {
-                    call.respond(HttpStatusCode.NotFound, mapOf("error" to "No such link, or it was already revoked."))
+                    call.respond(HttpStatusCode.NotFound, mapOf("error" to "No such link, or it was already revoked.", "code" to "LINK_NOT_FOUND"))
                     return@delete
                 }
                 call.respond(HttpStatusCode.OK, MessageResponse("Link revoked."))

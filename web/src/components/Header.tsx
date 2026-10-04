@@ -1,3 +1,4 @@
+import { useAppTranslation } from '../i18n/LocaleProvider';
 import React from 'react';
 import { Search, Plus, Sparkles, Filter, Settings, Users, ShieldCheck } from 'lucide-react';
 import { useAuth } from '../auth/AuthContext';
@@ -28,9 +29,17 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenAdmin,
   totalClients
 }) => {
+  const { t } = useAppTranslation();
   const { user } = useAuth();
   const { current, activeOrganizations, offline, select } = useOrg();
-  const tagsList = ['All', 'VIP', 'Sensitive Skin', 'Lash Extensions', 'Hair Coloring', 'Skin Treatment'];
+  const tagsList = [
+    { value: '', label: t('header.all') },
+    { value: 'VIP', label: 'VIP' },
+    { value: 'Sensitive Skin', label: t('header.sensitiveSkin') },
+    { value: 'Lash Extensions', label: t('header.lashExtensions') },
+    { value: 'Hair Coloring', label: t('header.hairColoring') },
+    { value: 'Skin Treatment', label: t('header.skinTreatment') },
+  ];
 
   return (
     <header className="glass-panel-glow" style={{ padding: '20px 28px', marginBottom: '28px' }}>
@@ -51,10 +60,10 @@ export const Header: React.FC<HeaderProps> = ({
             <Sparkles size={24} color="#0f0e13" />
           </div>
           <div>
-            <h1 className="text-gradient" style={{ fontSize: '24px', lineHeight: '1.2' }}>Aura Beauty Log</h1>
+            <h1 className="text-gradient" style={{ fontSize: '24px', lineHeight: '1.2' }}>{t('header.auraBeautyLog')}</h1>
             <p style={{ color: 'var(--text-muted)', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' }}>
               <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#2dd4bf' }}></span>
-              Client & Visit Procedure Studio ({totalClients} Active Profiles)
+              {t('header.studioSummary', { profiles: t('counts.activeProfiles', { count: totalClients }) })}
             </p>
           </div>
         </div>
@@ -72,13 +81,13 @@ export const Header: React.FC<HeaderProps> = ({
               className="input-field"
               value={current.id}
               onChange={(e) => select(e.target.value)}
-              title={offline ? 'Offline demo data — the backend is unreachable' : 'Active organization'}
-              aria-label="Active organization"
+              title={offline ?t('header.offlineDemoDataTheBackendIsUnreachable') : t('header.activeOrganization')}
+              aria-label={t('header.activeOrganization')}
               style={{ width: 'auto', padding: '9px 12px', fontSize: '13px' }}
               disabled={activeOrganizations.length <= 1}
             >
               {activeOrganizations.map(org => (
-                <option key={org.id} value={org.id}>{org.name}</option>
+                <option key={org.id} value={org.id}>{offline ? t('header.demoOrganization') : org.name}</option>
               ))}
             </select>
           )}
@@ -100,8 +109,8 @@ export const Header: React.FC<HeaderProps> = ({
             <button
               className="btn-secondary"
               onClick={onOpenMembers}
-              title="Manage members"
-              aria-label="Manage members"
+              title={t('header.manageMembers')}
+              aria-label={t('header.manageMembers')}
               style={{ padding: '10px', display: 'flex' }}
             >
               <Users size={18} />
@@ -117,8 +126,8 @@ export const Header: React.FC<HeaderProps> = ({
             <button
               className="btn-secondary"
               onClick={onOpenAdmin}
-              title="Admin panel"
-              aria-label="Admin panel"
+              title={t('header.adminPanel')}
+              aria-label={t('header.adminPanel')}
               style={{ padding: '10px', display: 'flex' }}
             >
               <ShieldCheck size={18} />
@@ -126,16 +135,16 @@ export const Header: React.FC<HeaderProps> = ({
           )}
 
           <button className="btn-secondary" onClick={onOpenNewVisit}>
-            <Plus size={16} /> Log New Visit
+            <Plus size={16} /> {t('header.logNewVisit')}
           </button>
           <button className="btn-rose" onClick={onOpenNewClient}>
-            <Plus size={18} /> New Client Profile
+            <Plus size={18} /> {t('header.newClientProfile')}
           </button>
           <button
             className="btn-secondary"
             onClick={onOpenSettings}
-            title={user ? `Signed in as ${user.fullName}` : 'Account settings'}
-            aria-label="Account settings"
+            title={user ? t('header.signedInAs', { name: user.fullName }) : t('header.accountSettings')}
+            aria-label={t('header.accountSettings')}
             style={{ padding: '10px', display: 'flex' }}
           >
             <Settings size={18} />
@@ -150,7 +159,8 @@ export const Header: React.FC<HeaderProps> = ({
           <input
             type="text"
             className="input-field"
-            placeholder="Search clients by name, phone, allergies, formulas, or procedure notes..."
+            aria-label={t('header.searchClientsByNamePhoneAllergiesFormulasOrProcedureNotes')}
+            placeholder={t('header.searchClientsByNamePhoneAllergiesFormulasOrProcedureNotes')}
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
             style={{ paddingLeft: '42px', height: '42px' }}
@@ -161,11 +171,11 @@ export const Header: React.FC<HeaderProps> = ({
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflowX: 'auto', paddingBottom: '4px' }}>
           <Filter size={16} style={{ color: 'var(--text-dim)', marginRight: '4px' }} />
           {tagsList.map(tag => {
-            const isActive = (tag === 'All' && !selectedTag) || selectedTag === tag;
+            const isActive = selectedTag === tag.value;
             return (
               <button
-                key={tag}
-                onClick={() => onTagSelect(tag === 'All' ? '' : tag)}
+                key={tag.label}
+                onClick={() => onTagSelect(tag.value)}
                 style={{
                   background: isActive ? 'var(--rose-gold-primary)' : 'rgba(255,255,255,0.05)',
                   color: isActive ? '#0f0e13' : 'var(--text-muted)',
@@ -179,7 +189,7 @@ export const Header: React.FC<HeaderProps> = ({
                   transition: 'all 0.2s ease'
                 }}
               >
-                {tag}
+                {tag.label}
               </button>
             );
           })}

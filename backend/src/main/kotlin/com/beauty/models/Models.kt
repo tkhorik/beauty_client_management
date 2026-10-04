@@ -63,7 +63,11 @@ data class UserDto(
      * allowed — a client with a skewed clock gets a slightly wrong countdown,
      * not a bypass.
      */
-    val verificationDeadline: String? = null
+    val verificationDeadline: String? = null,
+    @EncodeDefault(EncodeDefault.Mode.ALWAYS)
+    val languagePreference: String = "system",
+    @EncodeDefault(EncodeDefault.Mode.ALWAYS)
+    val languageRevision: Long = 0
 )
 
 /**
@@ -96,7 +100,8 @@ data class AuthRequest(
 data class RegisterRequest(
     val email: String,
     val password: String,
-    val fullName: String
+    val fullName: String,
+    val languagePreference: String = "system"
 )
 
 @Serializable
@@ -176,11 +181,25 @@ data class ChangePasswordRequest(
  * can render each message next to the input that caused it. A single flat
  * `error` string forces the user to guess which field was wrong.
  */
+@OptIn(ExperimentalSerializationApi::class)
 @Serializable
 data class ValidationErrorResponse(
     val error: String = "Validation failed",
-    val errors: Map<String, String>
-)
+    val errors: Map<String, String>,
+    @EncodeDefault(EncodeDefault.Mode.ALWAYS)
+    val code: String = "VALIDATION_FAILED",
+    val fieldErrors: Map<String, FieldError> = emptyMap()
+) {
+    companion object {
+        fun from(issues: Map<String, com.beauty.validation.ValidationIssue>) = ValidationErrorResponse(
+            errors = issues.mapValues { it.value.message },
+            fieldErrors = issues.mapValues { FieldError(it.value.code, it.value.args) }
+        )
+    }
+}
+
+@Serializable
+data class FieldError(val code: String, val args: Map<String, Int> = emptyMap())
 
 @Serializable
 data class ClientDto(
@@ -432,3 +451,13 @@ data class CreateOrganizationCreationTokenResponse(
 data class ValidateCreationTokenResponse(
     val valid: Boolean
 )
+
+@Serializable
+data class UpdateLanguageRequest(
+    val preference: String,
+    val expectedRevision: Long,
+    val expectedAccountId: String? = null
+)
+
+@Serializable
+data class LanguageResponse(val preference: String, val revision: Long)

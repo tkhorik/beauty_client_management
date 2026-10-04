@@ -105,7 +105,7 @@ fun Route.clientRoutes(storage: FileStorageService) {
 
         get("/{id}") {
             val ctx = requireOrgAccess(memberships, allowGlobal = true) ?: return@get
-            val id = call.parameters["id"] ?: return@get call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Missing ID"))
+            val id = call.parameters["id"] ?: return@get call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Missing ID", "code" to "MISSING_ID"))
 
             val client = dbQuery {
                 // The organization predicate is part of the lookup, not a check
@@ -134,7 +134,7 @@ fun Route.clientRoutes(storage: FileStorageService) {
             if (client != null) {
                 call.respond(client)
             } else {
-                call.respond(HttpStatusCode.NotFound, mapOf("error" to "Client not found"))
+                call.respond(HttpStatusCode.NotFound, mapOf("error" to "Client not found", "code" to "CLIENT_NOT_FOUND"))
             }
         }
 
@@ -183,7 +183,7 @@ fun Route.clientRoutes(storage: FileStorageService) {
 
         put("/{id}") {
             val ctx = requireOrgAccess(memberships, allowGlobal = true) ?: return@put
-            val id = call.parameters["id"] ?: return@put call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Missing ID"))
+            val id = call.parameters["id"] ?: return@put call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Missing ID", "code" to "MISSING_ID"))
             val req = call.receive<UpdateClientRequest>()
             val now = LocalDateTime.now()
 
@@ -229,13 +229,13 @@ fun Route.clientRoutes(storage: FileStorageService) {
             if (updated != null) {
                 call.respond(updated)
             } else {
-                call.respond(HttpStatusCode.NotFound, mapOf("error" to "Client not found"))
+                call.respond(HttpStatusCode.NotFound, mapOf("error" to "Client not found", "code" to "CLIENT_NOT_FOUND"))
             }
         }
 
         delete("/{id}") {
             val ctx = requireOrgAccess(memberships, allowGlobal = true) ?: return@delete
-            val id = call.parameters["id"] ?: return@delete call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Missing ID"))
+            val id = call.parameters["id"] ?: return@delete call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Missing ID", "code" to "MISSING_ID"))
 
             val deletedFiles = dbQuery {
                 // Confirm the client is in scope *before* deleting its visits.
@@ -259,7 +259,7 @@ fun Route.clientRoutes(storage: FileStorageService) {
                 storage.deleteMultiple(deletedFiles)
                 call.respond(HttpStatusCode.OK, mapOf("message" to "Client deleted successfully"))
             } else {
-                call.respond(HttpStatusCode.NotFound, mapOf("error" to "Client not found"))
+                call.respond(HttpStatusCode.NotFound, mapOf("error" to "Client not found", "code" to "CLIENT_NOT_FOUND"))
             }
         }
     }

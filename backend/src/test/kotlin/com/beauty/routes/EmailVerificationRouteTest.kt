@@ -87,7 +87,7 @@ class EmailVerificationRouteTest {
     private suspend fun assertInvalid(response: HttpResponse) {
         assertEquals(HttpStatusCode.BadRequest, response.status)
         assertEquals(
-            Json.parseToJsonElement("""{"error":"Invalid verification token"}"""),
+            Json.parseToJsonElement("""{"error":"Invalid verification token","code":"INVALID_VERIFICATION_TOKEN"}"""),
             Json.parseToJsonElement(response.bodyAsText())
         )
     }

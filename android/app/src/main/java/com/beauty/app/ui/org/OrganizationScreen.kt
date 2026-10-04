@@ -1,5 +1,7 @@
 package com.beauty.app.ui.org
 
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -56,12 +58,12 @@ fun OrganizationScreen(
     }
     val current = viewModel.current
     val lifecycleOwner = LocalLifecycleOwner.current
-    var creationLink by remember { mutableStateOf("") }
+    var creationLink by viewModel::creationLinkDraft
     var creationLinkError by remember { mutableStateOf<String?>(null) }
-    var newOrgName by remember { mutableStateOf("") }
-    var newOrgSlug by remember { mutableStateOf("") }
-    var joinSlug by remember { mutableStateOf("") }
-    var inviteEmail by remember { mutableStateOf("") }
+    var newOrgName by rememberSaveable { mutableStateOf("") }
+    var newOrgSlug by rememberSaveable { mutableStateOf("") }
+    var joinSlug by rememberSaveable { mutableStateOf("") }
+    var inviteEmail by rememberSaveable { mutableStateOf("") }
 
     // Re-read the list whenever this screen is shown.
     //
@@ -102,11 +104,11 @@ fun OrganizationScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Organizations", color = RoseGoldPrimary, fontWeight = FontWeight.Bold) },
+                title = { Text(stringResource(com.beauty.app.R.string.organizations), color = RoseGoldPrimary, fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     if (onDone != null) {
                         IconButton(onClick = onDone) {
-                            Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = TextMuted)
+                            Icon(Icons.Default.ArrowBack, contentDescription = stringResource(com.beauty.app.R.string.back), tint = TextMuted)
                         }
                     }
                 },
@@ -118,7 +120,7 @@ fun OrganizationScreen(
                     IconButton(onClick = { viewModel.refresh() }, enabled = !viewModel.loading) {
                         Icon(
                             Icons.Default.Refresh,
-                            contentDescription = "Refresh",
+                            contentDescription = stringResource(com.beauty.app.R.string.refresh),
                             tint = if (viewModel.loading) TextMuted else RoseGoldPrimary
                         )
                     }
@@ -140,12 +142,12 @@ fun OrganizationScreen(
             }
 
             if (viewModel.loading) {
-                item { Text("Loading…", color = TextMuted) }
+                item { Text(stringResource(com.beauty.app.R.string.loading), color = TextMuted) }
             }
 
             // -- Pick -------------------------------------------------------
             if (viewModel.activeOrganizations.isNotEmpty()) {
-                item { SectionTitle("Your organizations") }
+                item { SectionTitle(stringResource(com.beauty.app.R.string.your_organizations)) }
                 items(viewModel.activeOrganizations, key = { it.id }) { org ->
                     OrganizationRow(
                         org = org,
@@ -160,10 +162,10 @@ fun OrganizationScreen(
             // constraint with an error they cannot interpret.
             val waiting = viewModel.organizations.filterNot { it.isActive }
             if (waiting.isNotEmpty()) {
-                item { SectionTitle("Waiting for approval") }
+                item { SectionTitle(stringResource(com.beauty.app.R.string.waiting_for_approval)) }
                 items(waiting, key = { it.id }) { org ->
                     Text(
-                        "${org.name} — ${org.status.lowercase()}",
+                        "${org.name} — ${com.beauty.app.ui.i18n.statusLabel(org.status)}",
                         color = TextMuted,
                         fontSize = 13.sp,
                         modifier = Modifier.padding(vertical = 4.dp)
@@ -172,13 +174,13 @@ fun OrganizationScreen(
             }
 
             // -- Join -------------------------------------------------------
-            item { SectionTitle("Join an organization") }
+            item { SectionTitle(stringResource(com.beauty.app.R.string.join_an_organization)) }
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedTextField(
                         value = joinSlug,
                         onValueChange = { joinSlug = it },
-                        label = { Text("Organization handle") },
+                        label = { Text(stringResource(com.beauty.app.R.string.organization_handle)) },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth()
                     )
@@ -186,7 +188,7 @@ fun OrganizationScreen(
                         onClick = { viewModel.requestToJoin(joinSlug); joinSlug = "" },
                         enabled = joinSlug.isNotBlank(),
                         colors = ButtonDefaults.buttonColors(containerColor = RoseGoldPrimary)
-                    ) { Text("Request access") }
+                    ) { Text(stringResource(com.beauty.app.R.string.request_access)) }
                 }
             }
 
@@ -194,23 +196,21 @@ fun OrganizationScreen(
             //
             // Gated on an administrator-issued creation link, like the web
             // onboarding. Verified links open this form; manual paste remains a fallback.
-            item { SectionTitle("Create an organization") }
+            item { SectionTitle(stringResource(com.beauty.app.R.string.create_an_organization)) }
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     when (viewModel.creationLinkStatus) {
                         OrganizationViewModel.CreationLinkStatus.NONE,
                         OrganizationViewModel.CreationLinkStatus.INVALID -> {
                             Text(
-                                "Creating an organization requires a creation link from an administrator. " +
-                                    "Paste the whole link here.",
+                                stringResource(com.beauty.app.R.string.creation_link_help),
                                 color = TextMuted,
                                 fontSize = 13.sp
                             )
                             val invalid = viewModel.creationLinkStatus ==
                                 OrganizationViewModel.CreationLinkStatus.INVALID
                             val message = creationLinkError ?: if (invalid) {
-                                "This link is invalid, expired, or has already been used. " +
-                                    "Ask your administrator for a new one."
+                                stringResource(com.beauty.app.R.string.creation_link_invalid)
                             } else null
                             OutlinedTextField(
                                 value = creationLink,
@@ -218,53 +218,51 @@ fun OrganizationScreen(
                                     creationLink = it
                                     creationLinkError = null
                                 },
-                                label = { Text("Organization creation link") },
+                                label = { Text(stringResource(com.beauty.app.R.string.organization_creation_link)) },
                                 singleLine = true,
                                 isError = message != null,
-                                supportingText = message?.let { text -> { Text(text) } },
+                                supportingText = message?.let { text -> { Text(if (creationLinkError != null) com.beauty.app.ui.i18n.localizedMessage(text) else text) } },
                                 modifier = Modifier.fillMaxWidth()
                             )
                             Button(
                                 onClick = {
                                     val token = tokenFromWebAppLink(creationLink, "orgToken")
                                     if (token == null) {
-                                        creationLinkError = "Paste a valid creation link for this Aura environment."
+                                        creationLinkError = "INVALID_CREATE_LINK"
                                     } else {
                                         viewModel.checkCreationToken(token)
                                     }
                                 },
                                 enabled = creationLink.isNotBlank(),
                                 colors = ButtonDefaults.buttonColors(containerColor = RoseGoldPrimary)
-                            ) { Text("Continue") }
+                            ) { Text(stringResource(com.beauty.app.R.string.continue_action)) }
                         }
                         OrganizationViewModel.CreationLinkStatus.CHECKING ->
-                            Text("Checking your link…", color = TextMuted, fontSize = 13.sp)
+                            Text(stringResource(com.beauty.app.R.string.checking_your_link), color = TextMuted, fontSize = 13.sp)
                         OrganizationViewModel.CreationLinkStatus.VALID -> {
                             val fieldErrors = viewModel.createFieldErrors
                             OutlinedTextField(
                                 value = newOrgName,
                                 onValueChange = { newOrgName = it },
-                                label = { Text("Name") },
-                                placeholder = { Text("Aura Downtown") },
+                                label = { Text(stringResource(com.beauty.app.R.string.name)) },
+                                placeholder = { Text(stringResource(com.beauty.app.R.string.organization_example)) },
                                 singleLine = true,
                                 enabled = !viewModel.creating,
                                 isError = fieldErrors["name"] != null,
-                                supportingText = fieldErrors["name"]?.let { text -> { Text(text) } },
+                                supportingText = fieldErrors["name"]?.let { text -> { Text(com.beauty.app.ui.i18n.localizedMessage(text)) } },
                                 modifier = Modifier.fillMaxWidth()
                             )
                             OutlinedTextField(
                                 value = newOrgSlug,
                                 onValueChange = { newOrgSlug = it },
-                                label = { Text("Handle (optional)") },
+                                label = { Text(stringResource(com.beauty.app.R.string.handle_optional)) },
                                 placeholder = { Text("aura-downtown") },
                                 singleLine = true,
                                 enabled = !viewModel.creating,
                                 isError = fieldErrors["slug"] != null,
                                 supportingText = {
                                     Text(
-                                        fieldErrors["slug"]
-                                            ?: "What colleagues type to request access. Lowercase letters, " +
-                                            "numbers and hyphens. Derived from the name if left blank."
+                                        fieldErrors["slug"]?.let { com.beauty.app.ui.i18n.localizedMessage(it) } ?: stringResource(com.beauty.app.R.string.handle_help)
                                     )
                                 },
                                 modifier = Modifier.fillMaxWidth()
@@ -280,11 +278,11 @@ fun OrganizationScreen(
                                     },
                                     enabled = newOrgName.isNotBlank() && !viewModel.creating,
                                     colors = ButtonDefaults.buttonColors(containerColor = RoseGoldPrimary)
-                                ) { Text(if (viewModel.creating) "Creating…" else "Create organization") }
+                                ) { Text(if (viewModel.creating) stringResource(com.beauty.app.R.string.creating) else stringResource(com.beauty.app.R.string.create_organization)) }
                                 TextButton(
                                     onClick = { viewModel.clearCreationLink() },
                                     enabled = !viewModel.creating
-                                ) { Text("Cancel", color = TextMuted) }
+                                ) { Text(stringResource(com.beauty.app.R.string.cancel), color = TextMuted) }
                             }
                         }
                     }
@@ -303,7 +301,7 @@ fun OrganizationScreen(
             // organization, and folding a system-wide flag into it is how
             // "admin of my salon" turns into "admin of every salon".
             if (current != null && viewModel.canManage(current)) {
-                item { SectionTitle("Members of ${current.name}") }
+                item { SectionTitle(stringResource(com.beauty.app.R.string.members_of, current.name)) }
                 items(viewModel.members, key = { it.userId }) { member ->
                     MemberRow(
                         member = member,
@@ -321,8 +319,7 @@ fun OrganizationScreen(
                 }
                 item {
                     Text(
-                        "Removing someone revokes their access immediately. Clients and visits " +
-                            "they entered stay with the organization.",
+                        stringResource(com.beauty.app.R.string.members_removal_help),
                         color = TextMuted,
                         fontSize = 12.sp
                     )
@@ -332,8 +329,8 @@ fun OrganizationScreen(
                         OutlinedTextField(
                             value = inviteEmail,
                             onValueChange = { inviteEmail = it },
-                            label = { Text("Invite by email") },
-                            supportingText = { Text("They need an account already.") },
+                            label = { Text(stringResource(com.beauty.app.R.string.invite_by_email)) },
+                            supportingText = { Text(stringResource(com.beauty.app.R.string.they_need_an_account_already)) },
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth()
                         )
@@ -341,16 +338,16 @@ fun OrganizationScreen(
                             onClick = { viewModel.invite(current.id, inviteEmail, "ORG_USER"); inviteEmail = "" },
                             enabled = inviteEmail.isNotBlank(),
                             colors = ButtonDefaults.buttonColors(containerColor = RoseGoldPrimary)
-                        ) { Text("Send invitation") }
+                        ) { Text(stringResource(com.beauty.app.R.string.send_invitation)) }
                     }
                 }
             }
 
             item {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    TextButton(onClick = onLogout) { Text("Sign out", color = TextMuted) }
+                    TextButton(onClick = onLogout) { Text(stringResource(com.beauty.app.R.string.sign_out), color = TextMuted) }
                     if (viewModel.isSuperAdmin && onOpenAdmin != null) {
-                        TextButton(onClick = onOpenAdmin) { Text("Admin panel", color = RoseGoldPrimary) }
+                        TextButton(onClick = onOpenAdmin) { Text(stringResource(com.beauty.app.R.string.admin_panel), color = RoseGoldPrimary) }
                     }
                 }
             }
@@ -377,7 +374,7 @@ private fun Banner(message: String, isError: Boolean) {
         modifier = Modifier.fillMaxWidth()
     ) {
         Text(
-            message,
+            com.beauty.app.ui.i18n.localizedMessage(message),
             modifier = Modifier.padding(12.dp),
             fontSize = 13.sp,
             color = if (isError) MaterialTheme.colorScheme.onErrorContainer else TextMuted
@@ -395,7 +392,7 @@ private fun OrganizationRow(org: OrganizationDto, selected: Boolean, onSelect: (
         Column(modifier = Modifier.weight(1f)) {
             Text(org.name, fontWeight = FontWeight.SemiBold)
             Text(
-                if (org.isAdmin) "${org.slug} · administrator" else org.slug,
+                if (org.isAdmin) "${org.slug} · ${com.beauty.app.ui.i18n.roleLabel(org.role)}" else org.slug,
                 color = TextMuted,
                 fontSize = 12.sp
             )

@@ -1,3 +1,4 @@
+import { useAppTranslation } from '../i18n/LocaleProvider';
 import { CheckCircle2, XCircle } from 'lucide-react';
 import { navigate, type VerificationStatus } from '../auth/route';
 import { AuthLayout } from './AuthLayout';
@@ -17,10 +18,11 @@ import { AuthLayout } from './AuthLayout';
  * says so rather than implying they can carry on regardless.
  */
 export function VerifyEmailPage({ status }: { status: VerificationStatus }) {
+  const { t } = useAppTranslation();
   const verified = status === 'success';
 
   return (
-    <AuthLayout title={verified ? 'Email verified' : "That link didn't work"}>
+    <AuthLayout title={verified ?t('verifyEmailPage.emailVerified') :t('verifyEmailPage.thatLinkDidnTWork')}>
       <div style={{ textAlign: 'center' }}>
         {verified ? (
           <CheckCircle2 size={40} color="var(--rose-gold-primary)" style={{ marginBottom: '16px' }} />
@@ -30,8 +32,8 @@ export function VerifyEmailPage({ status }: { status: VerificationStatus }) {
 
         <p style={{ color: 'var(--text-muted)', fontSize: '14px', lineHeight: 1.6 }}>
           {verified
-            ? 'Thanks — your email address is confirmed. Your account is now fully unlocked.'
-            : "This verification link is invalid, has expired, or has already been used. Sign in and we'll offer you a fresh one."}
+            ?t('verifyEmailPage.thanksYourEmailAddressIsConfirmedYourAccountIsNowFullyUnlocked')
+            :t('verifyEmailPage.thisVerificationLinkIsInvalidHasExpiredOrHasAlreadyBeenUsedSignI')}
         </p>
 
         <button
@@ -40,7 +42,7 @@ export function VerifyEmailPage({ status }: { status: VerificationStatus }) {
           onClick={() => navigate('/')}
           style={{ marginTop: '24px' }}
         >
-          Continue to Aura Beauty Log
+          {t('verifyEmailPage.continueToAuraBeautyLog')}
         </button>
       </div>
     </AuthLayout>

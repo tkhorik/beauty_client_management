@@ -1,9 +1,12 @@
+import { useAppTranslation } from '../i18n/LocaleProvider';
 import React, { useEffect, useState } from 'react';
 import { Building2, LogOut, Plus, UserPlus, Clock, Link2Off, ShieldCheck } from 'lucide-react';
-import { api, ApiError } from '../services/api';
+import { api, ApiError, writeErrorMessage } from '../services/api';
+import { translatedFieldErrors } from '../i18n/errors';
 import { useAuth } from '../auth/AuthContext';
 import { useOrg } from '../auth/OrgContext';
 import { stripQueryString } from '../auth/route';
+import { LanguageSelector } from './LanguageSelector';
 
 /**
  * Captured once, at module-evaluation time — not inside the component.
@@ -70,6 +73,7 @@ interface OrganizationOnboardingProps {
 }
 
 export const OrganizationOnboarding: React.FC<OrganizationOnboardingProps> = ({ onOpenAdmin }) => {
+  const { t } = useAppTranslation();
   const { logout, user } = useAuth();
   const { organizations, refresh } = useOrg();
 
@@ -115,9 +119,9 @@ export const OrganizationOnboarding: React.FC<OrganizationOnboardingProps> = ({ 
       // unmounts this screen.
       await refresh();
     } catch (err) {
-      if (err instanceof ApiError && err.body.errors) setCreateErrors(err.body.errors);
-      else if (err instanceof ApiError && err.body.error) setCreateErrors({ name: err.body.error });
-      else setCreateErrors({ name: 'Could not create the organization. Please try again.' });
+      if (err instanceof ApiError && err.body.fieldErrors) setCreateErrors(translatedFieldErrors(err.body));
+      else if (err instanceof ApiError) setCreateErrors({ name: writeErrorMessage(err, t('organizationOnboarding.couldNotCreateTheOrganizationPleaseTryAgain')) });
+      else setCreateErrors({ name:t('organizationOnboarding.couldNotCreateTheOrganizationPleaseTryAgain') });
     } finally {
       setCreating(false);
     }
@@ -135,14 +139,14 @@ export const OrganizationOnboarding: React.FC<OrganizationOnboardingProps> = ({ 
       // acceptance; PENDING means an administrator still has to approve.
       setJoinNotice(
         result.status === 'ACTIVE'
-          ? `You have joined ${result.name}.`
-          : `Request sent to ${result.name}. An administrator has to approve it.`
+          ? t('organizationOnboarding.joined', { name: result.name })
+          : t('organizationOnboarding.requestSent', { name: result.name })
       );
       setJoinSlug('');
     } catch (err) {
-      if (err instanceof ApiError && err.status === 404) setJoinError('No organization with that handle.');
-      else if (err instanceof ApiError && err.body.error) setJoinError(err.body.error);
-      else setJoinError('Could not send the request. Please try again.');
+      if (err instanceof ApiError && err.status === 404) setJoinError(t('organizationOnboarding.noOrganizationWithThatHandle'));
+      else if (err instanceof ApiError) setJoinError(writeErrorMessage(err, t('organizationOnboarding.couldNotSendTheRequestPleaseTryAgain')));
+      else setJoinError(t('organizationOnboarding.couldNotSendTheRequestPleaseTryAgain'));
     } finally {
       setJoining(false);
     }
@@ -151,21 +155,21 @@ export const OrganizationOnboarding: React.FC<OrganizationOnboardingProps> = ({ 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
       <div className="glass-panel-glow" style={{ width: '560px', maxWidth: '95vw', borderRadius: '20px', padding: '32px' }}>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '10px' }}><LanguageSelector compact /></div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
           <Building2 size={24} color="var(--rose-gold-primary)" />
-          <h1 className="text-gradient" style={{ fontSize: '22px' }}>Choose an organization</h1>
+          <h1 className="text-gradient" style={{ fontSize: '22px' }}>{t('organizationOnboarding.chooseAnOrganization')}</h1>
         </div>
         <p style={{ color: 'var(--text-muted)', fontSize: '13px', marginBottom: '24px' }}>
-          Clients and visits belong to an organization. Join one that already exists,
-          or create one for your own salon if an administrator sent you an invitation link.
+          {t('organizationOnboarding.clientsAndVisitsBelongToAnOrganizationJoinOneThatAlreadyExistsOr')}
         </p>
 
         {pending.length > 0 && (
           <div style={{ ...bannerStyle('info'), marginBottom: '24px', display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
             <Clock size={16} style={{ flexShrink: 0, marginTop: '1px' }} />
             <div>
-              Waiting on approval:{' '}
+              {t('organizationOnboarding.waitingOnApproval')}{' '}
               {pending.map(o => o.name).join(', ')}
             </div>
           </div>
@@ -182,11 +186,11 @@ export const OrganizationOnboarding: React.FC<OrganizationOnboardingProps> = ({ 
         {tokenStatus === 'valid' && (
           <form onSubmit={handleCreate} style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginBottom: '32px' }}>
             <h2 style={{ fontSize: '14px', color: 'var(--rose-gold-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <Plus size={16} /> Create a new organization
+              <Plus size={16} /> {t('organizationOnboarding.createANewOrganization')}
             </h2>
             <div>
               <label style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px', display: 'block' }}>
-                Name
+                {t('organizationOnboarding.name')}
               </label>
               <input
                 className="input-field"
@@ -199,7 +203,7 @@ export const OrganizationOnboarding: React.FC<OrganizationOnboardingProps> = ({ 
             </div>
             <div>
               <label style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px', display: 'block' }}>
-                Handle (optional)
+                {t('organizationOnboarding.handleOptional')}
               </label>
               <input
                 className="input-field"
@@ -209,30 +213,29 @@ export const OrganizationOnboarding: React.FC<OrganizationOnboardingProps> = ({ 
                 aria-invalid={!!createErrors.slug}
               />
               <div style={{ color: 'var(--text-muted)', fontSize: '12px', marginTop: '5px' }}>
-                This is what colleagues type to request access. Lowercase letters, numbers and
-                hyphens. Derived from the name if you leave it blank.
+                {t('organizationOnboarding.thisIsWhatColleaguesTypeToRequestAccessLowercaseLettersNumbersAn')}
               </div>
               {createErrors.slug && <div style={fieldErrorStyle}>{createErrors.slug}</div>}
             </div>
             <button type="submit" className="btn-rose" disabled={creating || !name.trim()}>
-              {creating ? 'Creating…' : 'Create organization'}
+              {creating ?t('organizationOnboarding.creating') :t('organizationOnboarding.createOrganization')}
             </button>
           </form>
         )}
 
         {tokenStatus === 'checking' && (
-          <div style={{ ...bannerStyle('info'), marginBottom: '32px' }}>Checking your invitation link…</div>
+          <div style={{ ...bannerStyle('info'), marginBottom: '32px' }}>{t('organizationOnboarding.checkingYourInvitationLink')}</div>
         )}
 
         {tokenStatus === 'invalid' && (
           <div style={{ marginBottom: '32px' }}>
             <h2 style={{ fontSize: '14px', color: 'var(--rose-gold-primary)', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '10px' }}>
-              <Link2Off size={16} /> Create a new organization
+              <Link2Off size={16} /> {t('organizationOnboarding.createANewOrganization')}
             </h2>
             <div style={bannerStyle(creationToken ? 'error' : 'info')}>
               {creationToken
-                ? 'This invitation link is invalid, expired, or has already been used. Ask your administrator for a new one.'
-                : 'Creating a new organization requires an invitation link from an administrator. If you were given one, open it directly.'}
+                ?t('organizationOnboarding.thisInvitationLinkIsInvalidExpiredOrHasAlreadyBeenUsedAskYourAdm')
+                :t('organizationOnboarding.creatingANewOrganizationRequiresAnInvitationLinkFromAnAdministra')}
             </div>
           </div>
         )}
@@ -240,11 +243,11 @@ export const OrganizationOnboarding: React.FC<OrganizationOnboardingProps> = ({ 
         {/* Join */}
         <form onSubmit={handleJoin} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
           <h2 style={{ fontSize: '14px', color: 'var(--rose-gold-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <UserPlus size={16} /> Join an existing one
+            <UserPlus size={16} /> {t('organizationOnboarding.joinAnExistingOne')}
           </h2>
           <div>
             <label style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px', display: 'block' }}>
-              Organization handle
+              {t('organizationOnboarding.organizationHandle')}
             </label>
             <input
               className="input-field"
@@ -257,7 +260,7 @@ export const OrganizationOnboarding: React.FC<OrganizationOnboardingProps> = ({ 
           </div>
           {joinNotice && <div style={bannerStyle('success')}>{joinNotice}</div>}
           <button type="submit" className="btn-rose" disabled={joining || !joinSlug.trim()}>
-            {joining ? 'Sending…' : 'Request access'}
+            {joining ?t('organizationOnboarding.sending') :t('organizationOnboarding.requestAccess')}
           </button>
         </form>
 
@@ -275,7 +278,7 @@ export const OrganizationOnboarding: React.FC<OrganizationOnboardingProps> = ({ 
               gap: '6px',
             }}
           >
-            <LogOut size={14} /> Sign out
+            <LogOut size={14} /> {t('organizationOnboarding.signOut')}
           </button>
 
           {/*
@@ -297,7 +300,7 @@ export const OrganizationOnboarding: React.FC<OrganizationOnboardingProps> = ({ 
                 gap: '6px',
               }}
             >
-              <ShieldCheck size={14} /> Admin panel
+              <ShieldCheck size={14} /> {t('organizationOnboarding.adminPanel')}
             </button>
           )}
         </div>

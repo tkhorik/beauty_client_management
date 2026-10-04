@@ -91,11 +91,11 @@ fun Route.attachmentRoutes(storage: FileStorageService) {
                 }
 
                 if (multipleFiles) {
-                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Only one file may be uploaded"))
+                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Only one file may be uploaded", "code" to "ONE_FILE_REQUIRED"))
                     return@post
                 }
                 if (visitId.isEmpty() || temporaryFile == null) {
-                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Missing visitId or file data"))
+                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Missing visitId or file data", "code" to "MISSING_ATTACHMENT_DATA"))
                     return@post
                 }
 
@@ -107,7 +107,7 @@ fun Route.attachmentRoutes(storage: FileStorageService) {
                         .singleOrNull() != null
                 }
                 if (!visitInScope) {
-                    call.respond(HttpStatusCode.NotFound, mapOf("error" to "Visit not found"))
+                    call.respond(HttpStatusCode.NotFound, mapOf("error" to "Visit not found", "code" to "VISIT_NOT_FOUND"))
                     return@post
                 }
 
@@ -158,7 +158,7 @@ fun Route.attachmentRoutes(storage: FileStorageService) {
                 )
                 call.respond(HttpStatusCode.Created, created)
             } catch (e: UploadTooLargeException) {
-                call.respond(HttpStatusCode.PayloadTooLarge, mapOf("error" to "Attachment exceeds the 20 MB upload limit"))
+                call.respond(HttpStatusCode.PayloadTooLarge, mapOf("error" to "Attachment exceeds the 20 MB upload limit", "code" to "ATTACHMENT_TOO_LARGE"))
             } finally {
                 temporaryFile?.delete()
             }
@@ -166,7 +166,7 @@ fun Route.attachmentRoutes(storage: FileStorageService) {
 
         get("/{id}/file") {
             val ctx = requireOrgAccess(memberships, allowGlobal = true) ?: return@get
-            val id = call.parameters["id"] ?: return@get call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Missing ID"))
+            val id = call.parameters["id"] ?: return@get call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Missing ID", "code" to "MISSING_ID"))
 
             val attachment = dbQuery {
                 (AttachmentsTable innerJoin VisitsTable)
@@ -174,7 +174,7 @@ fun Route.attachmentRoutes(storage: FileStorageService) {
                     .singleOrNull()
             }
             if (attachment == null) {
-                call.respond(HttpStatusCode.NotFound, mapOf("error" to "Attachment not found"))
+                call.respond(HttpStatusCode.NotFound, mapOf("error" to "Attachment not found", "code" to "ATTACHMENT_NOT_FOUND"))
                 return@get
             }
 
@@ -191,14 +191,14 @@ fun Route.attachmentRoutes(storage: FileStorageService) {
                 }
                 null -> {
                     application.log.warn("Attachment {} exists in the database but its file is unavailable", id)
-                    call.respond(HttpStatusCode.NotFound, mapOf("error" to "Attachment file not found"))
+                    call.respond(HttpStatusCode.NotFound, mapOf("error" to "Attachment file not found", "code" to "ATTACHMENT_NOT_FOUND"))
                 }
             }
         }
 
         delete("/{id}") {
             val ctx = requireOrgAccess(memberships, allowGlobal = true) ?: return@delete
-            val id = call.parameters["id"] ?: return@delete call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Missing ID"))
+            val id = call.parameters["id"] ?: return@delete call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Missing ID", "code" to "MISSING_ID"))
 
             val deletedFile = dbQuery {
                 // Join to the visit to find the owning organization, since the
@@ -220,7 +220,7 @@ fun Route.attachmentRoutes(storage: FileStorageService) {
                 storage.delete(deletedFile)
                 call.respond(HttpStatusCode.OK, mapOf("message" to "Attachment deleted"))
             } else {
-                call.respond(HttpStatusCode.NotFound, mapOf("error" to "Attachment not found"))
+                call.respond(HttpStatusCode.NotFound, mapOf("error" to "Attachment not found", "code" to "ATTACHMENT_NOT_FOUND"))
             }
         }
     }

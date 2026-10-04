@@ -1,9 +1,12 @@
+import { useAppTranslation, useLocale } from '../i18n/LocaleProvider';
 import { useEffect, useState, type FormEvent } from 'react';
 import { Eye, EyeOff, ShieldCheck } from 'lucide-react';
 import { API_BASE_URL } from '../config';
 import { FORGOT_PASSWORD_PATH, navigate, stripQueryString } from '../auth/route';
 import { PASSWORD_MIN_LENGTH, validatePasswordLocally } from '../utils/passwordRules';
 import { AuthLayout, ErrorBanner, LinkButton, fieldErrorStyle } from './AuthLayout';
+import { translatedApiError, translatedFieldErrors } from '../i18n/errors';
+import { effectiveAcceptLanguage } from '../i18n/store';
 
 type FieldErrors = Record<string, string>;
 
@@ -25,6 +28,8 @@ type FieldErrors = Record<string, string>;
  * rather than into the app.
  */
 export function ResetPasswordPage({ token }: { token: string }) {
+  const { t } = useAppTranslation();
+  const { locale } = useLocale();
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -32,6 +37,11 @@ export function ResetPasswordPage({ token }: { token: string }) {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
+
+  useEffect(() => {
+    setError('');
+    setFieldErrors({});
+  }, [locale]);
 
   // The token is already held in component state by the time this runs, so
   // clearing the URL costs nothing and keeps a live credential out of the
@@ -48,11 +58,11 @@ export function ResetPasswordPage({ token }: { token: string }) {
   if (!token) {
     return (
       <AuthLayout
-        title="This link isn't usable"
-        subtitle="This reset link is invalid or has expired. Reset links can only be used once, and each new one cancels the last."
+        title={t('resetPasswordPage.thisLinkIsnTUsable')}
+        subtitle={t('resetPasswordPage.thisResetLinkIsInvalidOrHasExpiredResetLinksCanOnlyBeUsedOnceAnd')}
       >
         <button type="button" className="btn-rose" onClick={() => navigate(FORGOT_PASSWORD_PATH)}>
-          Request a new link
+          {t('resetPasswordPage.requestANewLink')}
         </button>
       </AuthLayout>
     );
@@ -60,12 +70,11 @@ export function ResetPasswordPage({ token }: { token: string }) {
 
   if (done) {
     return (
-      <AuthLayout title="Password changed">
+      <AuthLayout title={t('resetPasswordPage.passwordChanged')}>
         <div style={{ textAlign: 'center' }}>
           <ShieldCheck size={40} color="var(--rose-gold-primary)" style={{ marginBottom: '16px' }} />
           <p style={{ color: 'var(--text-muted)', fontSize: '14px', lineHeight: 1.6 }}>
-            Your password has been changed and you've been signed out everywhere else.
-            Sign in with your new password to continue.
+            {t('resetPasswordPage.yourPasswordHasBeenChangedAndYouVeBeenSignedOutEverywhereElseSig')}
           </p>
           <button
             type="button"
@@ -73,7 +82,7 @@ export function ResetPasswordPage({ token }: { token: string }) {
             onClick={() => navigate('/')}
             style={{ marginTop: '24px' }}
           >
-            Sign in
+            {t('resetPasswordPage.signIn')}
           </button>
         </div>
       </AuthLayout>
@@ -91,7 +100,7 @@ export function ResetPasswordPage({ token }: { token: string }) {
     // Checked here only — the server never sees the confirmation field, and a
     // typo would lock the user out of the account they are trying to recover,
     // with their one usable link already spent.
-    if (password !== confirmPassword) localErrors.confirmPassword = 'Passwords do not match.';
+    if (password !== confirmPassword) localErrors.confirmPassword =t('resetPasswordPage.passwordsDoNotMatch');
 
     if (Object.keys(localErrors).length > 0) {
       setFieldErrors(localErrors);
@@ -102,7 +111,7 @@ export function ResetPasswordPage({ token }: { token: string }) {
     try {
       const res = await fetch(`${API_BASE_URL}/auth/reset-password`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Accept-Language': effectiveAcceptLanguage() },
         body: JSON.stringify({ token, newPassword: password }),
       });
 
@@ -120,22 +129,22 @@ export function ResetPasswordPage({ token }: { token: string }) {
         // doesn't burn the link — so the form stays open for another attempt.
         // A flat `error` means the token itself was refused, and retrying is
         // pointless.
-        if (data.errors && typeof data.errors === 'object') {
-          setFieldErrors(data.errors as FieldErrors);
+        if (data.fieldErrors || (data.errors && typeof data.errors === 'object')) {
+          setFieldErrors(data.fieldErrors ? translatedFieldErrors(data) : Object.fromEntries(Object.keys(data.errors).map(field => [field, t('errors.VALIDATION_ERROR')])));
         } else {
-          setError(data.error || 'This reset link is invalid or has expired. Please request a new one.');
+          setError(translatedApiError({ body: data }, t('resetPasswordPage.thisResetLinkIsInvalidOrHasExpiredPleaseRequestANewOne')));
         }
         return;
       }
 
       if (res.status === 429) {
-        setError('Too many attempts. Please wait a minute and try again.');
+        setError(t('resetPasswordPage.tooManyAttemptsPleaseWaitAMinuteAndTryAgain'));
         return;
       }
 
-      setError('Something went wrong. Please try again.');
+      setError(t('resetPasswordPage.somethingWentWrongPleaseTryAgain'));
     } catch {
-      setError('Server could not be reached. Please check your connection and try again.');
+      setError(t('resetPasswordPage.serverCouldNotBeReachedPleaseCheckYourConnectionAndTryAgain'));
     } finally {
       setLoading(false);
     }
@@ -143,13 +152,13 @@ export function ResetPasswordPage({ token }: { token: string }) {
 
   return (
     <AuthLayout
-      title="Choose a new password"
-      subtitle="Setting a new password signs you out on every device."
+      title={t('resetPasswordPage.chooseANewPassword')}
+      subtitle={t('resetPasswordPage.settingANewPasswordSignsYouOutOnEveryDevice')}
     >
       <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
         <div>
           <label htmlFor="newPassword" style={{ display: 'block', fontSize: '13px', color: 'var(--text-muted)', marginBottom: '6px' }}>
-            New password
+            {t('resetPasswordPage.newPassword')}
           </label>
           <div style={{ position: 'relative' }}>
             <input
@@ -170,7 +179,7 @@ export function ResetPasswordPage({ token }: { token: string }) {
             <button
               type="button"
               onClick={() => setShowPassword(v => !v)}
-              aria-label={showPassword ? 'Hide password' : 'Show password'}
+              aria-label={showPassword ?t('resetPasswordPage.hidePassword') :t('resetPasswordPage.showPassword')}
               style={{
                 position: 'absolute',
                 right: '10px',
@@ -192,14 +201,14 @@ export function ResetPasswordPage({ token }: { token: string }) {
             <div style={fieldErrorStyle}>{fieldErrors.newPassword}</div>
           ) : (
             <div style={{ color: 'var(--text-muted)', fontSize: '12px', marginTop: '5px' }}>
-              At least {PASSWORD_MIN_LENGTH} characters. A memorable phrase beats a short, complex password.
+              {t('password.guidance', { min: PASSWORD_MIN_LENGTH })}
             </div>
           )}
         </div>
 
         <div>
           <label htmlFor="confirmPassword" style={{ display: 'block', fontSize: '13px', color: 'var(--text-muted)', marginBottom: '6px' }}>
-            Confirm new password
+            {t('resetPasswordPage.confirmNewPassword')}
           </label>
           <input
             id="confirmPassword"
@@ -221,7 +230,7 @@ export function ResetPasswordPage({ token }: { token: string }) {
           <>
             <ErrorBanner>{error}</ErrorBanner>
             <div style={{ textAlign: 'center', fontSize: '13px' }}>
-              <LinkButton onClick={() => navigate(FORGOT_PASSWORD_PATH)}>Request a new link</LinkButton>
+              <LinkButton onClick={() => navigate(FORGOT_PASSWORD_PATH)}>{t('resetPasswordPage.requestANewLink')}</LinkButton>
             </div>
           </>
         )}
@@ -232,7 +241,7 @@ export function ResetPasswordPage({ token }: { token: string }) {
           disabled={loading}
           style={{ marginTop: '4px', opacity: loading ? 0.7 : 1, cursor: loading ? 'not-allowed' : 'pointer' }}
         >
-          {loading ? 'Please wait…' : 'Set new password'}
+          {loading ?t('resetPasswordPage.pleaseWait') :t('resetPasswordPage.setNewPassword')}
         </button>
       </form>
     </AuthLayout>

@@ -1,5 +1,8 @@
 package com.beauty.app.ui.client
 
+import androidx.compose.ui.res.pluralStringResource
+import com.beauty.app.ui.i18n.localizedMessage
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -73,30 +76,30 @@ fun ClientDirectoryScreen(
     Scaffold(topBar = {
         TopAppBar(title = {
             Column {
-                Text("Aura Beauty Log", style = MaterialTheme.typography.titleLarge)
+                Text(stringResource(com.beauty.app.R.string.aura_beauty_log), style = MaterialTheme.typography.titleLarge)
                 Text(organizationName, style = MaterialTheme.typography.labelMedium)
             }
         }, actions = {
-            IconButton(onClick = refresh, enabled = !viewModel.refreshing) { Icon(Icons.Default.Refresh, "Refresh clients") }
+            IconButton(onClick = refresh, enabled = !viewModel.refreshing) { Icon(Icons.Default.Refresh, stringResource(com.beauty.app.R.string.refresh_clients)) }
             Box {
                 IconButton(onClick = { menu = true }) {
                     // The dot points at "About" once an update is waiting, so the
                     // menu is discoverable even after the banner scrolls away.
                     BadgedBox(badge = { if (hasActiveUpdate) Badge(containerColor = RoseGoldPrimary) }) {
-                        Icon(Icons.Default.MoreVert, if (hasActiveUpdate) "More options, update available" else "More options")
+                        Icon(Icons.Default.MoreVert, if (hasActiveUpdate) stringResource(com.beauty.app.R.string.more_options_update_available) else stringResource(com.beauty.app.R.string.more_options))
                     }
                 }
                 DropdownMenu(menu, onDismissRequest = { menu = false }) {
-                    DropdownMenuItem(text = { Text("Organizations & members") }, onClick = { menu = false; onOrganizations() })
-                    DropdownMenuItem(text = { Text("Account settings") }, onClick = { menu = false; onSettings() })
-                    if (onAdmin != null) DropdownMenuItem(text = { Text("Admin panel") }, onClick = { menu = false; onAdmin() })
+                    DropdownMenuItem(text = { Text(stringResource(com.beauty.app.R.string.organizations_members)) }, onClick = { menu = false; onOrganizations() })
+                    DropdownMenuItem(text = { Text(stringResource(com.beauty.app.R.string.account_settings)) }, onClick = { menu = false; onSettings() })
+                    if (onAdmin != null) DropdownMenuItem(text = { Text(stringResource(com.beauty.app.R.string.admin_panel)) }, onClick = { menu = false; onAdmin() })
                     DropdownMenuItem(
-                        text = { Text("About") },
-                        trailingIcon = if (hasActiveUpdate) ({ Badge(containerColor = RoseGoldPrimary) { Text("New", color = Color.Black) } }) else null,
+                        text = { Text(stringResource(com.beauty.app.R.string.about)) },
+                        trailingIcon = if (hasActiveUpdate) ({ Badge(containerColor = RoseGoldPrimary) { Text(stringResource(com.beauty.app.R.string.new_badge), color = Color.Black) } }) else null,
                         onClick = { menu = false; onAbout() }
                     )
                     HorizontalDivider()
-                    DropdownMenuItem(text = { Text("Sign out") }, onClick = { menu = false; onLogout() })
+                    DropdownMenuItem(text = { Text(stringResource(com.beauty.app.R.string.sign_out)) }, onClick = { menu = false; onLogout() })
                 }
             }
         })
@@ -114,35 +117,35 @@ fun ClientDirectoryScreen(
                 }
                 item {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Button(onClick = onNewClient, enabled = !viewModel.blocked, modifier = Modifier.weight(1f)) { Text("New Client") }
-                        OutlinedButton(onClick = { chooseClient = true }, enabled = !viewModel.blocked, modifier = Modifier.weight(1f)) { Text("Log Visit") }
+                        Button(onClick = onNewClient, enabled = !viewModel.blocked, modifier = Modifier.weight(1f)) { Text(stringResource(com.beauty.app.R.string.new_client)) }
+                        OutlinedButton(onClick = { chooseClient = true }, enabled = !viewModel.blocked, modifier = Modifier.weight(1f)) { Text(stringResource(com.beauty.app.R.string.log_visit)) }
                     }
                 }
                 item {
                     OutlinedTextField(value = viewModel.query, onValueChange = viewModel::updateQuery,
-                        label = { Text("Search name, phone, email or tag") }, singleLine = true,
+                        label = { Text(stringResource(com.beauty.app.R.string.search_name_phone_email_or_tag)) }, singleLine = true,
                         leadingIcon = { Icon(Icons.Default.Search, null) }, modifier = Modifier.fillMaxWidth())
                 }
                 item {
                     Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         listOf("", "VIP", "Sensitive Skin", "Lash Extensions", "Hair Coloring", "Skin Treatment").forEach { tag ->
-                            FilterChip(selected = viewModel.tag == tag, onClick = { viewModel.updateTag(tag) }, label = { Text(tag.ifEmpty { "All" }) })
+                            FilterChip(selected = viewModel.tag == tag, onClick = { viewModel.updateTag(tag) }, label = { Text(com.beauty.app.ui.i18n.tagLabel(tag)) })
                         }
                     }
                 }
                 if (viewModel.query.isNotBlank() || viewModel.tag.isNotEmpty()) item {
-                    TextButton(onClick = viewModel::clearFilters) { Text("Clear filters") }
+                    TextButton(onClick = viewModel::clearFilters) { Text(stringResource(com.beauty.app.R.string.clear_filters)) }
                 }
                 if (viewModel.searching || viewModel.refreshing) item { LinearProgressIndicator(Modifier.fillMaxWidth()) }
                 item {
-                    Text("Client Directory · ${viewModel.filtered.size}", style = MaterialTheme.typography.titleMedium)
-                    Text(viewModel.message ?: if (viewModel.lastRefresh == 0L) "Loading saved clients…" else "Synced with web", style = MaterialTheme.typography.bodySmall)
-                    if (viewModel.message != null) TextButton(onClick = refresh) { Text("Retry") }
+                    Text(stringResource(com.beauty.app.R.string.client_directory_count, viewModel.filtered.size), style = MaterialTheme.typography.titleMedium)
+                    Text(viewModel.message?.let { localizedMessage(it) } ?: if (viewModel.lastRefresh == 0L) stringResource(com.beauty.app.R.string.loading_saved_clients) else stringResource(com.beauty.app.R.string.synced_with_web), style = MaterialTheme.typography.bodySmall)
+                    if (viewModel.message != null) TextButton(onClick = refresh) { Text(stringResource(com.beauty.app.R.string.ui2_retry)) }
                 }
                 if (viewModel.filtered.isEmpty() && !viewModel.refreshing && !viewModel.searching && !viewModel.blocked) item {
-                    Text(if (viewModel.query.isNotBlank() || viewModel.tag.isNotEmpty()) "No clients match these filters."
-                        else if (viewModel.message != null) "No cached clients are available. Connect and refresh."
-                        else "No client profiles yet. Create your first client to get started.")
+                    Text(if (viewModel.query.isNotBlank() || viewModel.tag.isNotEmpty()) stringResource(com.beauty.app.R.string.no_clients_match_these_filters)
+                        else if (viewModel.message != null) stringResource(com.beauty.app.R.string.no_cached_clients_are_available_connect_and_refresh)
+                        else stringResource(com.beauty.app.R.string.no_client_profiles_yet_create_your_first_client_to_get_))
                 }
                 items(viewModel.filtered, key = { it.id }) { client ->
                     ClientCard(
@@ -158,15 +161,15 @@ fun ClientDirectoryScreen(
     }
     // The header's "Log Visit" needs a client first, as the web form's client
     // dropdown does; choosing one opens that client's visit form directly.
-    if (chooseClient) AlertDialog(onDismissRequest = { chooseClient = false }, title = { Text("Choose a client") }, text = {
-        if (viewModel.clients.isEmpty()) Text("Create a client before logging a visit.") else LazyColumn(Modifier.heightIn(max = 400.dp)) {
+    if (chooseClient) AlertDialog(onDismissRequest = { chooseClient = false }, title = { Text(stringResource(com.beauty.app.R.string.choose_a_client)) }, text = {
+        if (viewModel.clients.isEmpty()) Text(stringResource(com.beauty.app.R.string.create_a_client_before_logging_a_visit)) else LazyColumn(Modifier.heightIn(max = 400.dp)) {
             items(viewModel.clients, key = { it.id }) { client ->
                 TextButton(onClick = { chooseClient = false; onLogVisit(client.id) }, modifier = Modifier.fillMaxWidth()) { Text("${client.name} · ${client.phone}") }
             }
         }
     }, confirmButton = {
-        if (viewModel.clients.isEmpty()) TextButton(onClick = { chooseClient = false; onNewClient() }) { Text("New Client") }
-        else TextButton(onClick = { chooseClient = false }) { Text("Cancel") }
+        if (viewModel.clients.isEmpty()) TextButton(onClick = { chooseClient = false; onNewClient() }) { Text(stringResource(com.beauty.app.R.string.new_client)) }
+        else TextButton(onClick = { chooseClient = false }) { Text(stringResource(com.beauty.app.R.string.cancel)) }
     })
 }
 
@@ -185,7 +188,7 @@ private fun ClientCard(client: ClientEntity, logVisitEnabled: Boolean, onClick: 
                 }
                 Surface(color = Color(0x1AE5B899), shape = RoundedCornerShape(12.dp)) {
                     Text(
-                        visitsLabel(client.totalVisits),
+                        pluralStringResource(com.beauty.app.R.plurals.visits_count, client.totalVisits, client.totalVisits),
                         color = RoseGoldPrimary,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
@@ -205,7 +208,7 @@ private fun ClientCard(client: ClientEntity, logVisitEnabled: Boolean, onClick: 
                         .padding(horizontal = 12.dp, vertical = 8.dp),
                     verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    Text("CUSTOM SPECS & ATTRIBUTES", color = RoseGoldPrimary, fontSize = 10.sp, fontWeight = FontWeight.SemiBold)
+                    Text(stringResource(com.beauty.app.R.string.custom_specs_attributes), color = RoseGoldPrimary, fontSize = 10.sp, fontWeight = FontWeight.SemiBold)
                     attributes.forEach { (key, value) ->
                         Row {
                             Text("$key:", color = TextMuted, fontSize = 12.sp, modifier = Modifier.weight(1f))
@@ -223,9 +226,9 @@ private fun ClientCard(client: ClientEntity, logVisitEnabled: Boolean, onClick: 
             }
             HorizontalDivider(color = Color(0x0DFFFFFF))
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("Updated ${formatUpdatedDate(client.updatedAt)}", color = TextMuted, fontSize = 12.sp, modifier = Modifier.weight(1f))
+                Text(stringResource(com.beauty.app.R.string.updated_date, formatUpdatedDate(client.updatedAt)), color = TextMuted, fontSize = 12.sp, modifier = Modifier.weight(1f))
                 OutlinedButton(onClick = onLogVisit, enabled = logVisitEnabled, contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)) {
-                    Text("Log Visit ›", fontSize = 12.sp)
+                    Text(stringResource(com.beauty.app.R.string.log_visit), fontSize = 12.sp)
                 }
             }
         }

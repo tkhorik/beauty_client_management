@@ -1,3 +1,4 @@
+import { useAppTranslation } from '../i18n/LocaleProvider';
 import React, { useState } from 'react';
 import type { Attachment } from '../types';
 import { X, Sliders, Columns } from 'lucide-react';
@@ -8,6 +9,7 @@ interface PhotoCompareModalProps {
 }
 
 export const PhotoCompareModal: React.FC<PhotoCompareModalProps> = ({ attachments, onClose }) => {
+  const { t } = useAppTranslation();
   const beforePhoto = attachments.find(a => a.tag === 'BEFORE') || attachments[0];
   const afterPhoto = attachments.find(a => a.tag === 'AFTER') || attachments[1] || attachments[0];
 
@@ -45,8 +47,8 @@ export const PhotoCompareModal: React.FC<PhotoCompareModalProps> = ({ attachment
           background: 'rgba(15, 14, 19, 0.8)'
         }}>
           <div>
-            <h2 className="text-gradient" style={{ fontSize: '20px' }}>Procedure Before & After Comparison</h2>
-            <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Interactive side-by-side & slider inspection</p>
+            <h2 className="text-gradient" style={{ fontSize: '20px' }}>{t('photoCompareModal.procedureBeforeAndAfterComparison')}</h2>
+            <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{t('photoCompareModal.interactiveSideBySideAndSliderInspection')}</p>
           </div>
 
           {/* Controls */}
@@ -68,7 +70,7 @@ export const PhotoCompareModal: React.FC<PhotoCompareModalProps> = ({ attachment
                   gap: '6px'
                 }}
               >
-                <Sliders size={14} /> Slider Split
+                <Sliders size={14} /> {t('photoCompareModal.sliderSplit')}
               </button>
               <button
                 onClick={() => setViewMode('sideBySide')}
@@ -86,11 +88,11 @@ export const PhotoCompareModal: React.FC<PhotoCompareModalProps> = ({ attachment
                   gap: '6px'
                 }}
               >
-                <Columns size={14} /> Side by Side
+                <Columns size={14} /> {t('photoCompareModal.sideBySide')}
               </button>
             </div>
 
-            <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
+            <button aria-label={t('common.close')} onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
               <X size={24} />
             </button>
           </div>
@@ -127,7 +129,7 @@ export const PhotoCompareModal: React.FC<PhotoCompareModalProps> = ({ attachment
                 {/* AFTER Photo (Base) */}
                 <img
                   src={afterPhoto?.fileUrl}
-                  alt="After Procedure"
+                  alt={t('photoCompareModal.afterProcedure')}
                   style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
                 />
                 <div style={{
@@ -143,7 +145,7 @@ export const PhotoCompareModal: React.FC<PhotoCompareModalProps> = ({ attachment
                   backdropFilter: 'blur(8px)',
                   border: '1px solid rgba(45,212,191,0.3)'
                 }}>
-                  AFTER PROCEDURE
+                  {t('photoCompareModal.aFTERPROCEDURE')}
                 </div>
 
                 {/* BEFORE Photo (Clipped Overlay) */}
@@ -158,7 +160,7 @@ export const PhotoCompareModal: React.FC<PhotoCompareModalProps> = ({ attachment
                 }}>
                   <img
                     src={beforePhoto?.fileUrl}
-                    alt="Before Procedure"
+                    alt={t('photoCompareModal.beforeProcedure')}
                     style={{ width: '750px', height: '420px', objectFit: 'cover', maxWidth: 'none' }}
                   />
                   <div style={{
@@ -174,7 +176,7 @@ export const PhotoCompareModal: React.FC<PhotoCompareModalProps> = ({ attachment
                     backdropFilter: 'blur(8px)',
                     border: '1px solid rgba(229,184,153,0.3)'
                   }}>
-                    BEFORE PROCEDURE
+                    {t('photoCompareModal.bEFOREPROCEDURE')}
                   </div>
                 </div>
 
@@ -213,7 +215,7 @@ export const PhotoCompareModal: React.FC<PhotoCompareModalProps> = ({ attachment
 
               {/* Slider Helper Note */}
               <p style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px', marginTop: '12px' }}>
-                Drag or hover across the photo to split Before & After results
+                {t('photoCompareModal.dragOrHoverAcrossThePhotoToSplitBeforeAndAfterResults')}
               </p>
             </div>
           ) : (
@@ -221,18 +223,18 @@ export const PhotoCompareModal: React.FC<PhotoCompareModalProps> = ({ attachment
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', width: '100%' }}>
               <div style={{ borderRadius: '16px', overflow: 'hidden', border: '1px solid var(--border-color)', background: 'rgba(0,0,0,0.4)', padding: '12px' }}>
                 <div style={{ position: 'relative', height: '320px', borderRadius: '12px', overflow: 'hidden', marginBottom: '10px' }}>
-                  <img src={beforePhoto?.fileUrl} alt="Before" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                  <span style={{ position: 'absolute', top: '10px', left: '10px', background: 'rgba(0,0,0,0.7)', color: 'var(--rose-gold-primary)', padding: '4px 10px', borderRadius: '8px', fontSize: '11px', fontWeight: 700 }}>BEFORE</span>
+                  <img src={beforePhoto?.fileUrl} alt={t('photoCompareModal.before')} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  <span style={{ position: 'absolute', top: '10px', left: '10px', background: 'rgba(0,0,0,0.7)', color: 'var(--rose-gold-primary)', padding: '4px 10px', borderRadius: '8px', fontSize: '11px', fontWeight: 700 }}>{t('photoCompareModal.bEFORE')}</span>
                 </div>
-                <p style={{ fontSize: '13px', color: 'var(--text-main)', fontWeight: 500 }}>{beforePhoto?.caption || 'Before procedure baseline photo'}</p>
+                <p style={{ fontSize: '13px', color: 'var(--text-main)', fontWeight: 500 }}>{beforePhoto?.caption || t('photoCompareModal.beforeCaption')}</p>
               </div>
 
               <div style={{ borderRadius: '16px', overflow: 'hidden', border: '1px solid var(--border-color)', background: 'rgba(0,0,0,0.4)', padding: '12px' }}>
                 <div style={{ position: 'relative', height: '320px', borderRadius: '12px', overflow: 'hidden', marginBottom: '10px' }}>
-                  <img src={afterPhoto?.fileUrl} alt="After" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                  <span style={{ position: 'absolute', top: '10px', left: '10px', background: 'rgba(0,0,0,0.7)', color: '#2dd4bf', padding: '4px 10px', borderRadius: '8px', fontSize: '11px', fontWeight: 700 }}>AFTER</span>
+                  <img src={afterPhoto?.fileUrl} alt={t('photoCompareModal.after')} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  <span style={{ position: 'absolute', top: '10px', left: '10px', background: 'rgba(0,0,0,0.7)', color: '#2dd4bf', padding: '4px 10px', borderRadius: '8px', fontSize: '11px', fontWeight: 700 }}>{t('photoCompareModal.aFTER')}</span>
                 </div>
-                <p style={{ fontSize: '13px', color: 'var(--text-main)', fontWeight: 500 }}>{afterPhoto?.caption || 'Post-procedure finished result'}</p>
+                <p style={{ fontSize: '13px', color: 'var(--text-main)', fontWeight: 500 }}>{afterPhoto?.caption || t('photoCompareModal.afterCaption')}</p>
               </div>
             </div>
           )}

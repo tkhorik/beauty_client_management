@@ -1,5 +1,7 @@
 package com.beauty.app.ui.verification
 
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -113,7 +115,7 @@ fun VerificationBanner(
             )
             Spacer(Modifier.width(10.dp))
             Text(
-                text = "Confirm your email within $daysLeft day${if (daysLeft == 1L) "" else "s"}",
+                text = pluralStringResource(com.beauty.app.R.plurals.confirm_email_days, daysLeft.toInt(), daysLeft.toInt()),
                 color = TextLight,
                 fontWeight = FontWeight.Bold,
                 fontSize = 14.sp
@@ -123,15 +125,14 @@ fun VerificationBanner(
         Spacer(Modifier.height(6.dp))
 
         Text(
-            text = "We sent a link to ${email ?: "your address"} — check your spam folder if it " +
-                "hasn't arrived. After that, using Aura needs a confirmed address.",
+            text = stringResource(com.beauty.app.R.string.verification_banner_help, email ?: stringResource(com.beauty.app.R.string.your_address)),
             color = TextMuted,
             fontSize = 12.sp
         )
 
         status?.let {
             Spacer(Modifier.height(4.dp))
-            Text(it, color = RoseGoldPrimary, fontSize = 12.sp)
+            Text(com.beauty.app.ui.i18n.verificationMessage(it), color = RoseGoldPrimary, fontSize = 12.sp)
         }
 
         Row {
@@ -141,17 +142,17 @@ fun VerificationBanner(
                     scope.launch {
                         repository.resendVerificationEmail()
                             .onSuccess {
-                                status = "Link sent — check your inbox and spam folder."
+                                status = "RESOURCE:ui2_link_sent_check_your_inbox_and_spam_folder"
                                 cooldownUntil = System.currentTimeMillis() + RESEND_COOLDOWN_MS
                             }
                             .onFailure {
-                                status = "Couldn't send the link. Check your connection."
+                                status = "RESOURCE:ui2_couldn_t_send_the_link_check_your_connection"
                             }
                     }
                 }
             ) {
                 Text(
-                    if (coolingDown) "Link sent" else "Resend link",
+                    if (coolingDown) stringResource(com.beauty.app.R.string.link_sent) else stringResource(com.beauty.app.R.string.resend_link),
                     color = if (coolingDown) TextMuted else RoseGoldPrimary,
                     fontSize = 13.sp
                 )
@@ -167,12 +168,12 @@ fun VerificationBanner(
                         checking = true
                         load()
                         checking = false
-                        if (!verified) status = "Still unconfirmed — try the link again."
+                        if (!verified) status = "RESOURCE:ui2_still_unconfirmed_try_the_link_again"
                     }
                 }
             ) {
                 Text(
-                    if (checking) "Checking…" else "I've confirmed",
+                    if (checking) stringResource(com.beauty.app.R.string.checking) else stringResource(com.beauty.app.R.string.i_ve_confirmed),
                     color = RoseGoldPrimary,
                     fontSize = 13.sp
                 )

@@ -1,3 +1,4 @@
+import { useAppTranslation } from '../i18n/LocaleProvider';
 import type { ReactNode } from 'react';
 import { MailWarning, RefreshCw, Send, LogOut } from 'lucide-react';
 import { useAuth } from '../auth/AuthContext';
@@ -29,6 +30,7 @@ import { AuthLayout } from './AuthLayout';
  * `EmailVerificationEnforcementTest` pins each of those routes individually.
  */
 export function VerificationWall() {
+  const { t } = useAppTranslation();
   const { logout } = useAuth();
   const {
     user,
@@ -44,24 +46,17 @@ export function VerificationWall() {
 
   return (
     <AuthLayout
-      title="Confirm your email"
-      subtitle="Your account is ready — it just needs a confirmed email address before you can use it."
+      title={t('verificationWall.confirmYourEmail')}
+      subtitle={t('verificationWall.yourAccountIsReadyItJustNeedsAConfirmedEmailAddressBeforeYouCanU')}
     >
       <div style={{ textAlign: 'center' }}>
         <MailWarning size={40} color="var(--rose-gold-primary)" style={{ marginBottom: '16px' }} />
 
-        <p style={{ color: 'var(--text-muted)', fontSize: '14px', lineHeight: 1.6 }}>
-          We sent a confirmation link to
+        <p style={{ color: 'var(--text-muted)', fontSize: '14px', lineHeight: 1.6, overflowWrap: 'anywhere' }}>
+          {t('verificationWall.sentDescription', { email: user.email })}
         </p>
-        <p style={{ fontWeight: 600, fontSize: '15px', margin: '6px 0 16px', wordBreak: 'break-all' }}>
-          {user.email}
-        </p>
-        <p style={{ color: 'var(--text-muted)', fontSize: '14px', lineHeight: 1.6 }}>
-          Click the link in that email to unlock your account.{' '}
-          <strong style={{ color: 'var(--text-muted)' }}>
-            If it isn't in your inbox, check your spam or junk folder
-          </strong>{' '}
-          — confirmation mail lands there more often than anywhere else.
+        <p style={{ color: 'var(--text-muted)', fontSize: '13px', lineHeight: 1.6 }}>
+          {t('verificationWall.spamDescription')}
         </p>
 
         {sendState === 'sent' && (
@@ -69,7 +64,7 @@ export function VerificationWall() {
             role="status"
             style={{ margin: '16px 0 0', fontSize: '13px', color: 'var(--rose-gold-primary)' }}
           >
-            New link sent. It can take a minute to arrive.
+            {t('verificationWall.newLinkSentItCanTakeAMinuteToArrive')}
           </p>
         )}
         {sendState === 'failed' && (
@@ -78,8 +73,8 @@ export function VerificationWall() {
             style={{ margin: '16px 0 0', fontSize: '13px', color: '#e87c8a' }}
           >
             {coolingDown
-              ? 'Too many requests just now — try again in a minute.'
-              : "Couldn't send the link. Check your connection and try again."}
+              ?t('verificationWall.tooManyRequestsJustNowTryAgainInAMinute')
+              :t('verificationWall.couldnTSendTheLinkCheckYourConnectionAndTryAgain')}
           </p>
         )}
 
@@ -98,7 +93,7 @@ export function VerificationWall() {
             disabled={refreshing}
             style={{ opacity: refreshing ? 0.6 : 1 }}
           >
-            <RefreshCw size={16} /> {refreshing ? 'Checking…' : "I've confirmed my email"}
+            <RefreshCw size={16} /> {refreshing ?t('verificationWall.checking') :t('verificationWall.iVeConfirmedMyEmail')}
           </button>
 
           <button
@@ -110,10 +105,10 @@ export function VerificationWall() {
           >
             <Send size={16} />{' '}
             {sendState === 'sending'
-              ? 'Sending…'
+              ?t('verificationWall.sending')
               : coolingDown
-                ? `Resend in ${secondsLeft}s`
-                : 'Send the link again'}
+                ? t('verification.resendIn', { seconds: secondsLeft })
+                :t('verificationWall.sendTheLinkAgain')}
           </button>
         </div>
 
@@ -137,7 +132,7 @@ export function VerificationWall() {
             gap: '6px',
           }}
         >
-          <LogOut size={14} /> Wrong address? Sign out
+          <LogOut size={14} /> {t('verificationWall.wrongAddressSignOut')}
         </button>
       </div>
     </AuthLayout>

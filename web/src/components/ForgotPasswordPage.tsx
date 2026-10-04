@@ -1,8 +1,10 @@
-import { useState, type FormEvent } from 'react';
+import { useAppTranslation, useLocale } from '../i18n/LocaleProvider';
+import { useEffect, useState, type FormEvent } from 'react';
 import { MailCheck } from 'lucide-react';
 import { API_BASE_URL } from '../config';
 import { navigate } from '../auth/route';
 import { AuthLayout, ErrorBanner, LinkButton } from './AuthLayout';
+import { effectiveAcceptLanguage } from '../i18n/store';
 
 /**
  * Requests a password-reset link.
@@ -30,10 +32,14 @@ import { AuthLayout, ErrorBanner, LinkButton } from './AuthLayout';
  * succeeded would be a lie about an account's security.
  */
 export function ForgotPasswordPage() {
+  const { t } = useAppTranslation();
+  const { locale } = useLocale();
   const [email, setEmail] = useState('');
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => setError(''), [locale]);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -43,7 +49,7 @@ export function ForgotPasswordPage() {
     try {
       const res = await fetch(`${API_BASE_URL}/auth/forgot-password`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Accept-Language': effectiveAcceptLanguage() },
         body: JSON.stringify({ email }),
       });
 
@@ -52,7 +58,7 @@ export function ForgotPasswordPage() {
       // and a user who is silently rate-limited would otherwise sit waiting
       // for mail that was never sent.
       if (res.status === 429) {
-        setError('Too many requests. Please wait a minute and try again.');
+        setError(t('forgotPasswordPage.tooManyRequestsPleaseWaitAMinuteAndTryAgain'));
         return;
       }
 
@@ -61,7 +67,7 @@ export function ForgotPasswordPage() {
       // oracle again, by a longer route.
       setSubmitted(true);
     } catch {
-      setError('Server could not be reached. Please check your connection and try again.');
+      setError(t('forgotPasswordPage.serverCouldNotBeReachedPleaseCheckYourConnectionAndTryAgain'));
     } finally {
       setLoading(false);
     }
@@ -69,19 +75,17 @@ export function ForgotPasswordPage() {
 
   if (submitted) {
     return (
-      <AuthLayout title="Check your email">
+      <AuthLayout title={t('forgotPasswordPage.checkYourEmail')}>
         <div style={{ textAlign: 'center' }}>
           <MailCheck size={40} color="var(--rose-gold-primary)" style={{ marginBottom: '16px' }} />
           <p style={{ color: 'var(--text-muted)', fontSize: '14px', lineHeight: 1.6 }}>
-            If an account exists for <strong style={{ color: 'var(--text-main)' }}>{email}</strong>,
-            a reset link is on its way. The link can be used once and expires within the hour.
+            {t('forgotPasswordPage.sentDescription', { email })}
           </p>
           <p style={{ color: 'var(--text-muted)', fontSize: '13px', marginTop: '16px', lineHeight: 1.6 }}>
-            Nothing arrived? Check your spam folder before requesting another link —
-            each new link cancels the previous one.
+            {t('forgotPasswordPage.nothingArrivedCheckYourSpamFolderBeforeRequestingAnotherLinkEach')}
           </p>
           <div style={{ marginTop: '24px' }}>
-            <LinkButton onClick={() => navigate('/')}>Back to sign in</LinkButton>
+            <LinkButton onClick={() => navigate('/')}>{t('forgotPasswordPage.backToSignIn')}</LinkButton>
           </div>
         </div>
       </AuthLayout>
@@ -90,13 +94,13 @@ export function ForgotPasswordPage() {
 
   return (
     <AuthLayout
-      title="Reset your password"
-      subtitle="Enter the email address on your account and we'll send you a link to choose a new password."
+      title={t('forgotPasswordPage.resetYourPassword')}
+      subtitle={t('forgotPasswordPage.enterTheEmailAddressOnYourAccountAndWeLlSendYouALinkToChooseANew')}
     >
       <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
         <div>
           <label htmlFor="email" style={{ display: 'block', fontSize: '13px', color: 'var(--text-muted)', marginBottom: '6px' }}>
-            Email
+            {t('forgotPasswordPage.email')}
           </label>
           <input
             id="email"
@@ -121,13 +125,13 @@ export function ForgotPasswordPage() {
           disabled={loading}
           style={{ marginTop: '4px', opacity: loading ? 0.7 : 1, cursor: loading ? 'not-allowed' : 'pointer' }}
         >
-          {loading ? 'Please wait…' : 'Send reset link'}
+          {loading ?t('forgotPasswordPage.pleaseWait') :t('forgotPasswordPage.sendResetLink')}
         </button>
       </form>
 
       <p style={{ textAlign: 'center', marginTop: '20px', fontSize: '13px', color: 'var(--text-muted)' }}>
-        Remembered it?{' '}
-        <LinkButton onClick={() => navigate('/')}>Back to sign in</LinkButton>
+        {t('forgotPasswordPage.rememberedIt')}{' '}
+        <LinkButton onClick={() => navigate('/')}>{t('forgotPasswordPage.backToSignIn')}</LinkButton>
       </p>
     </AuthLayout>
   );

@@ -13,7 +13,19 @@ package com.beauty.validation
  * a failure can be rendered inline next to the offending input rather than as
  * one opaque banner.
  */
+data class ValidationIssue(val code: String, val message: String, val args: Map<String, Int> = emptyMap())
+
 object Validation {
+
+    fun validateEmail(email: String): String? = emailIssue(email)?.message
+
+    fun validatePassword(password: String): String? = passwordIssue(password)?.message
+
+    fun validateFullName(fullName: String): String? = fullNameIssue(fullName)?.message
+
+    fun validateOrganizationName(name: String): String? = nameIssue(name)?.message
+
+    fun validateOrganizationSlug(slug: String): String? = slugIssue(slug)?.message
 
     /** BCrypt silently ignores everything past 72 bytes. See [validatePassword]. */
     const val PASSWORD_MAX_BYTES = 72
@@ -50,10 +62,10 @@ object Validation {
      */
     fun normaliseEmail(raw: String): String = raw.trim().lowercase()
 
-    fun validateEmail(email: String): String? = when {
-        email.isBlank() -> "Email is required."
-        email.length > EMAIL_MAX_LENGTH -> "Email must be at most $EMAIL_MAX_LENGTH characters."
-        !EMAIL_PATTERN.matches(email) -> "Enter a valid email address."
+    fun emailIssue(email: String): ValidationIssue? = when {
+        email.isBlank() -> ValidationIssue("EMAIL_REQUIRED", "Email is required.")
+        email.length > EMAIL_MAX_LENGTH -> ValidationIssue("EMAIL_TOO_LONG", "Email must be at most $EMAIL_MAX_LENGTH characters.", mapOf("max" to EMAIL_MAX_LENGTH))
+        !EMAIL_PATTERN.matches(email) -> ValidationIssue("EMAIL_INVALID", "Enter a valid email address.")
         else -> null
     }
 
@@ -70,22 +82,22 @@ object Validation {
      * check is on **bytes**, not characters — non-ASCII names and passphrases
      * encode to more than one byte per character in UTF-8.
      */
-    fun validatePassword(password: String): String? {
+    fun passwordIssue(password: String): ValidationIssue? {
         val byteLength = password.toByteArray(Charsets.UTF_8).size
         return when {
-            password.isEmpty() -> "Password is required."
+            password.isEmpty() -> ValidationIssue("PASSWORD_REQUIRED", "Password is required.")
             password.length < PASSWORD_MIN_LENGTH ->
-                "Password must be at least $PASSWORD_MIN_LENGTH characters."
+                ValidationIssue("PASSWORD_TOO_SHORT", "Password must be at least $PASSWORD_MIN_LENGTH characters.", mapOf("min" to PASSWORD_MIN_LENGTH))
             byteLength > PASSWORD_MAX_BYTES ->
-                "Password must be at most $PASSWORD_MAX_BYTES bytes long."
+                ValidationIssue("PASSWORD_TOO_LONG", "Password must be at most $PASSWORD_MAX_BYTES bytes long.", mapOf("max" to PASSWORD_MAX_BYTES))
             else -> null
         }
     }
 
-    fun validateFullName(fullName: String): String? = when {
-        fullName.isBlank() -> "Name is required."
+    fun fullNameIssue(fullName: String): ValidationIssue? = when {
+        fullName.isBlank() -> ValidationIssue("NAME_REQUIRED", "Name is required.")
         fullName.length > FULL_NAME_MAX_LENGTH ->
-            "Name must be at most $FULL_NAME_MAX_LENGTH characters."
+            ValidationIssue("NAME_TOO_LONG", "Name must be at most $FULL_NAME_MAX_LENGTH characters.", mapOf("max" to FULL_NAME_MAX_LENGTH))
         else -> null
     }
 
@@ -102,21 +114,21 @@ object Validation {
      */
     private val ORG_SLUG_PATTERN = Regex("^[a-z0-9]+(-[a-z0-9]+)*$")
 
-    fun validateOrganizationName(name: String): String? = when {
-        name.isBlank() -> "Organization name is required."
+    fun nameIssue(name: String): ValidationIssue? = when {
+        name.isBlank() -> ValidationIssue("ORGANIZATION_NAME_REQUIRED", "Organization name is required.")
         name.length > ORG_NAME_MAX_LENGTH ->
-            "Organization name must be at most $ORG_NAME_MAX_LENGTH characters."
+            ValidationIssue("ORGANIZATION_NAME_TOO_LONG", "Organization name must be at most $ORG_NAME_MAX_LENGTH characters.", mapOf("max" to ORG_NAME_MAX_LENGTH))
         else -> null
     }
 
-    fun validateOrganizationSlug(slug: String): String? = when {
-        slug.isBlank() -> "Organization handle is required."
+    fun slugIssue(slug: String): ValidationIssue? = when {
+        slug.isBlank() -> ValidationIssue("SLUG_REQUIRED", "Organization handle is required.")
         slug.length < ORG_SLUG_MIN_LENGTH ->
-            "Organization handle must be at least $ORG_SLUG_MIN_LENGTH characters."
+            ValidationIssue("SLUG_TOO_SHORT", "Organization handle must be at least $ORG_SLUG_MIN_LENGTH characters.", mapOf("min" to ORG_SLUG_MIN_LENGTH))
         slug.length > ORG_SLUG_MAX_LENGTH ->
-            "Organization handle must be at most $ORG_SLUG_MAX_LENGTH characters."
+            ValidationIssue("SLUG_TOO_LONG", "Organization handle must be at most $ORG_SLUG_MAX_LENGTH characters.", mapOf("max" to ORG_SLUG_MAX_LENGTH))
         !ORG_SLUG_PATTERN.matches(slug) ->
-            "Organization handle may contain only lowercase letters, numbers and hyphens."
+            ValidationIssue("SLUG_INVALID", "Organization handle may contain only lowercase letters, numbers and hyphens.")
         else -> null
     }
 
@@ -136,6 +148,12 @@ object Validation {
      * Validates a registration payload against already-normalised values.
      * Returns an empty map when everything is acceptable.
      */
+    fun registrationIssues(email: String, password: String, fullName: String): Map<String, ValidationIssue> = buildMap {
+        emailIssue(email)?.let { put("email", it) }
+        passwordIssue(password)?.let { put("password", it) }
+        fullNameIssue(fullName)?.let { put("fullName", it) }
+    }
+
     fun validateRegistration(
         email: String,
         password: String,

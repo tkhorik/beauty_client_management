@@ -1,10 +1,14 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { useAuth } from '../auth/AuthContext';
 import { Sparkles, Eye, EyeOff } from 'lucide-react';
 import { API_BASE_URL } from '../config';
 import { AUTH_TRANSPORT_HEADERS } from '../auth/session';
 import { PASSWORD_MIN_LENGTH, validatePasswordLocally } from '../utils/passwordRules';
 import { FORGOT_PASSWORD_PATH, navigate } from '../auth/route';
+import { LanguageSelector } from './LanguageSelector';
+import { useAppTranslation, useLocale } from '../i18n/LocaleProvider';
+import { effectiveAcceptLanguage } from '../i18n/store';
+import { errorTranslationKey, translatedFieldErrors } from '../i18n/errors';
 
 type Mode = 'login' | 'register';
 
@@ -12,6 +16,8 @@ type FieldErrors = Record<string, string>;
 
 export function LoginPage() {
   const { login } = useAuth();
+  const { t } = useAppTranslation();
+  const { preference, locale } = useLocale();
   const [mode, setMode] = useState<Mode>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -21,6 +27,11 @@ export function LoginPage() {
   const [error, setError] = useState('');
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    setError('');
+    setFieldErrors({});
+  }, [locale]);
 
   const isRegister = mode === 'register';
 
@@ -37,7 +48,7 @@ export function LoginPage() {
     const errors: FieldErrors = {};
 
     if (!fullName.trim()) {
-      errors.fullName = 'Name is required.';
+      errors.fullName = t('auth.nameRequired');
     }
     const passwordError = validatePasswordLocally(password);
     if (passwordError) {
@@ -47,7 +58,7 @@ export function LoginPage() {
     // field, and a typo here would otherwise lock the user out of an account
     // they just created, recoverable only by going through the reset flow.
     if (password !== confirmPassword) {
-      errors.confirmPassword = 'Passwords do not match.';
+      errors.confirmPassword = t('auth.passwordsMismatch');
     }
     return errors;
   }
@@ -71,12 +82,12 @@ export function LoginPage() {
         : `${API_BASE_URL}/auth/login`;
 
       const body = isRegister
-        ? { email, password, fullName }
+        ? { email, password, fullName, languagePreference: preference }
         : { email, password };
 
       const res = await fetch(endpoint, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...AUTH_TRANSPORT_HEADERS },
+        headers: { 'Content-Type': 'application/json', 'Accept-Language': effectiveAcceptLanguage(preference), ...AUTH_TRANSPORT_HEADERS },
         // Required for the browser to accept the httpOnly refresh cookie the
         // backend sets on a successful login.
         credentials: 'include',
@@ -87,39 +98,41 @@ export function LoginPage() {
       // the inputs rather than collapsing them into one banner.
       if (res.status === 400) {
         const data = await res.json().catch(() => ({}));
-        if (data.errors && typeof data.errors === 'object') {
-          setFieldErrors(data.errors as FieldErrors);
+        if (data.fieldErrors && typeof data.fieldErrors === 'object') {
+          setFieldErrors(translatedFieldErrors(data));
+        } else if (data.errors && typeof data.errors === 'object') {
+          setFieldErrors(Object.fromEntries(Object.keys(data.errors).map(field => [field, t('errors.VALIDATION_ERROR')])));
         } else {
-          setError(data.error || 'Please check the details you entered.');
+          setError(data.error ? t(errorTranslationKey({ body: data })) : t('auth.checkDetails'));
         }
         return;
       }
 
       if (res.status === 401) {
         const data = await res.json().catch(() => ({}));
-        setError(data.error || 'Invalid credentials.');
+        setError(data.code ? t(errorTranslationKey({ body: data })) : t('auth.invalidCredentials'));
         return;
       }
 
       if (res.status === 409) {
-        setFieldErrors({ email: 'An account with this email already exists.' });
+        setFieldErrors({ email: t('auth.duplicateEmail') });
         return;
       }
 
       if (res.status === 429) {
-        setError('Too many attempts. Please wait a moment and try again.');
+        setError(t('auth.tooManyAttempts'));
         return;
       }
 
       if (!res.ok) {
-        setError('Something went wrong. Please try again.');
+        setError(t('common.error'));
         return;
       }
 
       const data = await res.json();
       login(data.token, data.user);
     } catch {
-      setError('Server could not be reached. Make sure the backend is running.');
+      setError(t('common.network'));
     } finally {
       setLoading(false);
     }
@@ -147,12 +160,13 @@ export function LoginPage() {
       }}>
         {/* Header */}
         <div style={{ textAlign: 'center', marginBottom: '32px' }}>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '12px' }}><LanguageSelector compact /></div>
           <Sparkles size={36} color="var(--rose-gold-primary)" style={{ marginBottom: '12px' }} />
           <h1 className="text-gradient" style={{ fontSize: '26px', marginBottom: '6px' }}>
-            Aura Beauty Log
+            {t('common.appName')}
           </h1>
           <p style={{ color: 'var(--text-muted)', fontSize: '14px' }}>
-            {mode === 'login' ? 'Sign in to your account' : 'Create your account'}
+            {mode === 'login' ? t('auth.signInAccount') : t('auth.createYourAccount')}
           </p>
         </div>
 
@@ -162,7 +176,7 @@ export function LoginPage() {
           {isRegister && (
             <div>
               <label htmlFor="fullName" style={{ display: 'block', fontSize: '13px', color: 'var(--text-muted)', marginBottom: '6px' }}>
-                Full Name
+                {t('auth.fullName')}
               </label>
               <input
                 id="fullName"
@@ -172,7 +186,7 @@ export function LoginPage() {
                 className="glass-input"
                 value={fullName}
                 onChange={e => setFullName(e.target.value)}
-                placeholder="Your name"
+                placeholder={t('loginPage.yourName')}
                 required
                 aria-invalid={!!fieldErrors.fullName}
                 style={{ width: '100%' }}
@@ -183,7 +197,7 @@ export function LoginPage() {
 
           <div>
             <label htmlFor="email" style={{ display: 'block', fontSize: '13px', color: 'var(--text-muted)', marginBottom: '6px' }}>
-              Email
+              {t('auth.email')}
             </label>
             <input
               id="email"
@@ -206,7 +220,7 @@ export function LoginPage() {
 
           <div>
             <label htmlFor="password" style={{ display: 'block', fontSize: '13px', color: 'var(--text-muted)', marginBottom: '6px' }}>
-              Password
+              {t('auth.password')}
             </label>
             <div style={{ position: 'relative' }}>
               <input
@@ -229,7 +243,7 @@ export function LoginPage() {
               <button
                 type="button"
                 onClick={() => setShowPassword(v => !v)}
-                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                aria-label={showPassword ? t('auth.hidePassword') : t('auth.showPassword')}
                 style={{
                   position: 'absolute',
                   right: '10px',
@@ -251,7 +265,7 @@ export function LoginPage() {
               <div style={fieldErrorStyle}>{fieldErrors.password}</div>
             ) : isRegister ? (
               <div style={{ color: 'var(--text-muted)', fontSize: '12px', marginTop: '5px' }}>
-                At least {PASSWORD_MIN_LENGTH} characters. A memorable phrase beats a short, complex password.
+                {t('password.guidance', { min: PASSWORD_MIN_LENGTH })}
               </div>
             ) : (
               // Sign-in only. Offering "forgot password" on the registration
@@ -263,7 +277,7 @@ export function LoginPage() {
                   onClick={() => navigate(FORGOT_PASSWORD_PATH)}
                   style={{ background: 'none', border: 'none', color: 'var(--rose-gold-primary)', cursor: 'pointer', fontSize: '12px', padding: 0 }}
                 >
-                  Forgot password?
+                  {t('auth.forgotPassword')}
                 </button>
               </div>
             )}
@@ -272,7 +286,7 @@ export function LoginPage() {
           {isRegister && (
             <div>
               <label htmlFor="confirmPassword" style={{ display: 'block', fontSize: '13px', color: 'var(--text-muted)', marginBottom: '6px' }}>
-                Confirm Password
+              {t('auth.confirmPassword')}
               </label>
               <input
                 id="confirmPassword"
@@ -310,7 +324,7 @@ export function LoginPage() {
             disabled={loading}
             style={{ marginTop: '4px', opacity: loading ? 0.7 : 1, cursor: loading ? 'not-allowed' : 'pointer' }}
           >
-            {loading ? 'Please wait…' : mode === 'login' ? 'Sign In' : 'Create Account'}
+            {loading ? t('auth.pleaseWait') : mode === 'login' ? t('auth.signIn') : t('auth.createAccount')}
           </button>
         </form>
 
@@ -318,22 +332,22 @@ export function LoginPage() {
         <p style={{ textAlign: 'center', marginTop: '20px', fontSize: '13px', color: 'var(--text-muted)' }}>
           {mode === 'login' ? (
             <>
-              First time here?{' '}
+              {t('auth.firstTime')}{' '}
               <button
                 onClick={() => switchMode('register')}
                 style={{ background: 'none', border: 'none', color: 'var(--rose-gold-primary)', cursor: 'pointer', fontSize: '13px' }}
               >
-                Create an account
+                {t('auth.createAccount')}
               </button>
             </>
           ) : (
             <>
-              Already have an account?{' '}
+              {t('auth.alreadyAccount')}{' '}
               <button
                 onClick={() => switchMode('login')}
                 style={{ background: 'none', border: 'none', color: 'var(--rose-gold-primary)', cursor: 'pointer', fontSize: '13px' }}
               >
-                Sign in
+                {t('auth.signIn')}
               </button>
             </>
           )}

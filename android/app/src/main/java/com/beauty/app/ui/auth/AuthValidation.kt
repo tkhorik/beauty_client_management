@@ -22,24 +22,24 @@ object AuthValidation {
     fun normaliseEmail(raw: String): String = raw.trim().lowercase()
 
     fun emailError(email: String): String? = when {
-        email.isBlank() -> "Email is required."
-        !EMAIL_PATTERN.matches(email) -> "Enter a valid email address."
+        email.isBlank() -> "EMAIL_REQUIRED"
+        !EMAIL_PATTERN.matches(email) -> "EMAIL_INVALID"
         else -> null
     }
 
     fun passwordError(password: String): String? = when {
-        password.isEmpty() -> "Password is required."
+        password.isEmpty() -> "PASSWORD_REQUIRED"
         password.length < PASSWORD_MIN_LENGTH ->
-            "Password must be at least $PASSWORD_MIN_LENGTH characters."
+            "PASSWORD_TOO_SHORT:$PASSWORD_MIN_LENGTH"
         // Byte length, not character count: non-ASCII characters take more
         // than one byte in UTF-8 and can cross the limit sooner than expected.
         password.toByteArray(Charsets.UTF_8).size > PASSWORD_MAX_BYTES ->
-            "Password must be at most $PASSWORD_MAX_BYTES bytes long."
+            "PASSWORD_TOO_LONG:$PASSWORD_MAX_BYTES"
         else -> null
     }
 
     fun fullNameError(fullName: String): String? =
-        if (fullName.isBlank()) "Name is required." else null
+        if (fullName.isBlank()) "NAME_REQUIRED" else null
 
     /**
      * Checked only on the client: the confirmation field is never sent. A typo
@@ -48,5 +48,5 @@ object AuthValidation {
      * substitute for catching the mistake in front of them.
      */
     fun confirmPasswordError(password: String, confirmPassword: String): String? =
-        if (password != confirmPassword) "Passwords do not match." else null
+        if (password != confirmPassword) "PASSWORD_MISMATCH" else null
 }

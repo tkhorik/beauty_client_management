@@ -80,7 +80,7 @@ class ClientDetailViewModel(
             } catch (_: Exception) {
                 visits = repository.getCachedVisitsForClient(organizationId, clientId)
                 historyLoaded = false
-                error = "Could not refresh visit history. Previously loaded visits and visits saved on this device may be incomplete."
+                error = "COULD_NOT_REFRESH_VISITS"
             } finally {
                 loading = false
             }
@@ -123,7 +123,7 @@ class ClientDetailViewModel(
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (error: Exception) {
-                attributesError = error.safeMessage("Could not save attributes. Check your connection and try again.")
+                attributesError = error.safeMessage("COULD_NOT_SAVE_ATTRIBUTES")
             } finally {
                 savingAttributes = false
             }
@@ -136,7 +136,7 @@ class ClientDetailViewModel(
         viewModelScope.launch {
             try { repository.deleteClient(organizationId, clientId); onDeleted() }
             catch (cancelled: CancellationException) { throw cancelled }
-            catch (error: Exception) { deleteError = error.safeMessage("Could not delete this client.") }
+            catch (error: Exception) { deleteError = error.safeMessage("COULD_NOT_DELETE_CLIENT") }
             finally { deleting = false }
         }
     }
@@ -154,7 +154,7 @@ class ClientDetailViewModel(
         }
         val minutes = parsed ?: return
         if (notes.isBlank()) {
-            saveError = "Enter procedure notes."
+            saveError = "ENTER_PROCEDURE_NOTES"
             return
         }
         saving = true
@@ -165,7 +165,7 @@ class ClientDetailViewModel(
                 if (context != null) photos.forEach { (tag, uri) ->
                     val file = File(context.filesDir, "photo_${localVisitId}_${tag.lowercase()}_${System.nanoTime()}.jpg")
                     val compressed = context.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it) }
-                    if (compressed == null) throw IllegalStateException("Could not read selected photo")
+                    if (compressed == null) throw IllegalStateException("COULD_NOT_READ_PHOTO")
                     val scale = minOf(1f, 1200f / compressed.width.toFloat())
                     val output = if (scale < 1f) Bitmap.createScaledBitmap(compressed, (compressed.width * scale).toInt(), (compressed.height * scale).toInt(), true) else compressed
                     FileOutputStream(file).use { output.compress(Bitmap.CompressFormat.JPEG, 85, it) }
@@ -177,7 +177,7 @@ class ClientDetailViewModel(
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (_: Exception) {
-                saveError = "Could not save this visit on the device. Please try again."
+                saveError = "COULD_NOT_SAVE_VISIT"
             } finally {
                 saving = false
             }
@@ -202,8 +202,8 @@ internal const val VISIT_DURATION_STEP_MINUTES = 15
 
 internal fun visitDurationError(minutes: Int?): String? = when {
     minutes == null || minutes < VISIT_DURATION_STEP_MINUTES ->
-        "Duration must be at least $VISIT_DURATION_STEP_MINUTES minutes."
+        "DURATION_MIN:$VISIT_DURATION_STEP_MINUTES"
     minutes % VISIT_DURATION_STEP_MINUTES != 0 ->
-        "Duration must be in $VISIT_DURATION_STEP_MINUTES-minute steps (15, 30, 45, 60…)."
+        "DURATION_STEP:$VISIT_DURATION_STEP_MINUTES"
     else -> null
 }

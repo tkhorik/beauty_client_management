@@ -1,5 +1,6 @@
 package com.beauty.app.ui.verification
 
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -97,6 +98,11 @@ fun VerificationWallScreen(
                 .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            com.beauty.app.ui.i18n.LanguageSelector(
+                accountId = com.beauty.app.AppContainer.tokenStore(androidx.compose.ui.platform.LocalContext.current).getAccountId(),
+                modifier = Modifier.fillMaxWidth()
+            )
+            Spacer(Modifier.height(16.dp))
             Icon(
                 Icons.Default.Email,
                 contentDescription = null,
@@ -107,7 +113,7 @@ fun VerificationWallScreen(
             Spacer(Modifier.height(16.dp))
 
             Text(
-                "Confirm your email",
+                stringResource(com.beauty.app.R.string.confirm_your_email),
                 color = TextLight,
                 fontWeight = FontWeight.Bold,
                 fontSize = 20.sp,
@@ -117,7 +123,7 @@ fun VerificationWallScreen(
             Spacer(Modifier.height(8.dp))
 
             Text(
-                "Your account is ready — it just needs a confirmed email address before you can use it.",
+                stringResource(com.beauty.app.R.string.ui2_your_account_is_ready_it_just_needs_a_confirmed_email_address_bef),
                 color = TextMuted,
                 fontSize = 13.sp,
                 textAlign = TextAlign.Center
@@ -125,9 +131,9 @@ fun VerificationWallScreen(
 
             Spacer(Modifier.height(16.dp))
 
-            Text("We sent a confirmation link to", color = TextMuted, fontSize = 13.sp)
+            Text(stringResource(com.beauty.app.R.string.ui2_we_sent_a_confirmation_link_to), color = TextMuted, fontSize = 13.sp)
             Text(
-                email ?: "your address",
+                email ?: stringResource(com.beauty.app.R.string.your_address),
                 color = TextLight,
                 fontWeight = FontWeight.Bold,
                 fontSize = 14.sp,
@@ -140,9 +146,7 @@ fun VerificationWallScreen(
             // confirmation mail goes, and it is the one cause the user can fix
             // without contacting anyone.
             Text(
-                "Click the link in that email to unlock your account. If it isn't in your " +
-                    "inbox, check your spam or junk folder — confirmation mail lands there " +
-                    "more often than anywhere else.",
+                stringResource(com.beauty.app.R.string.verification_wall_help),
                 color = TextMuted,
                 fontSize = 13.sp,
                 textAlign = TextAlign.Center
@@ -150,7 +154,7 @@ fun VerificationWallScreen(
 
             status?.let {
                 Spacer(Modifier.height(12.dp))
-                Text(it, color = RoseGoldPrimary, fontSize = 13.sp, textAlign = TextAlign.Center)
+                Text(com.beauty.app.ui.i18n.verificationMessage(it), color = RoseGoldPrimary, fontSize = 13.sp, textAlign = TextAlign.Center)
             }
 
             Spacer(Modifier.height(20.dp))
@@ -165,14 +169,14 @@ fun VerificationWallScreen(
                         checking = true
                         onRecheck()
                         checking = false
-                        status = "Still unconfirmed — open the link, then try again."
+                        status = "RESOURCE:ui2_still_unconfirmed_open_the_link_then_try_again"
                     }
                 },
                 enabled = !checking,
                 colors = ButtonDefaults.buttonColors(containerColor = RoseGoldPrimary),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text(if (checking) "Checking…" else "I've confirmed my email")
+                Text(if (checking) stringResource(com.beauty.app.R.string.checking) else stringResource(com.beauty.app.R.string.ui2_i_ve_confirmed_my_email))
             }
 
             Spacer(Modifier.height(10.dp))
@@ -182,11 +186,11 @@ fun VerificationWallScreen(
                     scope.launch {
                         onResend()
                             .onSuccess {
-                                status = "New link sent. It can take a minute to arrive."
+                                status = "RESOURCE:ui2_new_link_sent_it_can_take_a_minute_to_arrive"
                                 cooldownUntil = System.currentTimeMillis() + RESEND_COOLDOWN_MS
                             }
                             .onFailure {
-                                status = "Couldn't send the link. Check your connection."
+                                status = "RESOURCE:ui2_couldn_t_send_the_link_check_your_connection"
                             }
                     }
                 },
@@ -194,7 +198,7 @@ fun VerificationWallScreen(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text(
-                    if (coolingDown) "Link sent" else "Send the link again",
+                    if (coolingDown) stringResource(com.beauty.app.R.string.link_sent) else stringResource(com.beauty.app.R.string.send_the_link_again),
                     color = if (coolingDown) TextMuted else RoseGoldPrimary
                 )
             }
@@ -203,7 +207,7 @@ fun VerificationWallScreen(
             // the only remedy is reinstalling the app, and the address shown
             // above is exactly what tells them they need one.
             TextButton(onClick = onLogout) {
-                Text("Wrong address? Sign out", color = TextMuted, fontSize = 13.sp)
+                Text(stringResource(com.beauty.app.R.string.wrong_address_sign_out), color = TextMuted, fontSize = 13.sp)
             }
         }
     }

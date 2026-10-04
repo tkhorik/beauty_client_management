@@ -1,0 +1,29 @@
+export const newClientEn = {
+  'newClientModal.createNewClientProfile': 'Create New Client Profile',
+  'newClientModal.fullNameRequired': 'Full Name *',
+  'newClientModal.phoneNumberRequired': 'Phone Number *',
+  'newClientModal.emailOptional': 'Email Address (Optional)',
+  'newClientModal.primaryTags': 'Primary Client Tags',
+  'newClientModal.addTagPlaceholder': 'Add tag (e.g. Sensitive Skin, Lash Extensions)…',
+  'newClientModal.add': 'Add',
+  'newClientModal.customAttributes': 'Custom Dynamic Client Attributes',
+  'newClientModal.addField': 'Add Field',
+  'newClientModal.attributePlaceholder': 'Attribute (e.g. Skin Type)',
+  'newClientModal.valuePlaceholder': 'Value (e.g. Combination)',
+  'newClientModal.cancel': 'Cancel',
+} as const;
+export const newClientRu: { [K in keyof typeof newClientEn]: string } = {
+  'newClientModal.createNewClientProfile': 'Создать карточку клиента',
+  'newClientModal.fullNameRequired': 'Полное имя *',
+  'newClientModal.phoneNumberRequired': 'Телефон *',
+  'newClientModal.emailOptional': 'Эл. почта (необязательно)',
+  'newClientModal.primaryTags': 'Основные теги клиента',
+  'newClientModal.addTagPlaceholder': 'Добавить тег (например, чувствительная кожа)…',
+  'newClientModal.add': 'Добавить',
+  'newClientModal.customAttributes': 'Дополнительные атрибуты клиента',
+  'newClientModal.addField': 'Добавить поле',
+  'newClientModal.attributePlaceholder': 'Атрибут (например, тип кожи)',
+  'newClientModal.valuePlaceholder': 'Значение (например, комбинированная)',
+  'newClientModal.cancel': 'Отмена',
+};
+export type NewClientKey = keyof typeof newClientEn;

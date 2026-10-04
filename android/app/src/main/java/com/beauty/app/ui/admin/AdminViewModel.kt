@@ -88,7 +88,7 @@ class AdminViewModel(private val repository: BeautyRepository) : ViewModel() {
                 // row shows a button, not whether the panel can be shown.
                 runCatching { repository.getCurrentUser() }.onSuccess { selfId = it.id }
             } catch (e: Exception) {
-                error = e.friendlyMessage("Could not load admin data.")
+                error = e.friendlyMessage("COULD_NOT_LOAD_ADMIN")
             } finally {
                 initialLoading = false
             }
@@ -96,7 +96,7 @@ class AdminViewModel(private val repository: BeautyRepository) : ViewModel() {
     }
 
     fun setSuspended(user: AdminUserDto, suspended: Boolean) = globalAction(
-        if (suspended) "${user.fullName} suspended." else "${user.fullName} unsuspended."
+        if (suspended) "ACCOUNT_SUSPENDED:${user.fullName}" else "ACCOUNT_UNSUSPENDED:${user.fullName}"
     ) {
         repository.setUserSuspended(user.id, suspended)
     }
@@ -109,15 +109,15 @@ class AdminViewModel(private val repository: BeautyRepository) : ViewModel() {
                 val issued = repository.createCreationToken(label, maxUses, expiresInHours)
                 // Set before the reload, and never cleared by it.
                 freshToken = issued.token
-                notice = "Link issued. Copy it now — it cannot be shown again."
+                notice = "LINK_ISSUED"
                 loadAll()
             } catch (e: Exception) {
-                error = e.friendlyMessage("Could not issue the link.")
+                error = e.friendlyMessage("COULD_NOT_ISSUE_LINK")
             }
         }
     }
 
-    fun revokeLink(id: String) = globalAction("Link revoked.") { repository.revokeCreationToken(id) }
+    fun revokeLink(id: String) = globalAction("LINK_REVOKED") { repository.revokeCreationToken(id) }
 
     fun dismissFreshToken() {
         freshToken = null
@@ -150,25 +150,25 @@ class AdminViewModel(private val repository: BeautyRepository) : ViewModel() {
             try {
                 members = repository.getMembers(orgId)
             } catch (e: Exception) {
-                error = e.friendlyMessage("Could not load members.")
+                error = e.friendlyMessage("COULD_NOT_LOAD_MEMBERS")
             }
         }
     }
 
-    fun approve(orgId: String, userId: String) = memberAction(orgId, "Request approved.") {
+    fun approve(orgId: String, userId: String) = memberAction(orgId, "REQUEST_APPROVED") {
         repository.approveMember(orgId, userId)
     }
 
-    fun remove(orgId: String, userId: String) = memberAction(orgId, "Member removed.") {
+    fun remove(orgId: String, userId: String) = memberAction(orgId, "MEMBER_REMOVED") {
         repository.removeMember(orgId, userId)
     }
 
     /** Answers a join request with no. Same DELETE as [remove]; only the outcome message differs. */
-    fun decline(orgId: String, userId: String) = memberAction(orgId, "Request declined.") {
+    fun decline(orgId: String, userId: String) = memberAction(orgId, "REQUEST_DECLINED") {
         repository.removeMember(orgId, userId)
     }
 
-    fun changeRole(orgId: String, userId: String, role: String) = memberAction(orgId, "Role updated.") {
+    fun changeRole(orgId: String, userId: String, role: String) = memberAction(orgId, "ROLE_UPDATED") {
         repository.changeMemberRole(orgId, userId, role)
     }
 
@@ -193,7 +193,7 @@ class AdminViewModel(private val repository: BeautyRepository) : ViewModel() {
                 notice = success
                 loadAll()
             } catch (e: Exception) {
-                error = e.friendlyMessage("That action failed.")
+                error = e.friendlyMessage("ACTION_FAILED")
             }
         }
     }
@@ -208,7 +208,7 @@ class AdminViewModel(private val repository: BeautyRepository) : ViewModel() {
                 notice = success
                 members = repository.getMembers(orgId)
             } catch (e: Exception) {
-                error = e.friendlyMessage("That action failed.")
+                error = e.friendlyMessage("ACTION_FAILED")
             }
         }
     }
@@ -223,9 +223,8 @@ class AdminViewModel(private val repository: BeautyRepository) : ViewModel() {
  */
 private suspend fun Exception.friendlyMessage(fallback: String): String {
     if (this is ClientRequestException) {
-        val body = runCatching { response.body<Map<String, String>>() }.getOrNull()
-        body?.get("error")?.let { return it }
-        return "$fallback (${response.status.value})"
+        val body = runCatching { response.body<com.beauty.app.data.api.ApiErrorResponse>() }.getOrNull()
+        return body?.code ?: fallback
     }
-    return message ?: fallback
+    return fallback
 }
