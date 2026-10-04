@@ -458,4 +458,18 @@
     <string name="error_request_not_found">No pending request was found.</string>
     <string name="error_organization_mismatch">The selected organization does not match this request.</string>
     <string name="error_internal_error">Something went wrong. Please try again.</string>
+    <string name="take_photo">Take photo</string>
+    <string name="choose_from_gallery">Choose from gallery</string>
+    <string name="photo_source_camera">Camera</string>
+    <string name="photo_source_gallery">Gallery</string>
+    <string name="add_photo">Add photo</string>
+    <string name="add_photo_to_visit">Add photo to visit</string>
+    <string name="photo_type">Photo type</string>
+    <string name="photo_tag_before">Before</string>
+    <string name="photo_tag_after">After</string>
+    <string name="photo_tag_procedure">Procedure</string>
+    <string name="uploading_photo">Uploading photo…</string>
+    <string name="no_camera_app">No camera app is available on this device.</string>
+    <string name="photo_saved_upload_pending">Photo saved on this device. It will upload when connected.</string>
+    <string name="error_could_not_save_photo">Could not save this photo. Please try again.</string>
 </resources>

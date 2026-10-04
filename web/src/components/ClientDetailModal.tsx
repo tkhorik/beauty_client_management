@@ -1,9 +1,12 @@
 import { useAppTranslation, useLocale } from '../i18n/LocaleProvider';
 import React, { useEffect, useState } from 'react';
 import type { Client, Visit, Attachment } from '../types';
-import { X, Calendar, Clock, Plus, Trash2, Edit3, Edit2, Camera, FileText, Sliders } from 'lucide-react';
+import { X, Calendar, Clock, Plus, Trash2, Edit3, Edit2, Camera, FileText, Sliders, ImagePlus } from 'lucide-react';
 import { api, writeErrorMessage } from '../services/api';
 import { EditClientModal } from './EditClientModal';
+import { PhotoSourcePicker } from './PhotoSourcePicker';
+import { compressImage } from '../utils/imageCompressor';
+import { defaultPhotoTag } from '../utils/photoTags';
 
 interface ClientDetailModalProps {
   client: Client;
@@ -35,6 +38,10 @@ export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
   const [isEditingFields, setIsEditingFields] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isEditClientOpen, setIsEditClientOpen] = useState(false);
+  // Adding a photo to a visit that was already logged, e.g. the AFTER shot once the procedure is done.
+  const [photoVisitId, setPhotoVisitId] = useState<string | null>(null);
+  const [photoTag, setPhotoTag] = useState<Attachment['tag']>('BEFORE');
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
 
   useEffect(() => {
     if (!isEditingFields) setCustomFields(fieldsFromClient(client));
@@ -50,6 +57,25 @@ export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
     });
     setNewKey('');
     setNewValue('');
+  };
+
+  const openAddPhoto = (visitId: string, attachments: Attachment[]) => {
+    setPhotoVisitId(visitId);
+    setPhotoTag(defaultPhotoTag(attachments));
+  };
+
+  const handleAddPhoto = async (visitId: string, file: File) => {
+    setUploadingPhoto(true);
+    try {
+      const compressedDataUrl = await compressImage(file, 1200, 0.85);
+      await api.addAttachment(visitId, compressedDataUrl, photoTag);
+      setPhotoVisitId(null);
+      onRefresh();
+    } catch (err) {
+      alert(writeErrorMessage(err, t('photoPicker.failedToAddPhoto')));
+    } finally {
+      setUploadingPhoto(false);
+    }
   };
 
   const handleRemoveField = (index: number) => setCustomFields(prev => prev.filter((_, i) => i !== index));
@@ -292,6 +318,47 @@ export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
                             ))}
                           </div>
                         </div>
+                      )}
+
+                      {photoVisitId === visit.id ? (
+                        <div style={{ marginTop: '14px', padding: '12px', border: '1px dashed var(--border-color)', borderRadius: '10px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                          <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: 600 }}>{t('photoPicker.photoType')}</span>
+                          <div role="group" aria-label={t('photoPicker.photoType')} style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                            {(['BEFORE', 'AFTER', 'PROCEDURE'] as const).map(tag => (
+                              <button
+                                key={tag}
+                                type="button"
+                                aria-pressed={photoTag === tag}
+                                className={photoTag === tag ? 'btn-rose' : 'btn-secondary'}
+                                style={{ padding: '6px 12px', fontSize: '12px' }}
+                                disabled={uploadingPhoto}
+                                onClick={() => setPhotoTag(tag)}
+                              >
+                                {t(tag === 'BEFORE' ? 'newVisitModal.before' : tag === 'AFTER' ? 'newVisitModal.after' : 'attachment.procedure')}
+                              </button>
+                            ))}
+                          </div>
+                          {uploadingPhoto ? (
+                            <span role="status" style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{t('photoPicker.uploading')}</span>
+                          ) : (
+                            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+                              <PhotoSourcePicker onFile={(file) => handleAddPhoto(visit.id, file)} />
+                              <button type="button" className="btn-secondary" style={{ padding: '8px 12px', fontSize: '12px' }} onClick={() => setPhotoVisitId(null)}>
+                                {t('newVisitModal.cancel')}
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          className="btn-secondary"
+                          style={{ marginTop: '14px', padding: '6px 12px', fontSize: '12px' }}
+                          disabled={uploadingPhoto}
+                          onClick={() => openAddPhoto(visit.id, attachments)}
+                        >
+                          <ImagePlus size={14} /> {t('photoPicker.addPhoto')}
+                        </button>
                       )}
                     </div>
                   );

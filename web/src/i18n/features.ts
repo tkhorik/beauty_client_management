@@ -144,6 +144,12 @@ export const featureEn = {
   'verificationWall.newLinkSentItCanTakeAMinuteToArrive': "New link sent. It can take a minute to arrive.",
   'verificationWall.wrongAddressSignOut': "Wrong address? Sign out",
   'verifyEmailPage.continueToAuraBeautyLog': "Continue to Aura Beauty Log",
+  'photoPicker.addPhoto': "Add photo",
+  'photoPicker.choosePhoto': "Choose photo",
+  'photoPicker.failedToAddPhoto': "Failed to add the photo.",
+  'photoPicker.photoType': "Photo type",
+  'photoPicker.takePhoto': "Take photo",
+  'photoPicker.uploading': "Uploading photo…",
 } as const;
 
 export const featureRu: { [K in keyof typeof featureEn]: string } = {
@@ -292,6 +298,12 @@ export const featureRu: { [K in keyof typeof featureEn]: string } = {
   'verificationWall.newLinkSentItCanTakeAMinuteToArrive': "Новая ссылка отправлена. Письмо может прийти через минуту.",
   'verificationWall.wrongAddressSignOut': "Неверный адрес? Выйти",
   'verifyEmailPage.continueToAuraBeautyLog': "Перейти в Aura Beauty Log",
+  'photoPicker.addPhoto': "Добавить фото",
+  'photoPicker.choosePhoto': "Выбрать фото",
+  'photoPicker.failedToAddPhoto': "Не удалось добавить фото.",
+  'photoPicker.photoType': "Тип фото",
+  'photoPicker.takePhoto': "Сделать фото",
+  'photoPicker.uploading': "Загрузка фото…",
 };
 
 export type FeatureKey = keyof typeof featureEn;

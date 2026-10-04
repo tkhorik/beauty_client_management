@@ -474,4 +474,18 @@
     <string name="error_request_not_found">Ожидающий запрос не найден.</string>
     <string name="error_organization_mismatch">Выбранная организация не соответствует запросу.</string>
     <string name="error_internal_error">Что-то пошло не так. Попробуйте ещё раз.</string>
+    <string name="take_photo">Сделать фото</string>
+    <string name="choose_from_gallery">Выбрать из галереи</string>
+    <string name="photo_source_camera">Камера</string>
+    <string name="photo_source_gallery">Галерея</string>
+    <string name="add_photo">Добавить фото</string>
+    <string name="add_photo_to_visit">Добавить фото к посещению</string>
+    <string name="photo_type">Тип фото</string>
+    <string name="photo_tag_before">До</string>
+    <string name="photo_tag_after">После</string>
+    <string name="photo_tag_procedure">Процедура</string>
+    <string name="uploading_photo">Загрузка фото…</string>
+    <string name="no_camera_app">На этом устройстве нет приложения камеры.</string>
+    <string name="photo_saved_upload_pending">Фото сохранено на устройстве и загрузится при подключении.</string>
+    <string name="error_could_not_save_photo">Не удалось сохранить фото. Повторите.</string>
 </resources>
