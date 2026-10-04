@@ -102,7 +102,9 @@ fun ForgotPasswordScreen(
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                         singleLine = true,
                         isError = state is AuthViewModel.ForgotPasswordState.Error,
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .autofill(AutofillField.Email) { email = it },
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = RoseGoldPrimary,
                             unfocusedBorderColor = Color(0x33E5B899),
