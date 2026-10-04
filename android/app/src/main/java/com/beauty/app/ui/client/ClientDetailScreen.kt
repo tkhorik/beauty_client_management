@@ -241,11 +241,12 @@ fun ClientDetailScreen(
 
 /**
  * The web detail view's "Dynamic Custom Client Attributes" panel: read-only
- * until "Edit Attributes", then removable rows plus an add row.
+ * until "Edit Attributes", then editable/removable rows plus an add row.
  *
  * Unchanged values keep their original JSON element, so a number or boolean
  * written elsewhere is not silently turned into a string by an unrelated edit.
- * New values are strings, as on the web.
+ * A value deliberately changed in this string-based form becomes a string, as
+ * do newly added attributes.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -276,7 +277,7 @@ private fun AttributesCard(
                 }
             }
             if (shown.isEmpty()) Text(stringResource(com.beauty.app.R.string.no_attributes_yet), color = TextMuted, fontSize = 13.sp)
-            shown.forEach { (key, value) ->
+            shown.forEachIndexed { index, (key, value) ->
                 Row(
                     Modifier
                         .fillMaxWidth()
@@ -285,8 +286,27 @@ private fun AttributesCard(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column(Modifier.weight(1f)) {
-                        Text(key.uppercase(), color = TextMuted, fontSize = 11.sp)
-                        Text((value as? JsonPrimitive)?.content ?: value.toString(), fontWeight = FontWeight.SemiBold)
+                        if (editing) {
+                            OutlinedTextField(
+                                value = key,
+                                onValueChange = { updatedKey -> draft[index] = updatedKey to value },
+                                enabled = !saving,
+                                singleLine = true,
+                                label = { Text(stringResource(com.beauty.app.R.string.attribute)) },
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                            OutlinedTextField(
+                                value = (value as? JsonPrimitive)?.content ?: value.toString(),
+                                onValueChange = { updatedValue -> draft[index] = key to JsonPrimitive(updatedValue) },
+                                enabled = !saving,
+                                singleLine = true,
+                                label = { Text(stringResource(com.beauty.app.R.string.value_label)) },
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        } else {
+                            Text(key.uppercase(), color = TextMuted, fontSize = 11.sp)
+                            Text((value as? JsonPrimitive)?.content ?: value.toString(), fontWeight = FontWeight.SemiBold)
+                        }
                     }
                     if (editing) IconButton(enabled = !saving, onClick = { draft.removeAll { it.first == key } }) {
                         Icon(Icons.Default.Delete, stringResource(com.beauty.app.R.string.remove_attribute, key), tint = Color(0xFFF87171))
@@ -308,7 +328,9 @@ private fun AttributesCard(
                 }) { Text(stringResource(com.beauty.app.R.string.add_attribute)) }
                 error?.let { Text(localizedMessage(it), color = MaterialTheme.colorScheme.error, fontSize = 13.sp) }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Button(enabled = !saving, onClick = { onSave(JsonObject(draft.toMap())) }) {
+                    Button(enabled = !saving, onClick = {
+                        onSave(JsonObject(draft.filter { it.first.isNotBlank() }.toMap()))
+                    }) {
                         Text(if (saving) stringResource(com.beauty.app.R.string.saving) else stringResource(com.beauty.app.R.string.save_changes))
                     }
                     OutlinedButton(enabled = !saving, onClick = onCancel) { Text(stringResource(com.beauty.app.R.string.cancel)) }
