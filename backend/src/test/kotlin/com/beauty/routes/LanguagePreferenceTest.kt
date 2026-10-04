@@ -58,6 +58,10 @@ class LanguagePreferenceTest {
         assertEquals(HttpStatusCode.OK, update(token, "system", 1).status)
         assertEquals(HttpStatusCode.BadRequest, update(token, "de", 2).status)
         assertEquals(HttpStatusCode.BadRequest, update(token, "en", -1).status)
+        assertEquals(HttpStatusCode.BadRequest, client.put("/api/users/me/language") {
+            bearerAuth(token); contentType(ContentType.Application.Json)
+            setBody("""{"preference":"ru"}""")
+        }.status)
         val other = client.get("/api/users/me") { bearerAuth(b["token"]!!.jsonPrimitive.content) }
         assertEquals("en", Json.parseToJsonElement(other.bodyAsText()).jsonObject["languagePreference"]!!.jsonPrimitive.content)
         assertEquals(HttpStatusCode.Unauthorized, client.put("/api/users/me/language") {

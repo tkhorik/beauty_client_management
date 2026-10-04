@@ -181,10 +181,12 @@ data class ChangePasswordRequest(
  * can render each message next to the input that caused it. A single flat
  * `error` string forces the user to guess which field was wrong.
  */
+@OptIn(ExperimentalSerializationApi::class)
 @Serializable
 data class ValidationErrorResponse(
     val error: String = "Validation failed",
     val errors: Map<String, String>,
+    @EncodeDefault(EncodeDefault.Mode.ALWAYS)
     val code: String = "VALIDATION_FAILED",
     val fieldErrors: Map<String, FieldError> = emptyMap()
 ) {

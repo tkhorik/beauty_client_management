@@ -13,6 +13,8 @@ class LanguageTest {
         assertEquals("ru", Languages.resolve("ru", "en"))
         assertEquals("ru", Languages.resolve("system", "fr-FR,ru-RU;q=0.8,en;q=0.2"))
         assertEquals("en", Languages.resolve("system", "ru;q=0,en;q=1"))
+        assertEquals("en", Languages.resolve("system", "ru;q=NaN,en;q=0.5"))
+        assertEquals("en", Languages.resolve("system", "ru;q=bad,en"))
         assertEquals("en", Languages.resolve("system", null))
         assertEquals("en", Languages.resolve("system", "de,fr"))
     }

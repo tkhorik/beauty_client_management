@@ -9,9 +9,10 @@ object Languages {
         return acceptLanguage.orEmpty().split(',').mapIndexedNotNull { index, entry ->
             val parts = entry.trim().split(';')
             val language = parts.first().trim().substringBefore('-').lowercase()
-            val quality = parts.drop(1).firstOrNull { it.trim().startsWith("q=") }
-                ?.trim()?.substringAfter('=')?.toDoubleOrNull() ?: 1.0
-            if (language !in setOf("en", "ru") || quality <= 0 || quality > 1) null
+            val qualityText = parts.drop(1).firstOrNull { it.trim().startsWith("q=") }
+                ?.trim()?.substringAfter('=')
+            val quality = if (qualityText == null) 1.0 else qualityText.toDoubleOrNull() ?: return@mapIndexedNotNull null
+            if (language !in setOf("en", "ru") || !quality.isFinite() || quality <= 0 || quality > 1) null
             else Triple(language, quality, index)
         }.sortedWith(compareByDescending<Triple<String, Double, Int>> { it.second }.thenBy { it.third })
             .firstOrNull()?.first ?: "en"

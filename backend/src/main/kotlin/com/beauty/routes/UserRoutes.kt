@@ -60,7 +60,12 @@ fun Route.userRoutes() {
                 call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Invalid token", "code" to "INVALID_TOKEN"))
                 return@put
             }
-            val req = call.receive<UpdateLanguageRequest>()
+            val req = try {
+                call.receive<UpdateLanguageRequest>()
+            } catch (_: io.ktor.server.plugins.BadRequestException) {
+                call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Invalid language preference or revision", "code" to "INVALID_LANGUAGE"))
+                return@put
+            }
             if (req.preference !in Languages.preferences || req.expectedRevision < 0) {
                 call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Invalid language preference or revision", "code" to "INVALID_LANGUAGE"))
                 return@put

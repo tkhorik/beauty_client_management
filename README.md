@@ -293,3 +293,10 @@ uninstall a release build (or vice versa) before testing.
 - The emulator may be slow if the host machine has limited RAM.
 - On an 8 GiB host, the `Pixel_7a` emulator may show a warning recommending 16 GiB of system RAM. This is an emulator image recommendation, not an application error. Click **OK** to continue.
 - All auth-and-client-edit-sync changes live on branch `feature/auth-and-client-edit-sync`. The `main` branch is unchanged until an explicit commit is requested.
+
+## Languages
+
+English and Russian localization uses a synchronized account preference: System
+(default), English, or Русский. Android 13+ also exposes the same selection in the
+system app-language settings. See [localization architecture and rollout](docs/LOCALIZATION.md)
+for the API contract, database migration, translation workflow, and test matrix.
