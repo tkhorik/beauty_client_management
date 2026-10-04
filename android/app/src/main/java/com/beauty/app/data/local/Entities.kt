@@ -182,7 +182,9 @@ data class PhotoDraftEntity(
     val localFilePath: String,
     val tag: String,
     val syncError: String? = null,
-    val uploadedAttachmentJson: String? = null
+    val uploadedAttachmentJson: String? = null,
+    /** Set when the photo is added to a visit that already exists on the server; [localVisitId] is then empty. */
+    val remoteVisitId: String? = null
 )
 
 @Dao
@@ -217,7 +219,7 @@ interface ParityDao {
 
 @Database(
     entities = [ClientEntity::class, VisitEntity::class, AttachmentEntity::class, HistorySnapshotEntity::class, PhotoDraftEntity::class],
-    version = 5,
+    version = 6,
     exportSchema = false
 )
 abstract class BeautyDatabase : RoomDatabase() {
