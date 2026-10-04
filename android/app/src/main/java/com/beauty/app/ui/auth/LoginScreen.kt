@@ -95,7 +95,9 @@ fun LoginScreen(
                     label = { Text(stringResource(com.beauty.app.R.string.email), color = TextMuted) },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .autofill(AutofillField.Email) { email = it },
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = RoseGoldPrimary,
                         unfocusedBorderColor = Color(0x33E5B899),
@@ -125,7 +127,9 @@ fun LoginScreen(
                     },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .autofill(AutofillField.Password) { password = it },
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = RoseGoldPrimary,
                         unfocusedBorderColor = Color(0x33E5B899),
