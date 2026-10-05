@@ -51,6 +51,8 @@ fun ForgotPasswordScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
+            .imePadding()
+            .navigationBarsPadding()
             .padding(24.dp),
         contentAlignment = Alignment.Center
     ) {

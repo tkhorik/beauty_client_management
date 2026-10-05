@@ -27,6 +27,7 @@ fun roleLabel(role: String): String = stringResource(when (role) {
 @Composable
 fun tagLabel(tag: String): String = when (tag) {
     "" -> stringResource(R.string.all)
+    "VIP" -> stringResource(R.string.vip)
     "Sensitive Skin" -> stringResource(R.string.sensitive_skin)
     "Lash Extensions" -> stringResource(R.string.lash_extensions)
     "Hair Coloring" -> stringResource(R.string.hair_coloring)

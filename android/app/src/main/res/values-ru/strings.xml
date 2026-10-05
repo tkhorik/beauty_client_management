@@ -85,6 +85,7 @@
     <string name="sign_out" formatted="false">Выйти</string>
     <string name="log_visit" formatted="false">Записать посещение</string>
     <string name="search_name_phone_email_or_tag" formatted="false">Поиск по имени, телефону, почте или метке</string>
+    <string name="vip" formatted="false">VIP</string>
     <string name="sensitive_skin" formatted="false">Чувствительная кожа</string>
     <string name="lash_extensions" formatted="false">Наращивание ресниц</string>
     <string name="hair_coloring" formatted="false">Окрашивание волос</string>
@@ -126,6 +127,7 @@
     <string name="send_invitation" formatted="false">Отправить приглашение</string>
     <string name="loading" formatted="false">Загрузка…</string>
     <string name="no_organizations_yet" formatted="false">Организаций пока нет.</string>
+    <string name="no_members_yet" formatted="false">Участников пока нет. Пригласите кого-нибудь или одобрите заявку.</string>
     <string name="open_organization" formatted="false">Открыть</string>
     <string name="archive" formatted="false">Архивировать</string>
     <string name="archived" formatted="false">Архивирована</string>

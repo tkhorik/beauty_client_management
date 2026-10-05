@@ -141,9 +141,16 @@ fun ClientDetailScreen(
                                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                                 verticalArrangement = Arrangement.spacedBy(6.dp)
                             ) { tags.forEach { TagBadge(it) } }
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                OutlinedButton(onClick = onEdit) { Text(stringResource(com.beauty.app.R.string.edit_client)) }
-                                Button(onClick = openVisit) { Text(stringResource(com.beauty.app.R.string.log_new_visit)) }
+                            Column(
+                                verticalArrangement = Arrangement.spacedBy(8.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                OutlinedButton(onClick = onEdit, modifier = Modifier.fillMaxWidth()) {
+                                    Text(stringResource(com.beauty.app.R.string.edit_client))
+                                }
+                                Button(onClick = openVisit, modifier = Modifier.fillMaxWidth()) {
+                                    Text(stringResource(com.beauty.app.R.string.log_new_visit))
+                                }
                             }
                             OutlinedButton(onClick = { confirmDelete = true }, enabled = !viewModel.deleting) {
                                 Text(stringResource(com.beauty.app.R.string.delete_client), color = MaterialTheme.colorScheme.error)
@@ -471,22 +478,33 @@ private fun VisitForm(
             Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(stringResource(com.beauty.app.R.string.date_time), color = TextMuted, fontSize = 12.sp)
                 Text(SimpleDateFormat("d MMM yyyy, HH:mm", Locale.getDefault()).format(Date(timestamp)), fontWeight = FontWeight.SemiBold)
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(enabled = !saving, onClick = {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    OutlinedButton(
+                        enabled = !saving,
+                        modifier = Modifier.weight(1f),
+                        onClick = {
                         val calendar = Calendar.getInstance().apply { timeInMillis = timestamp }
                         DatePickerDialog(context, { _, year, month, day ->
                             calendar.set(year, month, day)
                             timestamp = calendar.timeInMillis
                         }, calendar.get(Calendar.YEAR), calendar.get(Calendar.MONTH), calendar.get(Calendar.DAY_OF_MONTH)).show()
-                    }) { Text(stringResource(com.beauty.app.R.string.date)) }
-                    OutlinedButton(enabled = !saving, onClick = {
+                        }
+                    ) { Text(stringResource(com.beauty.app.R.string.date)) }
+                    OutlinedButton(
+                        enabled = !saving,
+                        modifier = Modifier.weight(1f),
+                        onClick = {
                         val calendar = Calendar.getInstance().apply { timeInMillis = timestamp }
                         TimePickerDialog(context, { _, hour, minute ->
                             calendar.set(Calendar.HOUR_OF_DAY, hour)
                             calendar.set(Calendar.MINUTE, minute)
                             timestamp = calendar.timeInMillis
                         }, calendar.get(Calendar.HOUR_OF_DAY), calendar.get(Calendar.MINUTE), true).show()
-                    }) { Text(stringResource(com.beauty.app.R.string.time)) }
+                        }
+                    ) { Text(stringResource(com.beauty.app.R.string.time)) }
                 }
                 OutlinedTextField(value = duration, onValueChange = { duration = it }, enabled = !saving,
                     label = { Text(stringResource(com.beauty.app.R.string.duration_mins)) }, singleLine = true,

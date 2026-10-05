@@ -53,6 +53,8 @@ fun ResetPasswordScreen(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
+            .imePadding()
+            .navigationBarsPadding()
             .padding(24.dp),
         contentAlignment = Alignment.Center
     ) {
