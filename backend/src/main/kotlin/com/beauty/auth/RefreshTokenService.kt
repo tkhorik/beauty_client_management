@@ -2,6 +2,7 @@ package com.beauty.auth
 
 import com.beauty.db.DatabaseFactory.dbQuery
 import com.beauty.db.RefreshTokensTable
+import com.beauty.db.UsersTable
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.less
 import org.jetbrains.exposed.sql.and
@@ -12,6 +13,7 @@ import org.jetbrains.exposed.sql.update
 import org.slf4j.LoggerFactory
 import java.security.MessageDigest
 import java.security.SecureRandom
+import java.sql.Connection
 import java.time.LocalDateTime
 import java.util.Base64
 import java.util.UUID
@@ -26,11 +28,12 @@ import java.util.UUID
  * indefinitely, a copy taken from a stolen laptop is as good as the original
  * forever. With rotation, the legitimate client and the attacker are racing to
  * use the same one-shot credential — and whoever loses that race presents an
- * already-spent token, which is a signal no honest client can produce. That
- * signal revokes the whole family, logging both of them out and forcing a
- * password-backed login the attacker cannot complete.
+ * already-spent token. That signal revokes the whole family, logging both of
+ * them out and forcing a password-backed login the attacker cannot complete.
+ * Clients must serialize refresh requests: a benign duplicate is indistinguishable
+ * from theft, so it also revokes the family rather than leaving a stolen session alive.
  */
-class RefreshTokenService(
+class RefreshTokenService internal constructor(
     private val lifetimeDays: Long
 ) {
     private val log = LoggerFactory.getLogger(RefreshTokenService::class.java)
@@ -49,8 +52,9 @@ class RefreshTokenService(
      * Creates a brand-new token family. Call this on login and registration —
      * anywhere a fresh session begins.
      */
-    suspend fun issueNewFamily(userId: String): String =
+    suspend fun issueNewFamily(userId: String): String = sessionTransaction(userId) {
         issue(userId, familyId = UUID.randomUUID().toString())
+    }
 
     /**
      * Exchanges a valid token for its successor, or rejects it.
@@ -62,57 +66,46 @@ class RefreshTokenService(
      */
     suspend fun rotate(rawToken: String): RotationResult {
         val hash = hash(rawToken)
-        val now = LocalDateTime.now()
-
-        val row = dbQuery {
-            RefreshTokensTable.select { RefreshTokensTable.tokenHash eq hash }.singleOrNull()
+        val userId = dbQuery {
+            RefreshTokensTable.select { RefreshTokensTable.tokenHash eq hash }
+                .singleOrNull()?.get(RefreshTokensTable.userId)
         } ?: return RotationResult.Rejected
 
-        val userId = row[RefreshTokensTable.userId]
-        val familyId = row[RefreshTokensTable.familyId]
+        return sessionTransaction(userId) {
+            // The lookup above only locates the user lock. Re-read state after
+            // acquiring it, so a concurrent rotation/revocation cannot be missed.
+            val row = RefreshTokensTable.select { RefreshTokensTable.tokenHash eq hash }
+                .singleOrNull() ?: return@sessionTransaction RotationResult.Rejected
+            val now = LocalDateTime.now()
+            val familyId = row[RefreshTokensTable.familyId]
+            if (row[RefreshTokensTable.revokedAt] != null) {
+                revokeFamily(familyId, now)
+                log.info("Revoked refresh-token family {} after token reuse for user {}.", familyId, userId)
+                return@sessionTransaction RotationResult.Rejected
+            }
+            if (!row[RefreshTokensTable.expiresAt].isAfter(now)) {
+                return@sessionTransaction RotationResult.Rejected
+            }
 
-        // A token observed as spent before the claim attempt is rejected.  Do
-        // not revoke the whole family here: a second refresh from another tab
-        // can race the first request and arrive after it spent this token.
-        // The conditional update below is the single-use gate, so only one
-        // request can win without turning an ordinary retry into a logout.
-        if (row[RefreshTokensTable.revokedAt] != null) {
-            log.info("Rejected an already-spent refresh token for user {} (family {}).", userId, familyId)
-            return RotationResult.Rejected
-        }
-
-        if (row[RefreshTokensTable.expiresAt].isBefore(now)) {
-            return RotationResult.Rejected
-        }
-
-        // Spend the presented token before minting its replacement, so a crash
-        // between the two leaves the user logged out rather than holding a
-        // token that can be replayed.
-        val claimed = dbQuery {
             RefreshTokensTable.update({
-                (RefreshTokensTable.id eq row[RefreshTokensTable.id]) and
-                    RefreshTokensTable.revokedAt.isNull()
+                RefreshTokensTable.id eq row[RefreshTokensTable.id]
             }) {
                 it[revokedAt] = now
             }
+            // Consumption and insertion commit together, under the same user
+            // lock as revokeAllForUser. No successor can escape revocation.
+            RotationResult.Rotated(userId, issue(userId, familyId))
         }
-        // The zero-row result means another concurrent request consumed it
-        // after our SELECT.  Reject just this retry; never revoke the session
-        // family for a benign multi-tab race.
-        if (claimed == 0) return RotationResult.Rejected
-
-        return RotationResult.Rotated(userId, issue(userId, familyId))
     }
 
-    /** Logout: revokes one token, leaving the user's other devices signed in. */
+    /** Logout: revokes this session's family, leaving other devices signed in. */
     suspend fun revoke(rawToken: String) {
         val hash = hash(rawToken)
-        dbQuery {
-            RefreshTokensTable.update(
-                { RefreshTokensTable.tokenHash eq hash and RefreshTokensTable.revokedAt.isNull() }
-            ) {
-                it[revokedAt] = LocalDateTime.now()
-            }
+        val row = dbQuery {
+            RefreshTokensTable.select { RefreshTokensTable.tokenHash eq hash }.singleOrNull()
+        } ?: return
+        sessionTransaction(row[RefreshTokensTable.userId]) {
+            revokeFamily(row[RefreshTokensTable.familyId], LocalDateTime.now())
         }
     }
 
@@ -122,7 +115,7 @@ class RefreshTokenService(
      * existing session alive has not actually locked them out.
      */
     suspend fun revokeAllForUser(userId: String) {
-        dbQuery {
+        sessionTransaction(userId) {
             RefreshTokensTable.update(
                 { RefreshTokensTable.userId eq userId and RefreshTokensTable.revokedAt.isNull() }
             ) {
@@ -148,20 +141,39 @@ class RefreshTokenService(
         if (removed > 0) log.info("Purged {} expired refresh tokens.", removed)
     }
 
-    private suspend fun issue(userId: String, familyId: String): String {
+    /**
+     * A database row lock, not a process-local mutex, serializes all operations
+     * for this user across server instances. READ_COMMITTED is essential: after
+     * waiting for the lock, token queries must see the preceding holder's commit
+     * (including newly inserted successors), not a repeatable-read snapshot.
+     */
+    private suspend fun <T> sessionTransaction(userId: String, block: suspend () -> T): T =
+        dbQuery(transactionIsolation = Connection.TRANSACTION_READ_COMMITTED) {
+            check(UsersTable.select { UsersTable.id eq userId }.forUpdate().singleOrNull() != null)
+            block()
+        }
+
+    private fun revokeFamily(familyId: String, now: LocalDateTime) {
+        RefreshTokensTable.update({
+            (RefreshTokensTable.familyId eq familyId) and RefreshTokensTable.revokedAt.isNull()
+        }) {
+            it[revokedAt] = now
+        }
+    }
+
+    /** Must be called inside sessionTransaction; never starts a separate transaction. */
+    private fun issue(userId: String, familyId: String): String {
         val rawToken = generateToken()
         val now = LocalDateTime.now()
 
-        dbQuery {
-            RefreshTokensTable.insert {
-                it[id] = UUID.randomUUID().toString()
-                it[RefreshTokensTable.userId] = userId
-                it[tokenHash] = hash(rawToken)
-                it[RefreshTokensTable.familyId] = familyId
-                it[issuedAt] = now
-                it[expiresAt] = now.plusDays(lifetimeDays)
-                it[revokedAt] = null
-            }
+        RefreshTokensTable.insert {
+            it[id] = UUID.randomUUID().toString()
+            it[RefreshTokensTable.userId] = userId
+            it[tokenHash] = hash(rawToken)
+            it[RefreshTokensTable.familyId] = familyId
+            it[issuedAt] = now
+            it[expiresAt] = now.plusDays(lifetimeDays)
+            it[revokedAt] = null
         }
         return rawToken
     }

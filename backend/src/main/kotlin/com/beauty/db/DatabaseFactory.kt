@@ -133,6 +133,9 @@ object DatabaseFactory {
      * a clear "no transaction manager" error rather than silently doing
      * something else.
      */
-    suspend fun <T> dbQuery(block: suspend () -> T): T =
-        org.jetbrains.exposed.sql.transactions.experimental.newSuspendedTransaction(db = database) { block() }
+    suspend fun <T> dbQuery(transactionIsolation: Int? = null, block: suspend () -> T): T =
+        org.jetbrains.exposed.sql.transactions.experimental.newSuspendedTransaction(
+            db = database,
+            transactionIsolation = transactionIsolation
+        ) { block() }
 }

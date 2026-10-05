@@ -386,7 +386,7 @@ class MembershipService {
 
     companion object {
         /**
-         * Promotes the configured addresses to [GlobalRole.SUPER_ADMIN].
+         * Promotes verified configured addresses to [GlobalRole.SUPER_ADMIN].
          *
          * Called once at startup. Only ever promotes — see the note on
          * `AppSettings.superAdminEmails` for why removing an address does not
@@ -399,6 +399,7 @@ class MembershipService {
                 promoted += dbQuery {
                     UsersTable.update({
                         (UsersTable.email eq email) and
+                            UsersTable.emailVerifiedAt.isNotNull() and
                             (UsersTable.globalRole neq GlobalRole.SUPER_ADMIN.name)
                     }) {
                         it[globalRole] = GlobalRole.SUPER_ADMIN.name
