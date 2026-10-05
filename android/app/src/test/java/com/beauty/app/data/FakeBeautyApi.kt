@@ -2,6 +2,7 @@ package com.beauty.app.data
 
 import com.beauty.app.data.api.AdminOrganizationDto
 import com.beauty.app.data.api.AdminUserDto
+import com.beauty.app.data.api.ArchiveOrganizationRequest
 import com.beauty.app.data.api.AuthRequest
 import com.beauty.app.data.api.AuthResponse
 import com.beauty.app.data.api.BeautyApi
@@ -74,6 +75,7 @@ abstract class FakeBeautyApi(private val reason: String = "not used in this test
     override suspend fun getAdminUsers(): List<AdminUserDto> = error(reason)
     override suspend fun setUserSuspended(userId: String, request: UpdateUserAdminRequest): Unit = error(reason)
     override suspend fun getAdminOrganizations(): List<AdminOrganizationDto> = error(reason)
+    override suspend fun archiveOrganization(id: String, request: ArchiveOrganizationRequest): Unit = error(reason)
     override suspend fun getCreationTokens(): List<OrganizationCreationTokenDto> = error(reason)
     override suspend fun createCreationToken(
         request: CreateOrganizationCreationTokenRequest
