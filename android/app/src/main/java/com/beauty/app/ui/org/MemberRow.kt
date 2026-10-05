@@ -14,6 +14,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.beauty.app.data.api.MemberDto
@@ -51,7 +52,9 @@ internal fun MemberRow(
             Text(
                 "${member.email} · ${com.beauty.app.ui.i18n.roleLabel(member.role)} · ${com.beauty.app.ui.i18n.statusLabel(member.status)}",
                 color = TextMuted,
-                fontSize = 12.sp
+                fontSize = 12.sp,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
             )
         }
         // A join request is answered, not "removed": Decline sits next to

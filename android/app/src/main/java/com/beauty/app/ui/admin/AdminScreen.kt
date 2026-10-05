@@ -233,8 +233,8 @@ private fun OrganizationsTab(
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         items(viewModel.organizations, key = { it.id }) { org ->
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.weight(1f)) {
+            Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Column {
                     Text(org.name, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
                     Text(
                         stringResource(com.beauty.app.R.string.organization_created_by, org.slug, org.createdByEmail ?: stringResource(com.beauty.app.R.string.unknown)) +
@@ -246,17 +246,31 @@ private fun OrganizationsTab(
                 }
                 // SUPER_ADMIN receives every active organization from the
                 // organization list and can reopen any one repeatedly.
-                TextButton(enabled = !org.isArchived, onClick = { onOpenOrganization(org) }) {
-                    Text(stringResource(com.beauty.app.R.string.open_organization), color = RoseGoldPrimary, fontSize = 12.sp)
-                }
-                TextButton(enabled = !org.isArchived, onClick = { viewModel.manageMembers(org) }) {
-                    Text(stringResource(com.beauty.app.R.string.members), color = RoseGoldPrimary, fontSize = 12.sp)
-                }
-                TextButton(
-                    enabled = !org.isArchived,
-                    onClick = { confirming = org; confirmationSlug = "" }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    Text(stringResource(com.beauty.app.R.string.archive), color = MaterialTheme.colorScheme.error, fontSize = 12.sp)
+                    TextButton(
+                        enabled = !org.isArchived,
+                        onClick = { onOpenOrganization(org) },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text(stringResource(com.beauty.app.R.string.open_organization), color = RoseGoldPrimary, fontSize = 12.sp)
+                    }
+                    TextButton(
+                        enabled = !org.isArchived,
+                        onClick = { viewModel.manageMembers(org) },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text(stringResource(com.beauty.app.R.string.members), color = RoseGoldPrimary, fontSize = 12.sp)
+                    }
+                    TextButton(
+                        enabled = !org.isArchived,
+                        onClick = { confirming = org; confirmationSlug = "" },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text(stringResource(com.beauty.app.R.string.archive), color = MaterialTheme.colorScheme.error, fontSize = 12.sp)
+                    }
                 }
             }
         }
@@ -286,6 +300,15 @@ private fun MembersTab(viewModel: AdminViewModel, org: AdminOrganizationDto) {
                     )
                 }
             )
+        }
+        if (viewModel.members.isEmpty()) {
+            item {
+                Text(
+                    stringResource(com.beauty.app.R.string.no_members_yet),
+                    color = TextMuted,
+                    fontSize = 13.sp
+                )
+            }
         }
         item {
             Text(
