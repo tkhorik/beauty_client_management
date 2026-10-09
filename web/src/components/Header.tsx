@@ -32,6 +32,9 @@ export const Header: React.FC<HeaderProps> = ({
   const { t } = useAppTranslation();
   const { user } = useAuth();
   const { current, activeOrganizations, offline, select } = useOrg();
+  // Requests waiting on approval in the active organization; the server only
+  // reports it to admins, so this is 0 for everyone else.
+  const pendingCount = current?.pendingRequestCount ?? 0;
   const tagsList = [
     { value: '', label: t('header.all') },
     { value: 'VIP', label: 'VIP' },
@@ -110,10 +113,34 @@ export const Header: React.FC<HeaderProps> = ({
               className="btn-secondary"
               onClick={onOpenMembers}
               title={t('header.manageMembers')}
-              aria-label={t('header.manageMembers')}
-              style={{ padding: '10px', display: 'flex' }}
+              aria-label={pendingCount > 0
+                ? `${t('header.manageMembers')} — ${t('header.pendingRequests', { count: pendingCount })}`
+                : t('header.manageMembers')}
+              style={{ padding: '10px', display: 'flex', position: 'relative' }}
             >
               <Users size={18} />
+              {pendingCount > 0 && (
+                <span
+                  aria-hidden="true"
+                  style={{
+                    position: 'absolute',
+                    top: '-6px',
+                    right: '-6px',
+                    minWidth: '18px',
+                    height: '18px',
+                    padding: '0 5px',
+                    borderRadius: '9px',
+                    background: 'var(--rose-gold-primary)',
+                    color: '#fff',
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    lineHeight: '18px',
+                    textAlign: 'center',
+                  }}
+                >
+                  {pendingCount > 99 ? '99+' : pendingCount}
+                </span>
+              )}
             </button>
           )}
 

@@ -8,8 +8,10 @@ import org.jetbrains.exposed.sql.JoinType
 import org.jetbrains.exposed.sql.ResultRow
 import org.jetbrains.exposed.sql.SortOrder
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.inList
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.neq
 import org.jetbrains.exposed.sql.and
+import org.jetbrains.exposed.sql.count
 import org.jetbrains.exposed.sql.deleteWhere
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.select
@@ -31,7 +33,9 @@ data class Membership(
     val userId: String,
     val organizationId: String,
     val role: OrgRole,
-    val status: MembershipStatus
+    val status: MembershipStatus,
+    /** When an admin last decided on this row — the decline cooldown's anchor. */
+    val decidedAt: LocalDateTime? = null
 )
 
 /** A membership joined to the organization it belongs to, for listing to a user. */
@@ -40,8 +44,34 @@ data class MembershipWithOrg(
     val organizationName: String,
     val organizationSlug: String,
     val role: OrgRole,
-    val status: MembershipStatus
+    val status: MembershipStatus,
+    val decidedAt: LocalDateTime? = null
 )
+
+/** Just enough of an organization to answer a join request with. */
+data class OrgRef(val id: String, val name: String, val slug: String)
+
+/** An admin to notify, in the language their mail should be written in. */
+data class AdminContact(val userId: String, val email: String, val fullName: String, val languagePreference: String)
+
+/**
+ * The outcome of [MembershipService.requestToJoin], for both the registration
+ * form and the post-sign-up join form — one decision table, two callers.
+ */
+sealed interface JoinResult {
+    /** A new request, waiting on an admin. The only outcome that notifies anyone. */
+    data class Filed(val org: OrgRef) : JoinResult
+    /** The user re-asked while already waiting. Idempotent; nobody is re-notified. */
+    data class AlreadyPending(val org: OrgRef) : JoinResult
+    /** The user had been invited, so asking is accepting. */
+    data class Activated(val org: OrgRef, val role: OrgRole) : JoinResult
+    data class AlreadyMember(val org: OrgRef) : JoinResult
+    data class Suspended(val org: OrgRef) : JoinResult
+    /** Declined too recently to ask again. */
+    data class Declined(val org: OrgRef, val retryAfter: LocalDateTime) : JoinResult
+    /** No such handle, or the organization is archived. */
+    data object NotFound : JoinResult
+}
 
 /** A membership joined to the user it belongs to, for an admin's member list. */
 data class MembershipWithUser(
@@ -231,12 +261,38 @@ class MembershipService {
                     organizationSlug = it[OrganizationsTable.slug],
                     role = OrgRole.parse(it[UserOrganizationsTable.role]),
                     status = MembershipStatus.parse(it[UserOrganizationsTable.status])
-                        ?: MembershipStatus.PENDING
+                        ?: MembershipStatus.PENDING,
+                    decidedAt = it[UserOrganizationsTable.decidedAt]
                 )
             }
     }
 
-    /** The organization's roster, for an admin. Includes pending and invited rows. */
+    /**
+     * Pending-request counts for the organizations among [organizationIds],
+     * in one grouped query — feeds the admin's badge without an extra round
+     * trip per organization.
+     */
+    suspend fun pendingRequestCounts(organizationIds: Collection<String>): Map<String, Int> {
+        if (organizationIds.isEmpty()) return emptyMap()
+        return dbQuery {
+            val count = UserOrganizationsTable.id.count()
+            UserOrganizationsTable
+                .slice(UserOrganizationsTable.organizationId, count)
+                .select {
+                    (UserOrganizationsTable.organizationId inList organizationIds) and
+                        (UserOrganizationsTable.status eq MembershipStatus.PENDING.name)
+                }
+                .groupBy(UserOrganizationsTable.organizationId)
+                .associate { it[UserOrganizationsTable.organizationId] to it[count].toInt() }
+        }
+    }
+
+    /**
+     * The organization's roster, for an admin. Includes pending, invited and
+     * suspended rows; excludes declined ones, which are answered requests
+     * rather than people — keeping them would clutter the approval queue
+     * forever. The requester still sees their own declined row.
+     */
     suspend fun membersOf(organizationId: String): List<MembershipWithUser> = dbQuery {
         // The join condition is spelled out because `user_organizations` has
         // *two* foreign keys into `users` — `user_id` and `invited_by`. Exposed
@@ -249,7 +305,10 @@ class MembershipService {
                 onColumn = UserOrganizationsTable.userId,
                 otherColumn = UsersTable.id
             )
-            .select { UserOrganizationsTable.organizationId eq organizationId }
+            .select {
+                (UserOrganizationsTable.organizationId eq organizationId) and
+                    (UserOrganizationsTable.status neq MembershipStatus.DECLINED.name)
+            }
             .orderBy(UsersTable.fullName to SortOrder.ASC)
             .map {
                 MembershipWithUser(
@@ -318,16 +377,163 @@ class MembershipService {
         return Membership(id, userId, organizationId, role, status)
     }
 
-    /** Promotes a `PENDING`/`INVITED` row to `ACTIVE`. Returns false if there was no such row. */
-    suspend fun activate(userId: String, organizationId: String, role: OrgRole? = null): Boolean = dbQuery {
+    /**
+     * Promotes a `PENDING`/`INVITED` row to `ACTIVE`. Returns false if there was no such row.
+     *
+     * [decidedBy] is the admin approving, when there is one; an invitee
+     * accepting their own invitation passes null and leaves the decision
+     * columns alone.
+     */
+    suspend fun activate(
+        userId: String,
+        organizationId: String,
+        role: OrgRole? = null,
+        decidedBy: String? = null
+    ): Boolean = dbQuery {
+        val now = LocalDateTime.now()
         UserOrganizationsTable.update({
             (UserOrganizationsTable.userId eq userId) and
                 (UserOrganizationsTable.organizationId eq organizationId)
         }) {
             it[status] = MembershipStatus.ACTIVE.name
             if (role != null) it[UserOrganizationsTable.role] = role.name
-            it[updatedAt] = LocalDateTime.now()
+            if (decidedBy != null) {
+                it[UserOrganizationsTable.decidedBy] = decidedBy
+                it[decidedAt] = now
+            }
+            it[updatedAt] = now
         } > 0
+    }
+
+    /**
+     * Turns down a `PENDING` request. Returns false if there was no pending
+     * request to decline — the status predicate is in the `UPDATE` itself, so
+     * a request approved a moment earlier by another admin is not overwritten.
+     */
+    suspend fun decline(userId: String, organizationId: String, decidedBy: String): Boolean = dbQuery {
+        val now = LocalDateTime.now()
+        UserOrganizationsTable.update({
+            (UserOrganizationsTable.userId eq userId) and
+                (UserOrganizationsTable.organizationId eq organizationId) and
+                (UserOrganizationsTable.status eq MembershipStatus.PENDING.name)
+        }) {
+            it[status] = MembershipStatus.DECLINED.name
+            it[UserOrganizationsTable.decidedBy] = decidedBy
+            it[decidedAt] = now
+            it[updatedAt] = now
+        } > 0
+    }
+
+    /**
+     * Revokes an active member's access without deleting the row: the status
+     * becomes `SUSPENDED`, which every authorization check already refuses,
+     * and which [requestToJoin] and invitations both decline to lift. Only
+     * [restore] brings them back. Returns false if they were not active —
+     * the status predicate is part of the `UPDATE`.
+     */
+    suspend fun revoke(userId: String, organizationId: String, decidedBy: String): Boolean =
+        transition(userId, organizationId, from = MembershipStatus.ACTIVE, to = MembershipStatus.SUSPENDED, decidedBy)
+
+    /** Lifts a revocation. Returns false if the membership was not suspended. */
+    suspend fun restore(userId: String, organizationId: String, decidedBy: String): Boolean =
+        transition(userId, organizationId, from = MembershipStatus.SUSPENDED, to = MembershipStatus.ACTIVE, decidedBy)
+
+    private suspend fun transition(
+        userId: String,
+        organizationId: String,
+        from: MembershipStatus,
+        to: MembershipStatus,
+        decidedBy: String
+    ): Boolean = dbQuery {
+        val now = LocalDateTime.now()
+        UserOrganizationsTable.update({
+            (UserOrganizationsTable.userId eq userId) and
+                (UserOrganizationsTable.organizationId eq organizationId) and
+                (UserOrganizationsTable.status eq from.name)
+        }) {
+            it[status] = to.name
+            it[UserOrganizationsTable.decidedBy] = decidedBy
+            it[decidedAt] = now
+            it[updatedAt] = now
+        } > 0
+    }
+
+    /**
+     * Files a join request by organization handle, or resolves what an
+     * existing row means for one.
+     *
+     * Shared by registration and the post-sign-up join form so the two cannot
+     * drift: an invited user accepts by asking, a suspended one cannot lift
+     * their block by asking, and a declined one waits out [REREQUEST_COOLDOWN].
+     * Recording the audit entry is the caller's job, since only the caller
+     * knows whether this was part of creating the account.
+     */
+    suspend fun requestToJoin(userId: String, rawSlug: String, now: LocalDateTime = LocalDateTime.now()): JoinResult {
+        val org = findActiveOrganization(rawSlug) ?: return JoinResult.NotFound
+        val existing = membership(userId, org.id)
+
+        return when (existing?.status) {
+            MembershipStatus.ACTIVE -> JoinResult.AlreadyMember(org)
+            MembershipStatus.INVITED -> {
+                activate(userId, org.id)
+                JoinResult.Activated(org, existing.role)
+            }
+            MembershipStatus.PENDING -> JoinResult.AlreadyPending(org)
+            MembershipStatus.SUSPENDED -> JoinResult.Suspended(org)
+            MembershipStatus.DECLINED -> {
+                val retryAfter = (existing.decidedAt ?: LocalDateTime.MIN).plus(REREQUEST_COOLDOWN)
+                if (now.isBefore(retryAfter)) {
+                    JoinResult.Declined(org, retryAfter)
+                } else {
+                    upsert(userId, org.id, OrgRole.ORG_USER, MembershipStatus.PENDING)
+                    JoinResult.Filed(org)
+                }
+            }
+            null -> {
+                upsert(userId, org.id, OrgRole.ORG_USER, MembershipStatus.PENDING)
+                JoinResult.Filed(org)
+            }
+        }
+    }
+
+    /** A non-archived organization by handle, normalised the way slugs are stored. */
+    suspend fun findActiveOrganization(rawSlug: String): OrgRef? {
+        val slug = rawSlug.trim().lowercase()
+        if (slug.isEmpty()) return null
+        return dbQuery {
+            OrganizationsTable
+                .select { (OrganizationsTable.slug eq slug) and OrganizationsTable.archivedAt.isNull() }
+                .singleOrNull()
+                ?.let { OrgRef(it[OrganizationsTable.id], it[OrganizationsTable.name], it[OrganizationsTable.slug]) }
+        }
+    }
+
+    /** An organization by id, archived or not — for naming it in a notification. */
+    suspend fun organizationRef(organizationId: String): OrgRef? = dbQuery {
+        OrganizationsTable
+            .select { OrganizationsTable.id eq organizationId }
+            .singleOrNull()
+            ?.let { OrgRef(it[OrganizationsTable.id], it[OrganizationsTable.name], it[OrganizationsTable.slug]) }
+    }
+
+    /** The organization's active, unsuspended admins — who gets told about a new request. */
+    suspend fun activeAdmins(organizationId: String): List<AdminContact> = dbQuery {
+        UserOrganizationsTable
+            .join(UsersTable, JoinType.INNER, onColumn = UserOrganizationsTable.userId, otherColumn = UsersTable.id)
+            .select {
+                (UserOrganizationsTable.organizationId eq organizationId) and
+                    (UserOrganizationsTable.status eq MembershipStatus.ACTIVE.name) and
+                    (UserOrganizationsTable.role eq OrgRole.ORG_ADMIN.name) and
+                    UsersTable.suspendedAt.isNull()
+            }
+            .map {
+                AdminContact(
+                    userId = it[UsersTable.id],
+                    email = it[UsersTable.email],
+                    fullName = it[UsersTable.fullName],
+                    languagePreference = it[UsersTable.languagePreference]
+                )
+            }
     }
 
     /** Changes an existing member's role. Returns false if they are not a member. */
@@ -381,10 +587,19 @@ class MembershipService {
         userId = this[UserOrganizationsTable.userId],
         organizationId = this[UserOrganizationsTable.organizationId],
         role = OrgRole.parse(this[UserOrganizationsTable.role]),
-        status = MembershipStatus.parse(this[UserOrganizationsTable.status]) ?: MembershipStatus.PENDING
+        status = MembershipStatus.parse(this[UserOrganizationsTable.status]) ?: MembershipStatus.PENDING,
+        decidedAt = this[UserOrganizationsTable.decidedAt]
     )
 
     companion object {
+        /**
+         * How long after a decline the same user may ask the same organization
+         * again. Long enough that a refused requester cannot keep an admin's
+         * queue (and inbox) full; short enough that a mistaken decline is not
+         * permanent. An admin can always invite them back sooner.
+         */
+        val REREQUEST_COOLDOWN: java.time.Duration = java.time.Duration.ofDays(7)
+
         /**
          * Promotes verified configured addresses to [GlobalRole.SUPER_ADMIN].
          *

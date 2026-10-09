@@ -5,7 +5,10 @@ import com.beauty.app.data.api.CreateVisitRequest
 import com.beauty.app.data.api.VisitDto
 import com.beauty.app.data.api.VisitHistoryDto
 import com.beauty.app.data.local.ClientDao
+import com.beauty.app.data.local.OrganizationCacheDao
 import com.beauty.app.data.local.VisitDao
+import io.ktor.client.engine.mock.respond
+import io.ktor.client.request.get
 import com.beauty.app.data.local.VisitEntity
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.JsonObject
@@ -24,6 +27,7 @@ private const val ORG_B = "org-b"
 class BeautyRepositoryTest {
     private val clientDao = mock<ClientDao>()
     private val visitDao = mock<VisitDao>()
+    private val cache = mock<OrganizationCacheDao>()
 
     @Test
     fun `refresh stores backend clients under the requested organization`() = runTest {
@@ -149,6 +153,62 @@ class BeautyRepositoryTest {
             VisitSyncOutcome.SUCCESS,
             BeautyRepository(api, clientDao, visitDao).syncPendingVisits()
         )
+    }
+
+    @Test
+    fun `a visit refused with NOT_A_MEMBER purges that organization instead of retrying`() = runTest {
+        whenever(visitDao.getUnsyncedVisits()).thenReturn(listOf(pendingVisit(orgId = ORG_A), pendingVisit(orgId = ORG_A).copy(id = "local-2")))
+        whenever(cache.localFilesForOrganization(ORG_A)).thenReturn(emptyList())
+        val refused = forbidden("""{"error":"Not a member","code":"NOT_A_MEMBER"}""")
+        var attempts = 0
+        val api = object : FakeBeautyApi() {
+            override suspend fun createVisit(orgId: String, request: CreateVisitRequest): VisitDto {
+                attempts++
+                throw refused
+            }
+        }
+
+        val outcome = BeautyRepository(api, clientDao, visitDao, organizationCache = cache).syncPendingVisits()
+
+        assertEquals(VisitSyncOutcome.SUCCESS, outcome)
+        assertEquals("the second visit of a lost organization is not attempted", 1, attempts)
+        verify(cache).purgeOrganization(ORG_A)
+        org.mockito.kotlin.verify(visitDao, org.mockito.kotlin.never()).markVisitSyncFailed(any(), any())
+    }
+
+    @Test
+    fun `other 403s never purge anything`() = runTest {
+        whenever(visitDao.getUnsyncedVisits()).thenReturn(listOf(pendingVisit()))
+        val refused = forbidden("""{"error":"Admins only","code":"ADMIN_REQUIRED"}""")
+        val api = object : FakeBeautyApi() {
+            override suspend fun createVisit(orgId: String, request: CreateVisitRequest): VisitDto = throw refused
+        }
+
+        val outcome = BeautyRepository(api, clientDao, visitDao, organizationCache = cache).syncPendingVisits()
+
+        assertEquals(VisitSyncOutcome.RETRY, outcome)
+        org.mockito.kotlin.verify(cache, org.mockito.kotlin.never()).purgeOrganization(any())
+    }
+
+    @Test
+    fun `organizations missing from the server list are purged and active ones kept`() = runTest {
+        whenever(cache.cachedOrganizationIds()).thenReturn(listOf(ORG_A, ORG_B, ""))
+        whenever(cache.localFilesForOrganization(any())).thenReturn(emptyList())
+
+        val purged = BeautyRepository(object : FakeBeautyApi() {}, clientDao, visitDao, organizationCache = cache)
+            .purgeOrganizationsExcept(setOf(ORG_A))
+
+        assertEquals(listOf(ORG_B, ""), purged)
+        verify(cache).purgeOrganization(ORG_B)
+        org.mockito.kotlin.verify(cache, org.mockito.kotlin.never()).purgeOrganization(ORG_A)
+    }
+
+    /** A real ClientRequestException carrying a 403 body, as the API client throws it. */
+    private suspend fun forbidden(body: String): Exception {
+        val client = io.ktor.client.HttpClient(io.ktor.client.engine.mock.MockEngine {
+            respond(body, io.ktor.http.HttpStatusCode.Forbidden, io.ktor.http.headersOf(io.ktor.http.HttpHeaders.ContentType, "application/json"))
+        }) { expectSuccess = true }
+        return runCatching { client.get("https://api.test/") }.exceptionOrNull() as Exception
     }
 
     private fun pendingVisit(orgId: String = ORG_A) = VisitEntity(

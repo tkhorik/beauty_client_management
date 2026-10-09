@@ -9,6 +9,7 @@ import { LanguageSelector } from './LanguageSelector';
 import { useAppTranslation, useLocale } from '../i18n/LocaleProvider';
 import { effectiveAcceptLanguage } from '../i18n/store';
 import { errorTranslationKey, translatedFieldErrors } from '../i18n/errors';
+import { arrivedWithCreationLink, clearJoinSlug, pendingJoinSlug, stripDeepLinkParams } from '../auth/deepLinks';
 
 type Mode = 'login' | 'register';
 
@@ -18,11 +19,14 @@ export function LoginPage() {
   const { login } = useAuth();
   const { t } = useAppTranslation();
   const { preference, locale } = useLocale();
-  const [mode, setMode] = useState<Mode>('login');
+  // A "join my salon" link is almost always followed by someone without an
+  // account yet, so it opens on the registration form.
+  const [mode, setMode] = useState<Mode>(() => (pendingJoinSlug() ? 'register' : 'login'));
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [fullName, setFullName] = useState('');
+  const [organizationSlug, setOrganizationSlug] = useState(() => pendingJoinSlug() ?? '');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
@@ -32,6 +36,13 @@ export function LoginPage() {
     setError('');
     setFieldErrors({});
   }, [locale]);
+
+  useEffect(() => { stripDeepLinkParams(); }, []);
+
+  // Someone who arrived with an organization-creation link is about to create
+  // their own organization; offering "request access to someone else's" on
+  // the same form would only confuse that.
+  const offerJoinField = !arrivedWithCreationLink;
 
   const isRegister = mode === 'register';
 
@@ -81,8 +92,9 @@ export function LoginPage() {
         ? `${API_BASE_URL}/auth/register`
         : `${API_BASE_URL}/auth/login`;
 
+      const requestedSlug = offerJoinField ? organizationSlug.trim().toLowerCase() : '';
       const body = isRegister
-        ? { email, password, fullName, languagePreference: preference }
+        ? { email, password, fullName, languagePreference: preference, ...(requestedSlug ? { organizationSlug: requestedSlug } : {}) }
         : { email, password };
 
       const res = await fetch(endpoint, {
@@ -130,6 +142,9 @@ export function LoginPage() {
       }
 
       const data = await res.json();
+      // The request is filed; the onboarding screen shows it as pending and
+      // must not offer to send it again.
+      if (isRegister && requestedSlug) clearJoinSlug();
       login(data.token, data.user);
     } catch {
       setError(t('common.network'));
@@ -302,6 +317,36 @@ export function LoginPage() {
                 style={{ width: '100%' }}
               />
               {fieldErrors.confirmPassword && <div style={fieldErrorStyle}>{fieldErrors.confirmPassword}</div>}
+            </div>
+          )}
+
+          {isRegister && offerJoinField && (
+            <div>
+              <label htmlFor="organizationSlug" style={{ display: 'block', fontSize: '13px', color: 'var(--text-muted)', marginBottom: '6px' }}>
+                {t('loginPage.organizationHandle')}
+              </label>
+              <input
+                id="organizationSlug"
+                name="organizationSlug"
+                type="text"
+                autoComplete="off"
+                autoCapitalize="none"
+                spellCheck={false}
+                className="glass-input"
+                value={organizationSlug}
+                onChange={e => setOrganizationSlug(e.target.value)}
+                placeholder="my-salon"
+                aria-invalid={!!fieldErrors.organizationSlug}
+                aria-describedby="organizationSlugHint"
+                style={{ width: '100%' }}
+              />
+              {fieldErrors.organizationSlug ? (
+                <div style={fieldErrorStyle}>{fieldErrors.organizationSlug}</div>
+              ) : (
+                <div id="organizationSlugHint" style={{ color: 'var(--text-muted)', fontSize: '12px', marginTop: '5px' }}>
+                  {t('loginPage.organizationHandleHint')}
+                </div>
+              )}
             </div>
           )}
 

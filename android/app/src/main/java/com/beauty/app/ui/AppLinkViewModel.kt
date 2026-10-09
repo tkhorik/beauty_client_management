@@ -21,6 +21,12 @@ internal class AppLinkViewModel : ViewModel() {
         private set
     var pendingOrganizationToken by mutableStateOf<String?>(null)
         private set
+    /** A `?join=` handle waiting for the register or organization screen. Not a credential. */
+    var pendingJoinSlug by mutableStateOf<String?>(null)
+        private set
+    /** An organization whose members screen should open once signed in. */
+    var pendingMembersOrgId by mutableStateOf<String?>(null)
+        private set
     var verificationMessage by mutableStateOf<String?>(null)
         private set
     var verifying by mutableStateOf(false)
@@ -42,6 +48,10 @@ internal class AppLinkViewModel : ViewModel() {
     fun clearReset() { resetToken = null }
     fun holdOrganization(token: String) { pendingOrganizationToken = token }
     fun takeOrganization(): String? = pendingOrganizationToken.also { pendingOrganizationToken = null }
+    fun holdJoin(slug: String) { pendingJoinSlug = slug }
+    fun takeJoin(): String? = pendingJoinSlug.also { pendingJoinSlug = null }
+    fun holdMembers(orgId: String) { pendingMembersOrgId = orgId }
+    fun takeMembers(): String? = pendingMembersOrgId.also { pendingMembersOrgId = null }
 
     fun verify(link: AppLink.VerifyEmail, api: BeautyApi, refreshProfile: suspend () -> Unit = {}) {
         verificationMessage = null

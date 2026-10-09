@@ -7,6 +7,7 @@ import type {
   UserProfile,
   Organization,
   OrgMember,
+  OrgAuditEvent,
   OrgRole,
   AdminUser,
   AdminOrganization,
@@ -43,7 +44,7 @@ const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === 'true';
  */
 export class ApiError extends Error {
   status: number;
-  body: { error?: string; errors?: Record<string, string>; code?: string; fieldErrors?: Record<string, { code: string; args?: Record<string, string | number> }>; languagePreference?: LanguagePreference; languageRevision?: number; preference?: LanguagePreference; revision?: number };
+  body: { error?: string; errors?: Record<string, string>; code?: string; fieldErrors?: Record<string, { code: string; args?: Record<string, string | number> }>; languagePreference?: LanguagePreference; languageRevision?: number; preference?: LanguagePreference; revision?: number; retryAfter?: string };
 
   constructor(status: number, body: ApiError['body']) {
     super(body.error ?? 'Request failed');
@@ -76,6 +77,15 @@ export class EmailNotVerifiedError extends ApiError {
 
 /** Fired when any request is refused for want of a confirmed address. */
 export const EMAIL_UNVERIFIED_EVENT = 'beauty:email-unverified';
+
+/**
+ * Fired when the server says the caller is not a member of the organization a
+ * request named — typically because an administrator removed or revoked them
+ * while this tab was open. `OrgProvider` re-reads the list, which drops the
+ * organization and leaves the screen for the onboarding view instead of a
+ * grid of failing requests.
+ */
+export const MEMBERSHIP_LOST_EVENT = 'beauty:membership-lost';
 
 /**
  * A message to show the user when a save fails.
@@ -280,6 +290,10 @@ class ApiService {
    */
   private async rejectIfUnverified(res: Response): Promise<Response> {
     const body = await res.clone().json().catch(() => ({} as Record<string, unknown>));
+    if (body?.code === 'NOT_A_MEMBER') {
+      window.dispatchEvent(new Event(MEMBERSHIP_LOST_EVENT));
+      return res;
+    }
     if (body?.code !== 'EMAIL_NOT_VERIFIED') return res;
 
     window.dispatchEvent(
@@ -749,6 +763,43 @@ class ApiService {
   async approveMember(orgId: string, userId: string): Promise<void> {
     await this.orgJson(`/organizations/${orgId}/members/${userId}/approval`, {
       method: 'POST',
+      headers: { [ORG_HEADER]: orgId },
+    });
+  }
+
+  /**
+   * Turns down a pending request. The requester sees it as declined and may
+   * ask again only after the backend's cooldown.
+   */
+  /**
+   * Revokes an active member: access ends on their next request, and unlike
+   * removal they cannot ask to join again until restored.
+   */
+  async revokeMember(orgId: string, userId: string): Promise<void> {
+    await this.orgJson(`/organizations/${orgId}/members/${userId}/revoke`, {
+      method: 'POST',
+      headers: { [ORG_HEADER]: orgId },
+    });
+  }
+
+  async restoreMember(orgId: string, userId: string): Promise<void> {
+    await this.orgJson(`/organizations/${orgId}/members/${userId}/restore`, {
+      method: 'POST',
+      headers: { [ORG_HEADER]: orgId },
+    });
+  }
+
+  async declineMember(orgId: string, userId: string): Promise<void> {
+    await this.orgJson(`/organizations/${orgId}/members/${userId}/decline`, {
+      method: 'POST',
+      headers: { [ORG_HEADER]: orgId },
+    });
+  }
+
+  /** The organization's membership history, newest first. Admin-only. */
+  async getOrganizationAudit(orgId: string, before?: string): Promise<OrgAuditEvent[]> {
+    const query = before ? `?before=${encodeURIComponent(before)}` : '';
+    return this.orgJson<OrgAuditEvent[]>(`/organizations/${orgId}/audit${query}`, {
       headers: { [ORG_HEADER]: orgId },
     });
   }

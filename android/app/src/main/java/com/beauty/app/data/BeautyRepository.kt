@@ -2,6 +2,7 @@ package com.beauty.app.data
 
 import com.beauty.app.data.api.AdminOrganizationDto
 import com.beauty.app.data.api.ArchiveOrganizationRequest
+import com.beauty.app.data.api.AuditEventDto
 import com.beauty.app.data.api.AdminUserDto
 import com.beauty.app.data.api.AuthResponse
 import com.beauty.app.data.api.BeautyApi
@@ -25,10 +26,13 @@ import com.beauty.app.data.api.LanguagePreferenceRequest
 import com.beauty.app.data.api.LanguagePreferenceResponse
 import com.beauty.app.data.api.VisitHistoryDto
 import com.beauty.app.data.api.isEmailNotVerified
+import com.beauty.app.data.api.isNotAMember
 import com.beauty.app.data.local.ClientDao
+import java.io.File
 import com.beauty.app.data.local.ClientEntity
 import com.beauty.app.data.local.VisitDao
 import com.beauty.app.data.local.VisitEntity
+import com.beauty.app.data.local.OrganizationCacheDao
 import com.beauty.app.data.local.ParityDao
 import com.beauty.app.data.local.PhotoDraftEntity
 import com.beauty.app.data.local.HistorySnapshotEntity
@@ -77,8 +81,35 @@ class BeautyRepository(
     private val clientDao: ClientDao,
     private val visitDao: VisitDao,
     private val json: Json = Json,
-    private val parityDao: ParityDao? = null
+    private val parityDao: ParityDao? = null,
+    private val organizationCache: OrganizationCacheDao? = null
 ) : VisitSyncRepository {
+    /**
+     * Deletes everything cached for [orgId], then the app-private photo files
+     * those rows pointed at. Called once the server has said this account is
+     * no longer a member there — see [purgeOrganizationsExcept] and
+     * [isNotAMember].
+     */
+    suspend fun purgeOrganization(orgId: String) {
+        val cache = organizationCache ?: return
+        val files = cache.localFilesForOrganization(orgId)
+        cache.purgeOrganization(orgId)
+        files.forEach { path -> runCatching { File(path).delete() } }
+    }
+
+    /**
+     * Purges every cached organization not in [activeIds], the server's
+     * current list of organizations this account is an active member of.
+     * Only ever called with a list that actually came back from the server —
+     * an offline failure must not read as "member of nothing".
+     */
+    suspend fun purgeOrganizationsExcept(activeIds: Set<String>): List<String> {
+        val cache = organizationCache ?: return emptyList()
+        val stale = cache.cachedOrganizationIds().filterNot { it in activeIds }
+        stale.forEach { purgeOrganization(it) }
+        return stale
+    }
+
     suspend fun refreshClients(orgId: String): Result<Unit> = runCatching {
         // The API list is the source of truth for downloaded data.  Reconciling
         // it in one Room transaction means a manual refresh also reflects
@@ -190,6 +221,15 @@ class BeautyRepository(
 
     suspend fun approveMember(orgId: String, userId: String) = api.approveMember(orgId, userId)
 
+    suspend fun declineMember(orgId: String, userId: String) = api.declineMember(orgId, userId)
+
+    suspend fun revokeMember(orgId: String, userId: String) = api.revokeMember(orgId, userId)
+
+    suspend fun restoreMember(orgId: String, userId: String) = api.restoreMember(orgId, userId)
+
+    suspend fun getOrganizationAudit(orgId: String, before: String? = null): List<AuditEventDto> =
+        api.getOrganizationAudit(orgId, before)
+
     suspend fun inviteMember(orgId: String, email: String, role: String) =
         api.inviteMember(orgId, InviteMemberRequest(email, role))
 
@@ -288,8 +328,13 @@ class BeautyRepository(
     private suspend fun syncPendingVisitsUnsafe(): VisitSyncOutcome {
         var allSucceeded = true
         var blocked = false
+        // Organizations that answered NOT_A_MEMBER during this pass: their
+        // queued visits can never be accepted, and are purged with the rest of
+        // that organization's cache rather than retried forever.
+        val lostOrganizations = mutableSetOf<String>()
 
         visitDao.getUnsyncedVisits().forEach { visit ->
+            if (visit.organizationId in lostOrganizations) return@forEach
             // Once the address is known to be unconfirmed, stop trying. Every
             // remaining visit would be refused for the same reason, and each
             // attempt is a round trip that also spends the caller's rate-limit
@@ -304,6 +349,11 @@ class BeautyRepository(
                 if (created.id.isBlank()) error("Backend returned a visit without an ID")
                 visitDao.markVisitSynced(visit.id, created.id)
             } catch (error: Exception) {
+                if (error.isNotAMember()) {
+                    lostOrganizations += visit.organizationId
+                    purgeOrganization(visit.organizationId)
+                    return@forEach
+                }
                 allSucceeded = false
                 if (error.isEmailNotVerified()) {
                     blocked = true

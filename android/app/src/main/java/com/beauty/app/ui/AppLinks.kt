@@ -35,6 +35,10 @@ internal sealed interface AppLink {
     object ForgotPassword : AppLink
     class VerifyEmail(val token: String?, val status: String?) : AppLink
     class CreateOrganization(val token: String) : AppLink
+    /** An admin's `?join=<handle>` link: pre-fills the handle to request access with. */
+    class JoinOrganization(val slug: String) : AppLink
+    /** From the "new access request" email: open that organization's members. */
+    class ManageMembers(val organizationId: String) : AppLink
     object Home : AppLink
 }
 
@@ -44,6 +48,9 @@ internal fun parseAppLink(raw: String, webBaseUrl: String = BuildConfig.APP_WEB_
         "/reset-password" -> AppLink.ResetPassword(link.parameter("token"))
         "/forgot-password" -> AppLink.ForgotPassword
         "/api/auth/verify-email", "/verify-email" -> AppLink.VerifyEmail(link.parameter("token"), link.parameter("status"))
-        else -> link.parameter("orgToken")?.let { AppLink.CreateOrganization(it) } ?: AppLink.Home
+        else -> link.parameter("orgToken")?.let { AppLink.CreateOrganization(it) }
+            ?: link.parameter("join")?.let { AppLink.JoinOrganization(it.lowercase()) }
+            ?: link.parameter("members")?.let { AppLink.ManageMembers(it) }
+            ?: AppLink.Home
     }
 }

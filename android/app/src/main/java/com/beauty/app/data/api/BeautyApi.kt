@@ -103,7 +103,9 @@ data class RegisterRequest(
     val email: String,
     val password: String,
     val fullName: String,
-    val languagePreference: String? = null
+    val languagePreference: String? = null,
+    /** Optional handle of an organization to request access to while signing up. */
+    val organizationSlug: String? = null
 )
 
 /** Account language is a preference, not a detected locale. */
@@ -226,8 +228,9 @@ data class UpdateClientRequest(
 /**
  * An organization together with *this* user's standing in it.
  *
- * `role` is `ORG_ADMIN` or `ORG_USER`; `status` is `ACTIVE`, `PENDING` or
- * `INVITED`, and only `ACTIVE` grants access to any client or visit data.
+ * `role` is `ORG_ADMIN` or `ORG_USER`; `status` is `ACTIVE`, `PENDING`,
+ * `INVITED`, `SUSPENDED` or `DECLINED`, and only `ACTIVE` grants access to any
+ * client or visit data.
  */
 @Serializable
 data class OrganizationDto(
@@ -236,10 +239,16 @@ data class OrganizationDto(
     val slug: String,
     val role: String,
     val status: String,
-    val createdAt: String? = null
+    val createdAt: String? = null,
+    /** Requests awaiting approval; only sent where this user is an active admin. */
+    val pendingRequestCount: Int? = null,
+    /** For a declined request: the earliest local date-time this user may ask again. */
+    val retryAfter: String? = null
 ) {
     val isActive: Boolean get() = status == "ACTIVE"
     val isAdmin: Boolean get() = role == "ORG_ADMIN"
+    val isDeclined: Boolean get() = status == "DECLINED"
+    val isAwaitingApproval: Boolean get() = status == "PENDING" || status == "INVITED"
 }
 
 /**
@@ -364,6 +373,19 @@ data class MemberDto(
     val joinedAt: String
 )
 
+/** One entry of an organization's membership history, newest first. */
+@Serializable
+data class AuditEventDto(
+    val id: String,
+    val action: String,
+    val actorUserId: String,
+    val actorName: String? = null,
+    val targetUserId: String? = null,
+    val targetName: String? = null,
+    val detail: String? = null,
+    val createdAt: String
+)
+
 /** The backend's error code for a write refused pending email confirmation. */
 const val EMAIL_NOT_VERIFIED = "EMAIL_NOT_VERIFIED"
 
@@ -384,6 +406,19 @@ suspend fun Throwable.isEmailNotVerified(): Boolean {
     val response = (this as? ResponseException)?.response ?: return false
     if (response.status != HttpStatusCode.Forbidden) return false
     return runCatching { response.bodyAsText().contains(EMAIL_NOT_VERIFIED) }.getOrDefault(false)
+}
+
+/**
+ * Whether the backend refused a request because this account is not an active
+ * member of the organization it named — removed, revoked, or the organization
+ * archived since the app last looked. Matched on the code, like
+ * [isEmailNotVerified]: a 403 also means `ADMIN_REQUIRED` or
+ * `EMAIL_NOT_VERIFIED`, which must not wipe anything.
+ */
+suspend fun Throwable.isNotAMember(): Boolean {
+    val response = (this as? ResponseException)?.response ?: return false
+    if (response.status != HttpStatusCode.Forbidden) return false
+    return runCatching { response.bodyAsText().contains("\"NOT_A_MEMBER\"") }.getOrDefault(false)
 }
 
 // ──────────────────────────────────────────────
@@ -465,6 +500,17 @@ interface BeautyApi {
     suspend fun getMembers(orgId: String): List<MemberDto>
 
     suspend fun approveMember(orgId: String, userId: String)
+
+    /** Turns down a pending request; the requester may ask again only after a cooldown. */
+    suspend fun declineMember(orgId: String, userId: String)
+
+    /** Blocks an active member without deleting them; they cannot re-request until restored. */
+    suspend fun revokeMember(orgId: String, userId: String)
+    suspend fun restoreMember(orgId: String, userId: String)
+
+    /** Membership history, newest first. Administrators only. */
+    suspend fun getOrganizationAudit(orgId: String, before: String? = null): List<AuditEventDto>
+
     suspend fun inviteMember(orgId: String, request: InviteMemberRequest)
     suspend fun changeMemberRole(orgId: String, userId: String, request: ChangeMemberRoleRequest)
 
@@ -686,6 +732,26 @@ class KtorBeautyApi(private val client: HttpClient) : BeautyApi {
             header(ORG_HEADER, orgId)
         }
     }
+
+    override suspend fun declineMember(orgId: String, userId: String) {
+        client.post("api/organizations/$orgId/members/$userId/decline") {
+            header(ORG_HEADER, orgId)
+        }
+    }
+
+    override suspend fun revokeMember(orgId: String, userId: String) {
+        client.post("api/organizations/$orgId/members/$userId/revoke") { header(ORG_HEADER, orgId) }
+    }
+
+    override suspend fun restoreMember(orgId: String, userId: String) {
+        client.post("api/organizations/$orgId/members/$userId/restore") { header(ORG_HEADER, orgId) }
+    }
+
+    override suspend fun getOrganizationAudit(orgId: String, before: String?): List<AuditEventDto> =
+        client.get("api/organizations/$orgId/audit") {
+            header(ORG_HEADER, orgId)
+            if (before != null) parameter("before", before)
+        }.body()
 
     override suspend fun inviteMember(orgId: String, request: InviteMemberRequest) {
         client.post("api/organizations/$orgId/members/invitations") {

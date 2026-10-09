@@ -38,6 +38,13 @@ class AuthViewModel(
     var loginPassword by mutableStateOf("")
     var registerPassword by mutableStateOf("")
     var registerConfirmPassword by mutableStateOf("")
+
+    /**
+     * Optional handle of an organization to ask to join while signing up.
+     * Held here rather than in the screen so a `?join=` link can pre-fill it
+     * before the screen exists.
+     */
+    var registerOrganizationSlug by mutableStateOf("")
     var resetLink by mutableStateOf("")
     var resetNewPassword by mutableStateOf("")
     var resetConfirmPassword by mutableStateOf("")
@@ -147,9 +154,17 @@ class AuthViewModel(
      * persisted exactly as it is after login, so the user lands in the app
      * signed in rather than being bounced back to a login form.
      */
-    fun register(email: String, password: String, confirmPassword: String, fullName: String) {
+    fun register(
+        email: String,
+        password: String,
+        confirmPassword: String,
+        fullName: String,
+        includeOrganization: Boolean = true
+    ) {
         val normalisedEmail = AuthValidation.normaliseEmail(email)
         val trimmedName = fullName.trim()
+        val organizationSlug = registerOrganizationSlug.trim().lowercase()
+            .takeIf { includeOrganization && it.isNotEmpty() }
 
         val localErrors = buildMap {
             AuthValidation.fullNameError(trimmedName)?.let { put("fullName", it) }
@@ -171,12 +186,16 @@ class AuthViewModel(
                         email = normalisedEmail,
                         password = password,
                         fullName = trimmedName,
-                        languagePreference = registrationLanguage()
+                        languagePreference = registrationLanguage(),
+                        organizationSlug = organizationSlug
                     )
                 )
                 tokenStore.saveSession(response.token, response.refreshToken, response.user.id)
                 registerPassword = ""
                 registerConfirmPassword = ""
+                // Filed with the account; the organization screen shows it as
+                // pending and must not offer to send it again.
+                registerOrganizationSlug = ""
                 RegisterState.Success
             } catch (e: ClientRequestException) {
                 when (e.response.status) {

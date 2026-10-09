@@ -17,7 +17,17 @@ import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import android.net.Uri
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.text.AnnotatedString
+import com.beauty.app.BuildConfig
+import com.beauty.app.data.api.AuditEventDto
 import com.beauty.app.data.api.OrganizationDto
+import com.beauty.app.ui.i18n.localizedIsoDateTime
+import com.beauty.app.ui.i18n.parseServerDateTime
 import com.beauty.app.ui.tokenFromWebAppLink
 import com.beauty.app.ui.theme.CardSurface
 import com.beauty.app.ui.theme.RoseGoldPrimary
@@ -62,7 +72,7 @@ fun OrganizationScreen(
     var creationLinkError by remember { mutableStateOf<String?>(null) }
     var newOrgName by rememberSaveable { mutableStateOf("") }
     var newOrgSlug by rememberSaveable { mutableStateOf("") }
-    var joinSlug by rememberSaveable { mutableStateOf("") }
+    var joinSlug by viewModel::joinDraft
     var inviteEmail by rememberSaveable { mutableStateOf("") }
 
     // Re-read the list whenever this screen is shown.
@@ -160,7 +170,7 @@ fun OrganizationScreen(
             // Requests and invitations that grant nothing yet. Listed so a user
             // who has already asked does not ask again and hit the unique
             // constraint with an error they cannot interpret.
-            val waiting = viewModel.organizations.filterNot { it.isActive }
+            val waiting = viewModel.organizations.filter { it.isAwaitingApproval || it.status == "SUSPENDED" }
             if (waiting.isNotEmpty()) {
                 item { SectionTitle(stringResource(com.beauty.app.R.string.waiting_for_approval)) }
                 items(waiting, key = { it.id }) { org ->
@@ -171,6 +181,13 @@ fun OrganizationScreen(
                         modifier = Modifier.padding(vertical = 4.dp)
                     )
                 }
+            }
+
+            // Told, rather than left to watch the request vanish, and told
+            // when they may ask again.
+            val declined = viewModel.organizations.filter { it.isDeclined }
+            items(declined, key = { "declined-${it.id}" }) { org ->
+                Banner(declinedMessage(org), isError = true, localize = false)
             }
 
             // -- Join -------------------------------------------------------
@@ -302,12 +319,15 @@ fun OrganizationScreen(
             // "admin of my salon" turns into "admin of every salon".
             if (current != null && viewModel.canManage(current)) {
                 item { SectionTitle(stringResource(com.beauty.app.R.string.members_of, current.name)) }
+                item { JoinLinkCard(current.slug) }
                 items(viewModel.members, key = { it.userId }) { member ->
                     MemberRow(
                         member = member,
                         onApprove = { viewModel.approve(current.id, member.userId) },
                 onDecline = { viewModel.decline(current.id, member.userId) },
                         onRemove = { viewModel.remove(current.id, member.userId) },
+                        onRevoke = if (member.userId != viewModel.currentUserId) ({ viewModel.revoke(current.id, member.userId) }) else null,
+                        onRestore = { viewModel.restore(current.id, member.userId) },
                         onToggleRole = {
                             viewModel.changeRole(
                                 current.id,
@@ -341,6 +361,27 @@ fun OrganizationScreen(
                         ) { Text(stringResource(com.beauty.app.R.string.send_invitation)) }
                     }
                 }
+
+                // -- Activity ------------------------------------------------
+                item { SectionTitle(stringResource(com.beauty.app.R.string.org_activity)) }
+                if (viewModel.auditEvents.isEmpty()) {
+                    item {
+                        OutlinedButton(
+                            onClick = { viewModel.loadAudit(current.id) },
+                            enabled = !viewModel.auditLoading
+                        ) { Text(stringResource(com.beauty.app.R.string.org_activity_show)) }
+                    }
+                } else {
+                    items(viewModel.auditEvents, key = { "audit-${it.id}" }) { event -> AuditRow(event) }
+                    if (viewModel.auditHasMore) {
+                        item {
+                            TextButton(
+                                onClick = { viewModel.loadAudit(current.id, more = true) },
+                                enabled = !viewModel.auditLoading
+                            ) { Text(stringResource(com.beauty.app.R.string.org_activity_load_more), color = RoseGoldPrimary) }
+                        }
+                    }
+                }
             }
 
             item {
@@ -367,14 +408,14 @@ private fun SectionTitle(text: String) {
 }
 
 @Composable
-private fun Banner(message: String, isError: Boolean) {
+private fun Banner(message: String, isError: Boolean, localize: Boolean = true) {
     Surface(
         color = if (isError) MaterialTheme.colorScheme.errorContainer else CardSurface,
         shape = MaterialTheme.shapes.small,
         modifier = Modifier.fillMaxWidth()
     ) {
         Text(
-            com.beauty.app.ui.i18n.localizedMessage(message),
+            if (localize) com.beauty.app.ui.i18n.localizedMessage(message) else message,
             modifier = Modifier.padding(12.dp),
             fontSize = 13.sp,
             color = if (isError) MaterialTheme.colorScheme.onErrorContainer else TextMuted
@@ -397,5 +438,73 @@ private fun OrganizationRow(org: OrganizationDto, selected: Boolean, onSelect: (
                 fontSize = 12.sp
             )
         }
+        val pending = org.pendingRequestCount ?: 0
+        if (pending > 0) {
+            val description = stringResource(com.beauty.app.R.string.org_pending_requests, pending)
+            Badge(
+                containerColor = RoseGoldPrimary,
+                modifier = Modifier.clearAndSetSemantics { contentDescription = description }
+            ) {
+                Text(if (pending > 99) "99+" else pending.toString(), color = Color.Black)
+            }
+        }
+    }
+}
+
+/** "Declined — you may ask again after …", with the date in the device's locale. */
+@Composable
+private fun declinedMessage(org: OrganizationDto): String {
+    val retryAfter = org.retryAfter?.let(::parseServerDateTime)
+    return if (retryAfter == null || retryAfter.time <= System.currentTimeMillis()) {
+        stringResource(com.beauty.app.R.string.org_declined_can_retry, org.name)
+    } else {
+        stringResource(com.beauty.app.R.string.org_declined_until, org.name, localizedIsoDateTime(org.retryAfter))
+    }
+}
+
+/**
+ * The handle as a shareable link. Signing up through it files an access
+ * request for an admin to approve; the link by itself grants nothing.
+ */
+@Composable
+private fun JoinLinkCard(slug: String) {
+    val clipboard = LocalClipboardManager.current
+    val link = remember(slug) { "${BuildConfig.APP_WEB_BASE_URL.trimEnd('/')}/?join=${Uri.encode(slug)}" }
+    var copied by remember(slug) { mutableStateOf(false) }
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(link, color = TextMuted, fontSize = 12.sp)
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedButton(onClick = { clipboard.setText(AnnotatedString(link)); copied = true }) {
+                Text(stringResource(com.beauty.app.R.string.org_copy_join_link))
+            }
+            if (copied) Text(stringResource(com.beauty.app.R.string.org_join_link_copied), color = RoseGoldPrimary, fontSize = 12.sp)
+        }
+        Text(stringResource(com.beauty.app.R.string.org_join_link_hint), color = TextMuted, fontSize = 12.sp)
+    }
+}
+
+@Composable
+private fun AuditRow(event: AuditEventDto) {
+    val unknown = stringResource(com.beauty.app.R.string.org_activity_unknown_user)
+    val actor = event.actorName ?: unknown
+    val target = event.targetName ?: unknown
+    val role = event.detail?.let { com.beauty.app.ui.i18n.roleLabel(it) } ?: ""
+    val text = when (event.action) {
+        "ORG_CREATED" -> stringResource(com.beauty.app.R.string.audit_org_created, actor)
+        "JOIN_REQUESTED" -> stringResource(com.beauty.app.R.string.audit_join_requested, actor)
+        "APPROVED" -> stringResource(com.beauty.app.R.string.audit_approved, actor, target)
+        "DECLINED" -> stringResource(com.beauty.app.R.string.audit_declined, actor, target)
+        "INVITED" -> stringResource(com.beauty.app.R.string.audit_invited, actor, target)
+        "INVITATION_ACCEPTED" -> stringResource(com.beauty.app.R.string.audit_invitation_accepted, actor)
+        "ROLE_CHANGED" -> stringResource(com.beauty.app.R.string.audit_role_changed, actor, target, role)
+        "REMOVED" -> stringResource(com.beauty.app.R.string.audit_removed, actor, target)
+        "REVOKED" -> stringResource(com.beauty.app.R.string.audit_revoked, actor, target)
+        "RESTORED" -> stringResource(com.beauty.app.R.string.audit_restored, actor, target)
+        else -> event.action
+    }
+    val time = localizedIsoDateTime(event.createdAt)
+    Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+        Text(text, fontSize = 13.sp)
+        Text(time, color = TextMuted, fontSize = 12.sp)
     }
 }

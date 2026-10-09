@@ -6,6 +6,7 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.beauty.app.data.BeautyRepository
+import com.beauty.app.data.api.isNotAMember
 import com.beauty.app.data.local.ClientDao
 import com.beauty.app.data.local.ClientEntity
 import com.beauty.app.data.toEntity
@@ -36,6 +37,13 @@ class ClientDirectoryViewModel(
     var blocked by mutableStateOf(false)
         private set
     var lastRefresh by mutableStateOf(0L)
+        private set
+
+    /**
+     * The server said this account is no longer a member of [orgId]. Its cache
+     * has been purged; the screen should hand over to organization selection.
+     */
+    var membershipLost by mutableStateOf(false)
         private set
     private var results by mutableStateOf<List<ClientEntity>?>(null)
     private var searchJob: Job? = null
@@ -95,9 +103,13 @@ class ClientDirectoryViewModel(
         }
     }
 
-    private fun showFailure(error: Exception) {
+    private suspend fun showFailure(error: Exception) {
         blocked = error is ResponseException && error.response.status.value in listOf(401, 403, 404)
         message = if (blocked) "ACCESS_DENIED"
             else "NO_CACHED_CLIENTS"
+        if (error.isNotAMember()) {
+            repository.purgeOrganization(orgId)
+            membershipLost = true
+        }
     }
 }

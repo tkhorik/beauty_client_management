@@ -113,7 +113,10 @@ object OrganizationsTable : Table("organizations") {
  *
  * Removal deletes the row. There is no `REMOVED` tombstone: an expired
  * membership that is still queryable is one forgotten status check away from
- * being honoured, and the audit value does not justify that risk.
+ * being honoured, and the audit value does not justify that risk. `DECLINED`
+ * is the one exception, and a narrow one: it records the answer to a request
+ * that never granted anything, so honouring it by mistake grants nothing
+ * either. The history of who did what lives in [OrganizationAuditTable].
  */
 object UserOrganizationsTable : Table("user_organizations") {
     val id = varchar("id", 64)
@@ -123,11 +126,20 @@ object UserOrganizationsTable : Table("user_organizations") {
     /** `ORG_ADMIN` or `ORG_USER`. See `auth/Roles.OrgRole`. */
     val role = varchar("role", 32)
 
-    /** `ACTIVE`, `PENDING` or `INVITED`. See `auth/Roles.MembershipStatus`. */
+    /** `ACTIVE`, `PENDING`, `INVITED`, `SUSPENDED` or `DECLINED`. See `auth/Roles.MembershipStatus`. */
     val status = varchar("status", 32)
 
     /** Who issued the invitation, when this row started as one. */
     val invitedBy = varchar("invited_by", 64).references(UsersTable.id).nullable()
+
+    /**
+     * When an admin last approved, declined, revoked or restored this row.
+     * The re-request cooldown after a decline is measured from here.
+     */
+    val decidedAt = datetime("decided_at").nullable()
+
+    /** The admin who made that decision. */
+    val decidedBy = varchar("decided_by", 64).references(UsersTable.id).nullable()
 
     val createdAt = datetime("created_at")
     val updatedAt = datetime("updated_at")
@@ -140,6 +152,31 @@ object UserOrganizationsTable : Table("user_organizations") {
         // request — leaves two rows, and a membership check that finds the
         // wrong one silently grants or denies the wrong thing.
         uniqueIndex(userId, organizationId)
+    }
+}
+
+/**
+ * Who did what to an organization's membership, and when.
+ *
+ * Append-only: nothing updates or deletes these rows, so the trail survives
+ * the removal of the member it describes. [actorUserId] and [targetUserId]
+ * are deliberately **not** foreign keys — a log that must be rewritten when an
+ * account goes away is not a log. [action] is an `auth/OrgAuditService.Action`
+ * name; [detail] carries the small extra a reader needs (the new role, say).
+ */
+object OrganizationAuditTable : Table("organization_audit_events") {
+    val id = varchar("id", 64)
+    val organizationId = varchar("organization_id", 64).references(OrganizationsTable.id)
+    val actorUserId = varchar("actor_user_id", 64)
+    val targetUserId = varchar("target_user_id", 64).nullable()
+    val action = varchar("action", 32)
+    val detail = varchar("detail", 255).nullable()
+    val createdAt = datetime("created_at")
+
+    override val primaryKey = PrimaryKey(id)
+
+    init {
+        index(false, organizationId, createdAt)
     }
 }
 

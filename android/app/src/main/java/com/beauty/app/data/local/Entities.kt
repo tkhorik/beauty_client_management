@@ -139,6 +139,58 @@ interface ClientDao {
     }
 }
 
+/**
+ * Everything cached for one organization, removed together — used when the
+ * server says this account no longer belongs there (removed, revoked, or the
+ * organization archived), so its clients and treatment history stop being
+ * readable on this device, offline included. One DAO spanning all four
+ * org-scoped tables, because a Room `@Transaction` method can only call
+ * queries declared on its own DAO.
+ */
+@Dao
+interface OrganizationCacheDao {
+    /** Every organization this device holds anything for, including the `''` pre-v4 rows. */
+    @Query(
+        "SELECT organizationId FROM clients UNION SELECT organizationId FROM visits " +
+            "UNION SELECT organizationId FROM history_snapshots UNION SELECT organizationId FROM photo_drafts"
+    )
+    suspend fun cachedOrganizationIds(): List<String>
+
+    /** App-private files referenced by the organization's drafts and attachments, deleted after the rows. */
+    @Query(
+        "SELECT localFilePath FROM photo_drafts WHERE organizationId = :orgId " +
+            "UNION SELECT attachments.localFilePath FROM attachments " +
+            "INNER JOIN visits ON attachments.visitId = visits.id WHERE visits.organizationId = :orgId"
+    )
+    suspend fun localFilesForOrganization(orgId: String): List<String>
+
+    @Query("DELETE FROM photo_drafts WHERE organizationId = :orgId")
+    suspend fun deletePhotoDraftsForOrganization(orgId: String)
+
+    @Query("DELETE FROM history_snapshots WHERE organizationId = :orgId")
+    suspend fun deleteHistoryForOrganization(orgId: String)
+
+    /** Attachments go with their visits by cascade. */
+    @Query("DELETE FROM visits WHERE organizationId = :orgId")
+    suspend fun deleteVisitsForOrganization(orgId: String)
+
+    @Query("DELETE FROM clients WHERE organizationId = :orgId")
+    suspend fun deleteClientsForOrganization(orgId: String)
+
+    /**
+     * Removes the organization's rows in one transaction — including visits
+     * still waiting to upload, which can never be accepted now that the
+     * server refuses this account in that organization.
+     */
+    @Transaction
+    suspend fun purgeOrganization(orgId: String) {
+        deletePhotoDraftsForOrganization(orgId)
+        deleteHistoryForOrganization(orgId)
+        deleteVisitsForOrganization(orgId)
+        deleteClientsForOrganization(orgId)
+    }
+}
+
 @Dao
 interface VisitDao {
     @Query("SELECT * FROM visits WHERE clientId = :clientId AND organizationId = :organizationId ORDER BY visitDateTime DESC, createdAt DESC")
@@ -226,4 +278,5 @@ abstract class BeautyDatabase : RoomDatabase() {
     abstract fun clientDao(): ClientDao
     abstract fun visitDao(): VisitDao
     abstract fun parityDao(): ParityDao
+    abstract fun organizationCacheDao(): OrganizationCacheDao
 }
