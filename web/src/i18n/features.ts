@@ -210,6 +210,14 @@ export const featureEn = {
   'inviteAccept.invalid': "This invite link is invalid, expired or has already been used. Ask the administrator for a new one.",
   'inviteAccept.close': "Close",
   'loginPage.inviteNotice': "You have an invitation to join an organization. Sign in or create an account to accept it.",
+  'nativeAppBanner.label': "Native app availability",
+  'nativeAppBanner.androidTitle': "Aura Beauty Log for Android",
+  'nativeAppBanner.androidDescription': "Open your work in the native app or download it.",
+  'nativeAppBanner.iosTitle': "Aura Beauty for iPhone is coming later",
+  'nativeAppBanner.iosDescription': "Continue using Aura Beauty Log in your browser.",
+  'nativeAppBanner.openApp': "Open app",
+  'nativeAppBanner.downloadApp': "Download app",
+  'nativeAppBanner.dismiss': "Dismiss app banner",
 } as const;
 
 export const featureRu: { [K in keyof typeof featureEn]: string } = {
@@ -424,6 +432,14 @@ export const featureRu: { [K in keyof typeof featureEn]: string } = {
   'inviteAccept.invalid': "Ссылка-приглашение недействительна, просрочена или уже использована. Попросите администратора прислать новую.",
   'inviteAccept.close': "Закрыть",
   'loginPage.inviteNotice': "Вас пригласили в организацию. Войдите или создайте аккаунт, чтобы принять приглашение.",
+  'nativeAppBanner.label': "Доступность мобильного приложения",
+  'nativeAppBanner.androidTitle': "Aura Beauty Log для Android",
+  'nativeAppBanner.androidDescription': "Откройте рабочее пространство в приложении или скачайте его.",
+  'nativeAppBanner.iosTitle': "Aura Beauty для iPhone появится позже",
+  'nativeAppBanner.iosDescription': "Продолжайте пользоваться Aura Beauty Log в браузере.",
+  'nativeAppBanner.openApp': "Открыть приложение",
+  'nativeAppBanner.downloadApp': "Скачать приложение",
+  'nativeAppBanner.dismiss': "Скрыть баннер приложения",
 };
 
 export type FeatureKey = keyof typeof featureEn;

@@ -1,4 +1,4 @@
-import { StrictMode } from 'react'
+import { StrictMode, type ReactNode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.tsx'
@@ -11,6 +11,7 @@ import { VerifyEmailPage } from './components/VerifyEmailPage.tsx'
 import { VerificationGate } from './components/VerificationWall.tsx'
 import { LocaleProvider } from './i18n/LocaleProvider.tsx'
 import { LanguageAccountSync } from './i18n/LanguageAccountSync.tsx'
+import { NativeAppBanner } from './components/NativeAppBanner.tsx'
 
 /**
  * Chooses between the application and the three screens that must work without
@@ -27,19 +28,23 @@ import { LanguageAccountSync } from './i18n/LanguageAccountSync.tsx'
  */
 function Root() {
   const route = usePublicRoute();
+  let content: ReactNode;
 
   switch (route.name) {
     case 'forgot-password':
-      return <ForgotPasswordPage />;
+      content = <ForgotPasswordPage />;
+      break;
 
     case 'reset-password':
-      return <ResetPasswordPage token={route.token} />;
+      content = <ResetPasswordPage token={route.token} />;
+      break;
 
     case 'verify-email':
-      return <VerifyEmailPage status={route.status} />;
+      content = <VerifyEmailPage status={route.status} />;
+      break;
 
     default:
-      return (
+      content = (
         <AuthProvider>
           <LanguageAccountSync />
           {/* Inside AuthProvider, outside OrgProvider — the same placement, and
@@ -57,6 +62,8 @@ function Root() {
         </AuthProvider>
       );
   }
+
+  return <><NativeAppBanner />{content}</>;
 }
 
 createRoot(document.getElementById('root')!).render(
