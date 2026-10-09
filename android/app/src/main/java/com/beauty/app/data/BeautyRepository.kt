@@ -217,6 +217,17 @@ class BeautyRepository(
     suspend fun requestToJoinOrganization(slug: String): OrganizationDto =
         api.requestToJoinOrganization(JoinOrganizationRequest(slug))
 
+    suspend fun previewInviteLink(token: String) = api.previewInviteLink(token)
+
+    suspend fun acceptInviteLink(token: String): OrganizationDto =
+        api.acceptInviteLink(com.beauty.app.data.api.AcceptInviteLinkRequest(token))
+
+    suspend fun getInviteLinks(orgId: String) = api.getInviteLinks(orgId)
+
+    suspend fun createInviteLink(orgId: String) = api.createInviteLink(orgId)
+
+    suspend fun revokeInviteLink(orgId: String, linkId: String) = api.revokeInviteLink(orgId, linkId)
+
     suspend fun getMembers(orgId: String): List<MemberDto> = api.getMembers(orgId)
 
     suspend fun approveMember(orgId: String, userId: String) = api.approveMember(orgId, userId)

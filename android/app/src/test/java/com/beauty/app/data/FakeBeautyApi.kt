@@ -1,6 +1,10 @@
 package com.beauty.app.data
 
+import com.beauty.app.data.api.AcceptInviteLinkRequest
 import com.beauty.app.data.api.AdminOrganizationDto
+import com.beauty.app.data.api.CreateInviteLinkResponse
+import com.beauty.app.data.api.InviteLinkDto
+import com.beauty.app.data.api.InviteLinkPreviewResponse
 import com.beauty.app.data.api.AdminUserDto
 import com.beauty.app.data.api.ArchiveOrganizationRequest
 import com.beauty.app.data.api.AuditEventDto
@@ -68,6 +72,11 @@ abstract class FakeBeautyApi(private val reason: String = "not used in this test
     override suspend fun createOrganization(request: CreateOrganizationRequest): OrganizationDto = error(reason)
     override suspend fun validateCreationToken(token: String): Boolean = error(reason)
     override suspend fun requestToJoinOrganization(request: JoinOrganizationRequest): OrganizationDto = error(reason)
+    override suspend fun previewInviteLink(token: String): InviteLinkPreviewResponse = error(reason)
+    override suspend fun acceptInviteLink(request: AcceptInviteLinkRequest): OrganizationDto = error(reason)
+    override suspend fun getInviteLinks(orgId: String): List<InviteLinkDto> = error(reason)
+    override suspend fun createInviteLink(orgId: String): CreateInviteLinkResponse = error(reason)
+    override suspend fun revokeInviteLink(orgId: String, linkId: String): Unit = error(reason)
     override suspend fun getMembers(orgId: String): List<MemberDto> = error(reason)
     override suspend fun approveMember(orgId: String, userId: String): Unit = error(reason)
     override suspend fun declineMember(orgId: String, userId: String): Unit = error(reason)

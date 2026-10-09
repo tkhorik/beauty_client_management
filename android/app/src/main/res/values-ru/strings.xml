@@ -530,4 +530,25 @@
     <string name="notice_access_restored">Доступ восстановлен.</string>
     <string name="error_cannot_revoke_self">Нельзя отозвать собственный доступ. Вместо этого выйдите из организации.</string>
     <string name="error_membership_not_suspended">Доступ этого участника не отозван.</string>
+    <string name="invite_links_title">Персональные ссылки-приглашения</string>
+    <string name="invite_links_hint">Каждая ссылка сразу добавляет одного человека участником, без подтверждения, и действует 7 дней. Отправляйте её только тому, кого хотите добавить.</string>
+    <string name="invite_links_generate">Создать ссылку-приглашение</string>
+    <string name="invite_links_share">Поделиться</string>
+    <string name="invite_links_shown_once">Ссылка показывается только один раз. Скопируйте или отправьте её сейчас.</string>
+    <string name="invite_links_expires">Создал(а) %1$s · действует до %2$s</string>
+    <string name="invite_links_revoke">Отозвать</string>
+    <string name="invite_accept_heading">Приглашение в организацию</string>
+    <string name="invite_accept_title">Вступить в %1$s?</string>
+    <string name="invite_accept_body">Вас пригласили в %1$s. Вы сразу станете участником и увидите клиентов и записи организации.</string>
+    <string name="invite_accept_checking">Проверяем ссылку-приглашение…</string>
+    <string name="invite_accept_join">Вступить</string>
+    <string name="invite_accept_not_now">Не сейчас</string>
+    <string name="invite_accept_close">Закрыть</string>
+    <string name="error_invite_link_invalid">Ссылка-приглашение недействительна, просрочена или уже использована. Попросите администратора прислать новую.</string>
+    <string name="error_invite_link_not_found">Ссылка-приглашение не найдена или уже неактивна.</string>
+    <string name="notice_invite_link_created">Ссылка-приглашение создана.</string>
+    <string name="notice_invite_link_revoked">Ссылка-приглашение отозвана.</string>
+    <string name="audit_invite_link_created">%1$s создал(а) ссылку-приглашение</string>
+    <string name="audit_invite_link_revoked">%1$s отозвал(а) ссылку-приглашение</string>
+    <string name="audit_invite_link_accepted">%1$s вступил(а) по ссылке-приглашению</string>
 </resources>

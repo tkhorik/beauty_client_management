@@ -195,7 +195,7 @@ internal fun AppNavHost(links: AppLinkViewModel) {
 
     // Links that finish on the organization screen once there is a session.
     fun organizationScreenPending() = links.pendingOrganizationToken != null ||
-        links.pendingJoinSlug != null || links.pendingMembersOrgId != null
+        links.pendingJoinSlug != null || links.pendingMembersOrgId != null || links.pendingInviteToken != null
     fun openHome() {
         navController.navigate(if (tokenStore.getToken() == null) "login"
             else if (organizationScreenPending()) "organizations" else "clients") {
@@ -244,6 +244,14 @@ internal fun AppNavHost(links: AppLinkViewModel) {
                     } else {
                         authViewModel.registerOrganizationSlug = link.slug
                         navController.navigate("register") { popUpTo("login") }
+                    }
+                }
+                is AppLink.AcceptInvite -> {
+                    // Held until there is a session; the organization screen
+                    // then asks the user to confirm before anything is joined.
+                    links.holdInvite(link.token)
+                    navController.navigate(if (tokenStore.getToken() != null) "organizations" else "login") {
+                        popUpTo(0) { inclusive = true }
                     }
                 }
                 is AppLink.ManageMembers -> {
@@ -404,6 +412,9 @@ internal fun AppNavHost(links: AppLinkViewModel) {
                 }
                 LaunchedEffect(orgViewModel, links.pendingJoinSlug) {
                     links.takeJoin()?.let { orgViewModel.joinDraft = it }
+                }
+                LaunchedEffect(orgViewModel, links.pendingInviteToken) {
+                    links.takeInvite()?.let { orgViewModel.offerInvite(it) }
                 }
                 LaunchedEffect(orgViewModel, links.pendingMembersOrgId) {
                     links.takeMembers()?.let { orgViewModel.focusMembers(it) }

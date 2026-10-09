@@ -514,4 +514,25 @@
     <string name="notice_access_restored">Access restored.</string>
     <string name="error_cannot_revoke_self">You cannot revoke your own access. Leave the organization instead.</string>
     <string name="error_membership_not_suspended">That member’s access is not revoked.</string>
+    <string name="invite_links_title">Personal invite links</string>
+    <string name="invite_links_hint">Each link admits one person straight in as a member, without an approval step, and expires after 7 days. Send it only to the person you mean to add.</string>
+    <string name="invite_links_generate">Generate invite link</string>
+    <string name="invite_links_share">Share</string>
+    <string name="invite_links_shown_once">This link is shown only once. Copy or share it now.</string>
+    <string name="invite_links_expires">Created by %1$s · expires %2$s</string>
+    <string name="invite_links_revoke">Revoke</string>
+    <string name="invite_accept_heading">Organization invitation</string>
+    <string name="invite_accept_title">Join %1$s?</string>
+    <string name="invite_accept_body">You have been invited to join %1$s. You will become a member straight away and see its clients and visits.</string>
+    <string name="invite_accept_checking">Checking the invite link…</string>
+    <string name="invite_accept_join">Join</string>
+    <string name="invite_accept_not_now">Not now</string>
+    <string name="invite_accept_close">Close</string>
+    <string name="error_invite_link_invalid">This invite link is invalid, expired or has already been used. Ask the administrator for a new one.</string>
+    <string name="error_invite_link_not_found">That invite link was not found or is no longer active.</string>
+    <string name="notice_invite_link_created">Invite link created.</string>
+    <string name="notice_invite_link_revoked">Invite link revoked.</string>
+    <string name="audit_invite_link_created">%1$s created an invite link</string>
+    <string name="audit_invite_link_revoked">%1$s revoked an invite link</string>
+    <string name="audit_invite_link_accepted">%1$s joined through an invite link</string>
 </resources>
