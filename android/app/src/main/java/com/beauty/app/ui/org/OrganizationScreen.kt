@@ -326,6 +326,8 @@ fun OrganizationScreen(
                         onApprove = { viewModel.approve(current.id, member.userId) },
                 onDecline = { viewModel.decline(current.id, member.userId) },
                         onRemove = { viewModel.remove(current.id, member.userId) },
+                        onRevoke = if (member.userId != viewModel.currentUserId) ({ viewModel.revoke(current.id, member.userId) }) else null,
+                        onRestore = { viewModel.restore(current.id, member.userId) },
                         onToggleRole = {
                             viewModel.changeRole(
                                 current.id,

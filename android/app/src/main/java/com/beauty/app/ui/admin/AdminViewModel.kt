@@ -168,9 +168,18 @@ class AdminViewModel(private val repository: BeautyRepository) : ViewModel() {
         repository.removeMember(orgId, userId)
     }
 
-    /** Answers a join request with no. Same DELETE as [remove]; only the outcome message differs. */
+    /** Answers a join request with no; kept as declined so the requester is told. */
     fun decline(orgId: String, userId: String) = memberAction(orgId, "REQUEST_DECLINED") {
-        repository.removeMember(orgId, userId)
+        repository.declineMember(orgId, userId)
+    }
+
+    /** Revokes an active member; unlike [remove], they cannot ask back in until restored. */
+    fun revoke(orgId: String, userId: String) = memberAction(orgId, "ACCESS_REVOKED") {
+        repository.revokeMember(orgId, userId)
+    }
+
+    fun restore(orgId: String, userId: String) = memberAction(orgId, "ACCESS_RESTORED") {
+        repository.restoreMember(orgId, userId)
     }
 
     fun changeRole(orgId: String, userId: String, role: String) = memberAction(orgId, "ROLE_UPDATED") {

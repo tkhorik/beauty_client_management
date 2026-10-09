@@ -522,4 +522,12 @@
     <string name="audit_removed">%1$s удалил(а) %2$s</string>
     <string name="audit_revoked">%1$s отозвал(а) доступ у %2$s</string>
     <string name="audit_restored">%1$s восстановил(а) доступ для %2$s</string>
+    <string name="member_revoke_access">Отозвать доступ</string>
+    <string name="member_revoke">Отозвать</string>
+    <string name="member_restore_access">Восстановить</string>
+    <string name="member_revoke_confirmation">Отозвать доступ у %1$s (%2$s)? Доступ пропадёт при следующем запросе, и повторно запросить его будет нельзя, пока вы его не восстановите.</string>
+    <string name="notice_access_revoked">Доступ отозван.</string>
+    <string name="notice_access_restored">Доступ восстановлен.</string>
+    <string name="error_cannot_revoke_self">Нельзя отозвать собственный доступ. Вместо этого выйдите из организации.</string>
+    <string name="error_membership_not_suspended">Доступ этого участника не отозван.</string>
 </resources>

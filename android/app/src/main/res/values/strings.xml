@@ -506,4 +506,12 @@
     <string name="audit_removed">%1$s removed %2$s</string>
     <string name="audit_revoked">%1$s revoked access for %2$s</string>
     <string name="audit_restored">%1$s restored access for %2$s</string>
+    <string name="member_revoke_access">Revoke access</string>
+    <string name="member_revoke">Revoke</string>
+    <string name="member_restore_access">Restore</string>
+    <string name="member_revoke_confirmation">Revoke access for %1$s (%2$s)? They lose access on their next request and cannot ask to join again until you restore them.</string>
+    <string name="notice_access_revoked">Access revoked.</string>
+    <string name="notice_access_restored">Access restored.</string>
+    <string name="error_cannot_revoke_self">You cannot revoke your own access. Leave the organization instead.</string>
+    <string name="error_membership_not_suspended">That member’s access is not revoked.</string>
 </resources>

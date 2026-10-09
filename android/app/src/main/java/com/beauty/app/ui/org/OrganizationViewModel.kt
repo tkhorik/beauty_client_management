@@ -98,6 +98,10 @@ class OrganizationViewModel(
     var isSuperAdmin by mutableStateOf(false)
         private set
 
+    /** The signed-in account's id, so the roster can hide "revoke" on the caller's own row. */
+    var currentUserId by mutableStateOf<String?>(null)
+        private set
+
     val activeOrganizations: List<OrganizationDto> get() = organizations.filter { it.isActive }
 
     val current: OrganizationDto? get() = activeOrganizations.firstOrNull { it.id == activeOrgId }
@@ -143,6 +147,10 @@ class OrganizationViewModel(
     private suspend fun loadOrganizations() {
         val list = repository.getOrganizations()
         organizations = list
+        // The server just said where this account is an active member; any
+        // other organization cached on the device — removed, revoked, archived
+        // — is wiped, so it cannot be read offline either.
+        runCatching { repository.purgeOrganizationsExcept(list.filter { it.isActive }.map { it.id }.toSet()) }
 
         // Re-validate the remembered choice against what the server just
         // said. A user removed from an organization since last launch
@@ -184,7 +192,10 @@ class OrganizationViewModel(
      */
     private suspend fun loadGlobalRole() {
         runCatching { repository.getCurrentUser() }
-            .onSuccess { isSuperAdmin = it.isSuperAdmin }
+            .onSuccess {
+                isSuperAdmin = it.isSuperAdmin
+                currentUserId = it.id
+            }
     }
 
     /**
@@ -350,6 +361,15 @@ class OrganizationViewModel(
      */
     fun decline(orgId: String, userId: String) = memberAction(orgId, "REQUEST_DECLINED") {
         repository.declineMember(orgId, userId)
+    }
+
+    /** Revokes an active member; unlike [remove], they cannot ask back in until restored. */
+    fun revoke(orgId: String, userId: String) = memberAction(orgId, "ACCESS_REVOKED") {
+        repository.revokeMember(orgId, userId)
+    }
+
+    fun restore(orgId: String, userId: String) = memberAction(orgId, "ACCESS_RESTORED") {
+        repository.restoreMember(orgId, userId)
     }
 
     fun changeRole(orgId: String, userId: String, role: String) = memberAction(orgId, "ROLE_UPDATED") {

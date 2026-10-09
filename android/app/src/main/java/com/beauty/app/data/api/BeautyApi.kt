@@ -408,6 +408,19 @@ suspend fun Throwable.isEmailNotVerified(): Boolean {
     return runCatching { response.bodyAsText().contains(EMAIL_NOT_VERIFIED) }.getOrDefault(false)
 }
 
+/**
+ * Whether the backend refused a request because this account is not an active
+ * member of the organization it named — removed, revoked, or the organization
+ * archived since the app last looked. Matched on the code, like
+ * [isEmailNotVerified]: a 403 also means `ADMIN_REQUIRED` or
+ * `EMAIL_NOT_VERIFIED`, which must not wipe anything.
+ */
+suspend fun Throwable.isNotAMember(): Boolean {
+    val response = (this as? ResponseException)?.response ?: return false
+    if (response.status != HttpStatusCode.Forbidden) return false
+    return runCatching { response.bodyAsText().contains("\"NOT_A_MEMBER\"") }.getOrDefault(false)
+}
+
 // ──────────────────────────────────────────────
 // Interface
 // ──────────────────────────────────────────────
@@ -490,6 +503,10 @@ interface BeautyApi {
 
     /** Turns down a pending request; the requester may ask again only after a cooldown. */
     suspend fun declineMember(orgId: String, userId: String)
+
+    /** Blocks an active member without deleting them; they cannot re-request until restored. */
+    suspend fun revokeMember(orgId: String, userId: String)
+    suspend fun restoreMember(orgId: String, userId: String)
 
     /** Membership history, newest first. Administrators only. */
     suspend fun getOrganizationAudit(orgId: String, before: String? = null): List<AuditEventDto>
@@ -720,6 +737,14 @@ class KtorBeautyApi(private val client: HttpClient) : BeautyApi {
         client.post("api/organizations/$orgId/members/$userId/decline") {
             header(ORG_HEADER, orgId)
         }
+    }
+
+    override suspend fun revokeMember(orgId: String, userId: String) {
+        client.post("api/organizations/$orgId/members/$userId/revoke") { header(ORG_HEADER, orgId) }
+    }
+
+    override suspend fun restoreMember(orgId: String, userId: String) {
+        client.post("api/organizations/$orgId/members/$userId/restore") { header(ORG_HEADER, orgId) }
     }
 
     override suspend fun getOrganizationAudit(orgId: String, before: String?): List<AuditEventDto> =

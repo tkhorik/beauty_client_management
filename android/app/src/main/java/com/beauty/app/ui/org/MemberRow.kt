@@ -3,6 +3,7 @@ package com.beauty.app.ui.org
 import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
@@ -37,7 +38,10 @@ internal fun MemberRow(
     onApprove: () -> Unit,
     onDecline: () -> Unit,
     onRemove: () -> Unit,
-    onToggleRole: () -> Unit
+    onToggleRole: () -> Unit,
+    /** Null hides the action — for the caller's own row, or a screen that does not offer it. */
+    onRevoke: (() -> Unit)? = null,
+    onRestore: (() -> Unit)? = null
 ) {
     var pendingAction by remember(member.userId, member.status) {
         mutableStateOf<MemberDestructiveAction?>(null)
@@ -58,8 +62,8 @@ internal fun MemberRow(
             )
         }
         // A join request is answered, not "removed": Decline sits next to
-        // Approve, mirroring the web roster. Server-side both are the same
-        // DELETE, so only the wording differs.
+        // Approve, mirroring the web roster. Declining keeps a record so the
+        // requester is told; removal deletes the row.
         if (member.status == "PENDING") {
             IconButton(onClick = onApprove) {
                 Icon(Icons.Default.Check, contentDescription = stringResource(com.beauty.app.R.string.approve), tint = RoseGoldPrimary)
@@ -75,6 +79,16 @@ internal fun MemberRow(
                         color = RoseGoldPrimary,
                         fontSize = 12.sp
                     )
+                }
+                if (onRevoke != null) {
+                    IconButton(onClick = { pendingAction = MemberDestructiveAction.Revoke }) {
+                        Icon(Icons.Default.Block, contentDescription = stringResource(com.beauty.app.R.string.member_revoke_access), tint = TextMuted)
+                    }
+                }
+            }
+            if (member.status == "SUSPENDED" && onRestore != null) {
+                TextButton(onClick = onRestore) {
+                    Text(stringResource(com.beauty.app.R.string.member_restore_access), color = RoseGoldPrimary, fontSize = 12.sp)
                 }
             }
             IconButton(
@@ -112,6 +126,11 @@ internal fun MemberRow(
                 stringResource(com.beauty.app.R.string.remove_member_confirmation, member.fullName, member.email),
                 stringResource(com.beauty.app.R.string.remove)
             )
+            MemberDestructiveAction.Revoke -> Triple(
+                stringResource(com.beauty.app.R.string.member_revoke_access),
+                stringResource(com.beauty.app.R.string.member_revoke_confirmation, member.fullName, member.email),
+                stringResource(com.beauty.app.R.string.member_revoke)
+            )
         }
         AlertDialog(
             onDismissRequest = { pendingAction = null },
@@ -125,6 +144,7 @@ internal fun MemberRow(
                             MemberDestructiveAction.Decline -> onDecline()
                             MemberDestructiveAction.WithdrawInvitation,
                             MemberDestructiveAction.Remove -> onRemove()
+                            MemberDestructiveAction.Revoke -> onRevoke?.invoke()
                         }
                     }
                 ) { Text(confirmLabel) }
@@ -139,5 +159,6 @@ internal fun MemberRow(
 private enum class MemberDestructiveAction {
     Decline,
     WithdrawInvitation,
-    Remove
+    Remove,
+    Revoke
 }

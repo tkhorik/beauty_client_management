@@ -167,7 +167,10 @@ object AppContainer {
     fun repository(context: Context, tokenStore: TokenStore): BeautyRepository {
         val database = BeautyDatabaseProvider.get(context, tokenStore.getAccountId())
         val client = buildClient(tokenStore)
-        return BeautyRepository(KtorBeautyApi(client), database.clientDao(), database.visitDao(), json, database.parityDao())
+        return BeautyRepository(
+            KtorBeautyApi(client), database.clientDao(), database.visitDao(), json, database.parityDao(),
+            database.organizationCacheDao()
+        )
     }
 
     @Volatile

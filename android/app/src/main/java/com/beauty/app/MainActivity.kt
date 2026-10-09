@@ -355,6 +355,16 @@ internal fun AppNavHost(links: AppLinkViewModel) {
                             ClientDirectoryViewModel(selectedOrgId, repository, database.clientDao()) as T
                     }
                 )
+                // Removed or revoked while away: the directory has already
+                // purged this organization's cache. Re-read the list (which
+                // re-selects or clears the active organization) and let the
+                // user pick where to go next.
+                LaunchedEffect(directoryViewModel.membershipLost) {
+                    if (directoryViewModel.membershipLost) {
+                        orgViewModel.refresh()
+                        navController.navigate("organizations") { popUpTo(0) { inclusive = true } }
+                    }
+                }
                 ClientDirectoryScreen(
                     viewModel = directoryViewModel,
                     repository = repository,
