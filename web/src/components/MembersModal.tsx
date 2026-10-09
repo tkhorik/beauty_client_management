@@ -1,7 +1,8 @@
 import { useAppTranslation } from '../i18n/LocaleProvider';
 import React, { useCallback, useEffect, useState } from 'react';
-import { X, Users, UserPlus, Check, Trash2, Shield } from 'lucide-react';
+import { X, Users, UserPlus, Check, Trash2, Shield, Link2, History } from 'lucide-react';
 import type { OrgMember, OrgRole } from '../types';
+import { OrgActivity } from './OrgActivity';
 import { api, writeErrorMessage } from '../services/api';
 import { useAuth } from '../auth/AuthContext';
 import { useOrg } from '../auth/OrgContext';
@@ -60,6 +61,7 @@ export const MembersModal: React.FC<MembersModalProps> = ({ orgId, orgName, onCl
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState<OrgRole>('ORG_USER');
   const [inviting, setInviting] = useState(false);
+  const [tab, setTab] = useState<'members' | 'activity'>('members');
 
   /**
    * Whether the target is one of the caller's own organizations, which decides
@@ -68,6 +70,29 @@ export const MembersModal: React.FC<MembersModalProps> = ({ orgId, orgName, onCl
    * about their own standing anywhere.
    */
   const isOwnOrganization = organizations.some(o => o.id === orgId);
+
+  /**
+   * The handle new staff would type, as a link that pre-fills it. A super
+   * admin's organization list covers every organization, so this resolves for
+   * them too; if it somehow does not, the control is simply not offered.
+   */
+  const slug = organizations.find(o => o.id === orgId)?.slug;
+  const joinLink = slug ? `${window.location.origin}/?join=${encodeURIComponent(slug)}` : null;
+
+  async function copyJoinLink() {
+    if (!joinLink) return;
+    setError('');
+    setNotice('');
+    try {
+      await navigator.clipboard.writeText(joinLink);
+      setNotice(t('membersModal.joinLinkCopied'));
+    } catch {
+      // Clipboard access can be refused (insecure origin, permissions). The
+      // link is shown in full next to the button, so it can still be copied
+      // by hand.
+      setError(t('membersModal.joinLinkCopyFailed'));
+    }
+  }
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -122,8 +147,13 @@ export const MembersModal: React.FC<MembersModalProps> = ({ orgId, orgName, onCl
     let success: string;
 
     if (member.status === 'PENDING') {
+      // Declining keeps a record, so the requester is told and cannot re-ask
+      // straight away — unlike deleting the row, which this used to do.
       message = t('membersModal.confirmDecline', { identity, organization: orgName });
-      success =t('membersModal.requestDeclined');
+      if (window.confirm(message)) {
+        void run(() => api.declineMember(orgId, member.userId), t('membersModal.requestDeclined'));
+      }
+      return;
     } else if (member.status === 'INVITED') {
       message = t('membersModal.confirmWithdraw', { identity, organization: orgName });
       success =t('membersModal.invitationWithdrawn');
@@ -182,13 +212,27 @@ export const MembersModal: React.FC<MembersModalProps> = ({ orgId, orgName, onCl
           }}
         >
           <h2 className="text-gradient" style={{ fontSize: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Users size={20} /> {orgName} {t('membersModal.members')}
+            <Users size={20} /> {orgName}
           </h2>
           <button aria-label={t('common.close')} onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
             <X size={22} />
           </button>
         </div>
 
+        <div role="tablist" style={{ display: 'flex', gap: '8px', padding: '12px 24px 0' }}>
+          <TabButton active={tab === 'members'} onClick={() => setTab('members')}>
+            <Users size={14} /> {t('membersModal.membersTab')}
+          </TabButton>
+          <TabButton active={tab === 'activity'} onClick={() => setTab('activity')}>
+            <History size={14} /> {t('membersModal.activityTab')}
+          </TabButton>
+        </div>
+
+        {tab === 'activity' ? (
+          <div style={{ padding: '24px', flex: 1, overflowY: 'auto' }}>
+            <OrgActivity orgId={orgId} />
+          </div>
+        ) : (
         <div style={{ padding: '24px', flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '24px' }}>
           {error && <div style={bannerStyle('error')}>{error}</div>}
           {notice && <div style={bannerStyle('success')}>{notice}</div>}
@@ -305,11 +349,49 @@ export const MembersModal: React.FC<MembersModalProps> = ({ orgId, orgName, onCl
               {t('membersModal.theyNeedAnAccountAlreadyInvitationsMatchAnExistingEmailAddress')}
             </p>
           </form>
+
+          {joinLink && (
+            <section style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <h3 style={{ fontSize: '14px', color: 'var(--rose-gold-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Link2 size={16} /> {t('membersModal.joinLinkTitle')}
+              </h3>
+              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
+                <code style={{ flex: '1 1 260px', fontSize: '12px', wordBreak: 'break-all', color: 'var(--text-muted)' }}>{joinLink}</code>
+                <button type="button" className="btn-secondary" onClick={() => void copyJoinLink()}>
+                  {t('membersModal.copyJoinLink')}
+                </button>
+              </div>
+              <p style={{ color: 'var(--text-muted)', fontSize: '12px' }}>{t('membersModal.joinLinkHint')}</p>
+            </section>
+          )}
         </div>
+        )}
       </div>
     </div>
   );
 };
+
+const TabButton: React.FC<{ active: boolean; onClick: () => void; children: React.ReactNode }> = ({ active, onClick, children }) => (
+  <button
+    role="tab"
+    aria-selected={active}
+    onClick={onClick}
+    style={{
+      background: active ? 'rgba(183, 110, 121, 0.15)' : 'none',
+      border: '1px solid var(--border-color)',
+      borderRadius: '8px',
+      padding: '6px 12px',
+      color: active ? 'var(--rose-gold-primary)' : 'var(--text-muted)',
+      cursor: 'pointer',
+      display: 'flex',
+      alignItems: 'center',
+      gap: '6px',
+      fontSize: '13px',
+    }}
+  >
+    {children}
+  </button>
+);
 
 const MemberRow: React.FC<{ member: OrgMember; children: React.ReactNode }> = ({ member, children }) => (
   <div

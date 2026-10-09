@@ -1,4 +1,4 @@
-import { useAppTranslation } from '../i18n/LocaleProvider';
+import { useAppTranslation, useLocale } from '../i18n/LocaleProvider';
 import React, { useEffect, useState } from 'react';
 import { Building2, LogOut, Plus, UserPlus, Clock, Link2Off, ShieldCheck } from 'lucide-react';
 import { api, ApiError, writeErrorMessage } from '../services/api';
@@ -6,6 +6,8 @@ import { translatedFieldErrors } from '../i18n/errors';
 import { useAuth } from '../auth/AuthContext';
 import { useOrg } from '../auth/OrgContext';
 import { stripQueryString } from '../auth/route';
+import { pendingJoinSlug } from '../auth/deepLinks';
+import type { Organization } from '../types';
 import { LanguageSelector } from './LanguageSelector';
 
 /**
@@ -76,6 +78,7 @@ interface OrganizationOnboardingProps {
 
 export const OrganizationOnboarding: React.FC<OrganizationOnboardingProps> = ({ onOpenAdmin, onCreated, onCancel }) => {
   const { t } = useAppTranslation();
+  const { locale } = useLocale();
   const { logout, user } = useAuth();
   const { organizations, refresh } = useOrg();
 
@@ -103,12 +106,25 @@ export const OrganizationOnboarding: React.FC<OrganizationOnboardingProps> = ({ 
   const [createErrors, setCreateErrors] = useState<Record<string, string>>({});
   const [creating, setCreating] = useState(false);
 
-  const [joinSlug, setJoinSlug] = useState('');
+  // Pre-filled from an admin's `?join=` link, unless sign-up already filed it.
+  const [joinSlug, setJoinSlug] = useState(() => pendingJoinSlug() ?? '');
   const [joinError, setJoinError] = useState('');
   const [joinNotice, setJoinNotice] = useState('');
   const [joining, setJoining] = useState(false);
 
-  const pending = organizations.filter(o => o.status !== 'ACTIVE');
+  const pending = organizations.filter(o => o.status === 'PENDING' || o.status === 'INVITED');
+  const declined = organizations.filter(o => o.status === 'DECLINED');
+
+  function formatDate(iso: string): string {
+    return new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(iso));
+  }
+
+  function declinedMessage(o: Organization): string {
+    const canRetry = !o.retryAfter || new Date(o.retryAfter) <= new Date();
+    return canRetry
+      ? t('organizationOnboarding.declinedCanRetry', { name: o.name })
+      : t('organizationOnboarding.declinedUntil', { name: o.name, date: formatDate(o.retryAfter!) });
+  }
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
@@ -148,6 +164,9 @@ export const OrganizationOnboarding: React.FC<OrganizationOnboardingProps> = ({ 
       setJoinSlug('');
     } catch (err) {
       if (err instanceof ApiError && err.status === 404) setJoinError(t('organizationOnboarding.noOrganizationWithThatHandle'));
+      else if (err instanceof ApiError && err.body.code === 'REQUEST_DECLINED' && err.body.retryAfter) {
+        setJoinError(t('organizationOnboarding.declinedRetryAfter', { date: formatDate(err.body.retryAfter) }));
+      }
       else if (err instanceof ApiError) setJoinError(writeErrorMessage(err, t('organizationOnboarding.couldNotSendTheRequestPleaseTryAgain')));
       else setJoinError(t('organizationOnboarding.couldNotSendTheRequestPleaseTryAgain'));
     } finally {
@@ -182,6 +201,12 @@ export const OrganizationOnboarding: React.FC<OrganizationOnboardingProps> = ({ 
             </div>
           </div>
         )}
+
+        {declined.map(o => (
+          <div key={o.id} style={{ ...bannerStyle('error'), marginBottom: '16px' }}>
+            {declinedMessage(o)}
+          </div>
+        ))}
 
         {/*
           Create — gated on a valid organization-creation link. Organization

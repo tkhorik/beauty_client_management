@@ -86,7 +86,7 @@ export type OrgRole = 'ORG_ADMIN' | 'ORG_USER';
  * any data — `SUSPENDED` is an admin's deliberate block, the other two are
  * merely recorded intent.
  */
-export type MembershipStatus = 'ACTIVE' | 'PENDING' | 'INVITED' | 'SUSPENDED';
+export type MembershipStatus = 'ACTIVE' | 'PENDING' | 'INVITED' | 'SUSPENDED' | 'DECLINED';
 
 /**
  * An organization, together with *this* user's standing in it.
@@ -102,6 +102,23 @@ export interface Organization {
   role: OrgRole;
   status: MembershipStatus;
   createdAt?: string;
+  /** Requests awaiting approval; only present where the caller is an active admin. */
+  pendingRequestCount?: number;
+  /** For a `DECLINED` request: the earliest time the caller may ask again (ISO local time). */
+  retryAfter?: string;
+}
+
+/** One entry of an organization's membership history. */
+export interface OrgAuditEvent {
+  id: string;
+  action: 'ORG_CREATED' | 'JOIN_REQUESTED' | 'APPROVED' | 'DECLINED' | 'INVITED' | 'INVITATION_ACCEPTED'
+    | 'ROLE_CHANGED' | 'REMOVED' | 'REVOKED' | 'RESTORED';
+  actorUserId: string;
+  actorName?: string;
+  targetUserId?: string;
+  targetName?: string;
+  detail?: string;
+  createdAt: string;
 }
 
 /** A member of an organization, as listed to an administrator. */

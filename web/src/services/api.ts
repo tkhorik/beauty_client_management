@@ -7,6 +7,7 @@ import type {
   UserProfile,
   Organization,
   OrgMember,
+  OrgAuditEvent,
   OrgRole,
   AdminUser,
   AdminOrganization,
@@ -43,7 +44,7 @@ const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === 'true';
  */
 export class ApiError extends Error {
   status: number;
-  body: { error?: string; errors?: Record<string, string>; code?: string; fieldErrors?: Record<string, { code: string; args?: Record<string, string | number> }>; languagePreference?: LanguagePreference; languageRevision?: number; preference?: LanguagePreference; revision?: number };
+  body: { error?: string; errors?: Record<string, string>; code?: string; fieldErrors?: Record<string, { code: string; args?: Record<string, string | number> }>; languagePreference?: LanguagePreference; languageRevision?: number; preference?: LanguagePreference; revision?: number; retryAfter?: string };
 
   constructor(status: number, body: ApiError['body']) {
     super(body.error ?? 'Request failed');
@@ -749,6 +750,25 @@ class ApiService {
   async approveMember(orgId: string, userId: string): Promise<void> {
     await this.orgJson(`/organizations/${orgId}/members/${userId}/approval`, {
       method: 'POST',
+      headers: { [ORG_HEADER]: orgId },
+    });
+  }
+
+  /**
+   * Turns down a pending request. The requester sees it as declined and may
+   * ask again only after the backend's cooldown.
+   */
+  async declineMember(orgId: string, userId: string): Promise<void> {
+    await this.orgJson(`/organizations/${orgId}/members/${userId}/decline`, {
+      method: 'POST',
+      headers: { [ORG_HEADER]: orgId },
+    });
+  }
+
+  /** The organization's membership history, newest first. Admin-only. */
+  async getOrganizationAudit(orgId: string, before?: string): Promise<OrgAuditEvent[]> {
+    const query = before ? `?before=${encodeURIComponent(before)}` : '';
+    return this.orgJson<OrgAuditEvent[]>(`/organizations/${orgId}/audit${query}`, {
       headers: { [ORG_HEADER]: orgId },
     });
   }

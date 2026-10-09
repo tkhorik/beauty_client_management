@@ -17,6 +17,7 @@ import { SettingsModal } from './components/SettingsModal';
 import { VerificationBanner } from './components/VerificationBanner';
 import { Users, Sparkles } from 'lucide-react';
 import { useAppTranslation } from './i18n/LocaleProvider';
+import { clearMembersDeepLink, membersDeepLink, stripDeepLinkParams } from './auth/deepLinks';
 
 export function App() {
   const { token, initialising, logout } = useAuth();
@@ -33,6 +34,9 @@ export function App() {
     window.addEventListener('beauty:unauthorized', handler);
     return () => window.removeEventListener('beauty:unauthorized', handler);
   }, [logout]);
+
+  // `?join=` / `?members=` were captured in memory when the app loaded.
+  useEffect(() => { stripDeepLinkParams(); }, []);
 
   // On a reload the access token is always briefly absent while the refresh
   // cookie is exchanged. Rendering the login page during that window would
@@ -81,7 +85,20 @@ function OrganizationGate({
   creationLinkOpen: boolean;
   onCloseCreationLink: () => void;
 }) {
-  const { current, loading } = useOrg();
+  const { current, loading, organizations, select } = useOrg();
+  const { user } = useAuth();
+
+  // A "new access request" email links to `?members=<orgId>`. Switch to that
+  // organization first — only if the caller can actually manage it — and let
+  // AuthenticatedApp open the members screen once it is the current one.
+  const membersTarget = membersDeepLink();
+  useEffect(() => {
+    if (loading || !membersTarget || current?.id === membersTarget) return;
+    const target = organizations.find(o => o.id === membersTarget && o.status === 'ACTIVE');
+    const canManage = target && (target.role === 'ORG_ADMIN' || user?.globalRole === 'SUPER_ADMIN');
+    if (canManage) select(membersTarget);
+    else clearMembersDeepLink();
+  }, [loading, membersTarget, current?.id, organizations, select, user?.globalRole]);
 
   // Same reasoning as `initialising` above: a brief null while the list loads
   // is not the same as "has no organization", and flashing the onboarding
@@ -129,6 +146,7 @@ function AuthenticatedApp({
   onOpenAdmin: () => void;
 }) {
   const { t } = useAppTranslation();
+  const { user } = useAuth();
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -142,7 +160,16 @@ function AuthenticatedApp({
   const [newVisitTargetClient, setNewVisitTargetClient] = useState<Client | undefined>(undefined);
   const [compareAttachments, setCompareAttachments] = useState<Attachment[] | null>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [isMembersOpen, setIsMembersOpen] = useState(false);
+  // Opened straight away when the app was reached from a "new access request"
+  // email for this organization — see OrganizationGate. Read-only here;
+  // cleared by the effect below, so StrictMode's doubled initializer is safe.
+  const [isMembersOpen, setIsMembersOpen] = useState(
+    () => membersDeepLink() === organization.id
+      && (organization.role === 'ORG_ADMIN' || user?.globalRole === 'SUPER_ADMIN')
+  );
+  useEffect(() => {
+    if (membersDeepLink() === organization.id) clearMembersDeepLink();
+  }, [organization.id]);
 
   const loadData = async () => {
     setLoading(true);
