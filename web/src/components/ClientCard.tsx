@@ -12,7 +12,7 @@ interface ClientCardProps {
 export const ClientCard: React.FC<ClientCardProps> = ({ client, onSelect, onLogVisit }) => {
   const { t } = useAppTranslation();
   const { formatDate } = useLocale();
-  const customFieldsKeys = Object.keys(client.customFields);
+  const customFieldsKeys = Object.keys(client.customFields ?? {});
 
   return (
     <div 

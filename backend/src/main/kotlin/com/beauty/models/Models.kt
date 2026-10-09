@@ -45,6 +45,7 @@ data class UserDto(
      * authorization check in `requireSuperAdmin()` is the real gate regardless
      * — this field only controls what the client chooses to *show*.
      */
+    @EncodeDefault(EncodeDefault.Mode.ALWAYS)
     val globalRole: String = "USER",
 
     /**
@@ -205,10 +206,12 @@ data class ChangePasswordRequest(
 @OptIn(ExperimentalSerializationApi::class)
 @Serializable
 data class ValidationErrorResponse(
+    @EncodeDefault(EncodeDefault.Mode.ALWAYS)
     val error: String = "Validation failed",
     val errors: Map<String, String>,
     @EncodeDefault(EncodeDefault.Mode.ALWAYS)
     val code: String = "VALIDATION_FAILED",
+    @EncodeDefault(EncodeDefault.Mode.ALWAYS)
     val fieldErrors: Map<String, FieldError> = emptyMap()
 ) {
     companion object {
@@ -219,17 +222,32 @@ data class ValidationErrorResponse(
     }
 }
 
+@OptIn(ExperimentalSerializationApi::class)
 @Serializable
-data class FieldError(val code: String, val args: Map<String, Int> = emptyMap())
+data class FieldError(
+    val code: String,
+    @EncodeDefault(EncodeDefault.Mode.ALWAYS)
+    val args: Map<String, Int> = emptyMap()
+)
 
+/**
+ * Collections and counters carry `@EncodeDefault` for the reason given on
+ * [UserDto.emailVerified]: without it a client with no tags, no custom fields
+ * or no visits would arrive with those keys missing, and the web client
+ * crashes on `Object.keys(client.customFields)`.
+ */
+@OptIn(ExperimentalSerializationApi::class)
 @Serializable
 data class ClientDto(
     val id: String,
     val name: String,
     val phone: String,
     val email: String? = null,
+    @EncodeDefault(EncodeDefault.Mode.ALWAYS)
     val tags: List<String> = emptyList(),
+    @EncodeDefault(EncodeDefault.Mode.ALWAYS)
     val customFields: JsonObject = JsonObject(emptyMap()),
+    @EncodeDefault(EncodeDefault.Mode.ALWAYS)
     val totalVisits: Int = 0,
     val createdAt: String,
     val updatedAt: String
@@ -253,6 +271,7 @@ data class UpdateClientRequest(
     val customFields: JsonObject? = null
 )
 
+@OptIn(ExperimentalSerializationApi::class)
 @Serializable
 data class VisitDto(
     val id: String,
@@ -261,6 +280,7 @@ data class VisitDto(
     val durationMinutes: Int,
     val procedureNotes: String,
     val status: String, // COMPLETED, SCHEDULED, CANCELLED
+    @EncodeDefault(EncodeDefault.Mode.ALWAYS)
     val attachments: List<AttachmentDto> = emptyList(),
     val createdAt: String
 )
@@ -282,6 +302,7 @@ data class UpdateVisitRequest(
     val status: String? = null
 )
 
+@OptIn(ExperimentalSerializationApi::class)
 @Serializable
 data class AttachmentDto(
     val id: String,
@@ -290,6 +311,7 @@ data class AttachmentDto(
     val fileType: String,
     val fileSize: Long,
     val caption: String? = null,
+    @EncodeDefault(EncodeDefault.Mode.ALWAYS)
     val tag: String = "PROCEDURE", // BEFORE, AFTER, PROCEDURE, DOCUMENT
     val uploadedAt: String
 )
