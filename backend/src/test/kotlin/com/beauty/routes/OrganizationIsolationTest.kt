@@ -466,6 +466,44 @@ class OrganizationIsolationTest {
     }
 
     @Test
+    fun `an admin cannot list or revoke another organization's invite links`() = testApplication {
+        startApp()
+
+        val alice = register("alice@example.com")
+        val bob = register("bob@example.com")
+        val orgA = createOrg(alice, "org-a")
+        val orgB = createOrg(bob, "org-b")
+
+        val issued = client.post("/api/organizations/$orgB/invite-links") {
+            bearerAuth(bob)
+            header(ORG_HEADER, orgB)
+        }
+        assertEquals(HttpStatusCode.Created, issued.status, issued.bodyAsText())
+        val linkId = Json.parseToJsonElement(issued.bodyAsText()).jsonObject["info"]!!
+            .jsonObject["id"]!!.jsonPrimitive.content
+
+        // Alice's own header, org B in the path: the mismatch guard refuses it.
+        val listed = client.get("/api/organizations/$orgB/invite-links") {
+            bearerAuth(alice)
+            header(ORG_HEADER, orgA)
+        }
+        assertEquals(HttpStatusCode.Forbidden, listed.status)
+
+        // Org B's link id under Alice's own organization matches nothing.
+        val revoked = client.post("/api/organizations/$orgA/invite-links/$linkId/revoke") {
+            bearerAuth(alice)
+            header(ORG_HEADER, orgA)
+        }
+        assertEquals(HttpStatusCode.NotFound, revoked.status)
+
+        val stillThere = client.get("/api/organizations/$orgB/invite-links") {
+            bearerAuth(bob)
+            header(ORG_HEADER, orgB)
+        }
+        assertEquals(1, Json.parseToJsonElement(stillThere.bodyAsText()).jsonArray.size)
+    }
+
+    @Test
     fun `a pending join request grants no access`() = testApplication {
         startApp()
 
