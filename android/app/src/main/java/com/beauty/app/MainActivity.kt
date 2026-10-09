@@ -193,14 +193,17 @@ internal fun AppNavHost(links: AppLinkViewModel) {
 
     val publicApi = remember { com.beauty.app.data.api.KtorBeautyApi(AppContainer.buildLoginClient()) }
 
+    // Links that finish on the organization screen once there is a session.
+    fun organizationScreenPending() = links.pendingOrganizationToken != null ||
+        links.pendingJoinSlug != null || links.pendingMembersOrgId != null
     fun openHome() {
         navController.navigate(if (tokenStore.getToken() == null) "login"
-            else if (links.pendingOrganizationToken != null) "organizations" else "clients") {
+            else if (organizationScreenPending()) "organizations" else "clients") {
             popUpTo(0) { inclusive = true }
         }
     }
     fun afterSignIn() {
-        navController.navigate(if (links.pendingOrganizationToken != null) "organizations" else "clients") {
+        navController.navigate(if (organizationScreenPending()) "organizations" else "clients") {
             popUpTo(0) { inclusive = true }
         }
     }
@@ -227,6 +230,24 @@ internal fun AppNavHost(links: AppLinkViewModel) {
                 }
                 is AppLink.CreateOrganization -> {
                     links.holdOrganization(link.token)
+                    navController.navigate(if (tokenStore.getToken() != null) "organizations" else "login") {
+                        popUpTo(0) { inclusive = true }
+                    }
+                }
+                is AppLink.JoinOrganization -> {
+                    // Signed out, this is almost always someone without an
+                    // account yet: open registration with the handle filled in.
+                    // Signed in, the organization screen pre-fills its join form.
+                    if (tokenStore.getToken() != null) {
+                        links.holdJoin(link.slug)
+                        navController.navigate("organizations") { popUpTo(0) { inclusive = true } }
+                    } else {
+                        authViewModel.registerOrganizationSlug = link.slug
+                        navController.navigate("register") { popUpTo("login") }
+                    }
+                }
+                is AppLink.ManageMembers -> {
+                    links.holdMembers(link.organizationId)
                     navController.navigate(if (tokenStore.getToken() != null) "organizations" else "login") {
                         popUpTo(0) { inclusive = true }
                     }
@@ -285,7 +306,8 @@ internal fun AppNavHost(links: AppLinkViewModel) {
             RegisterScreen(
                 viewModel = authViewModel,
                 onRegisterSuccess = { afterSignIn() },
-                onNavigateToLogin = { navController.popBackStack() }
+                onNavigateToLogin = { if (!navController.popBackStack()) openHome() },
+                offerOrganizationField = links.pendingOrganizationToken == null
             )
         }
 
@@ -343,6 +365,7 @@ internal fun AppNavHost(links: AppLinkViewModel) {
                     onSettings = { navController.navigate("settings") },
                     onAbout = { navController.navigate("about") },
                     onOrganizations = { navController.navigate("organizations") },
+                    pendingRequestCount = orgViewModel.current?.pendingRequestCount ?: 0,
                     onAdmin = if (orgViewModel.isSuperAdmin) ({ navController.navigate("admin") }) else null,
                     onLogout = {
                         authViewModel.logout { navController.navigate("login") { popUpTo(0) { inclusive = true } } }
@@ -368,6 +391,12 @@ internal fun AppNavHost(links: AppLinkViewModel) {
             ) {
                 LaunchedEffect(orgViewModel, links.pendingOrganizationToken) {
                     links.takeOrganization()?.let { orgViewModel.checkCreationToken(it) }
+                }
+                LaunchedEffect(orgViewModel, links.pendingJoinSlug) {
+                    links.takeJoin()?.let { orgViewModel.joinDraft = it }
+                }
+                LaunchedEffect(orgViewModel, links.pendingMembersOrgId) {
+                    links.takeMembers()?.let { orgViewModel.focusMembers(it) }
                 }
                 OrganizationScreen(
                     viewModel = orgViewModel,

@@ -6,6 +6,7 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.beauty.app.data.BeautyRepository
+import com.beauty.app.data.api.AuditEventDto
 import com.beauty.app.data.api.MemberDto
 import com.beauty.app.data.api.OrganizationDto
 import com.beauty.app.data.api.ValidationErrorResponse
@@ -62,6 +63,24 @@ class OrganizationViewModel(
     /** The roster of [activeOrgId], loaded on demand and only for administrators. */
     var members by mutableStateOf<List<MemberDto>>(emptyList())
         private set
+
+    /** The join form's handle. Here rather than in the screen so a `?join=` link can fill it. */
+    var joinDraft by mutableStateOf("")
+
+    /** [activeOrgId]'s membership history, newest first, loaded on demand for administrators. */
+    var auditEvents by mutableStateOf<List<AuditEventDto>>(emptyList())
+        private set
+    var auditHasMore by mutableStateOf(false)
+        private set
+    var auditLoading by mutableStateOf(false)
+        private set
+
+    /**
+     * An organization a "new access request" email asked to open, applied once
+     * the list has loaded and only if this account can manage it.
+     */
+    private var pendingFocus: String? = null
+    private var organizationsLoaded = false
 
     /**
      * Whether the signed-in account is a `SUPER_ADMIN`.
@@ -135,6 +154,23 @@ class OrganizationViewModel(
         val next = if (active.any { it.id == stored }) stored else active.firstOrNull()?.id
         orgStore.setActiveOrgId(next)
         activeOrgId = next
+        organizationsLoaded = true
+        applyPendingFocus()
+    }
+
+    /** Switches to [orgId] for its members screen once it is known to be manageable. */
+    fun focusMembers(orgId: String) {
+        pendingFocus = orgId
+        applyPendingFocus()
+    }
+
+    private fun applyPendingFocus() {
+        val target = pendingFocus ?: return
+        if (!organizationsLoaded) return
+        pendingFocus = null
+        // Absent from the list means not an active member there; the link is dropped.
+        val org = activeOrganizations.firstOrNull { it.id == target } ?: return
+        if (canManage(org) && org.id != activeOrgId) select(org.id)
     }
 
     /**
@@ -164,6 +200,29 @@ class OrganizationViewModel(
         orgStore.setActiveOrgId(orgId)
         activeOrgId = orgId
         members = emptyList()
+        auditEvents = emptyList()
+        auditHasMore = false
+    }
+
+    /**
+     * Loads a page of [orgId]'s history. With [more], appends the page older
+     * than what is already shown.
+     */
+    fun loadAudit(orgId: String, more: Boolean = false) {
+        if (auditLoading) return
+        viewModelScope.launch {
+            auditLoading = true
+            try {
+                val before = if (more) auditEvents.lastOrNull()?.createdAt else null
+                val page = repository.getOrganizationAudit(orgId, before)
+                auditEvents = if (more) auditEvents + page else page
+                auditHasMore = page.size == AUDIT_PAGE_SIZE
+            } catch (e: Exception) {
+                error = e.friendlyMessage("COULD_NOT_LOAD_ACTIVITY")
+            } finally {
+                auditLoading = false
+            }
+        }
     }
 
     /**
@@ -236,7 +295,11 @@ class OrganizationViewModel(
                 }
                 refresh()
             } catch (e: Exception) {
+                // The backend's REQUEST_DECLINED (asked again too soon after a
+                // decline) shares its code with this screen's own "you declined
+                // a request" notice, so it is renamed before it is shown.
                 error = e.friendlyMessage("COULD_NOT_SEND_REQUEST")
+                    .let { if (it == "REQUEST_DECLINED") "JOIN_REQUEST_DECLINED" else it }
 
                 // Re-read the list even though the request failed. A refusal —
                 // "you are already a member" above all — is the strongest
@@ -280,9 +343,13 @@ class OrganizationViewModel(
         repository.removeMember(orgId, userId)
     }
 
-    /** Answers a join request with no. Same DELETE as [remove]; only the outcome message differs. */
+    /**
+     * Answers a join request with no. The request is kept as declined, so the
+     * requester is told and has to wait out the backend's cooldown before
+     * asking again — unlike [remove], which deletes the row.
+     */
     fun decline(orgId: String, userId: String) = memberAction(orgId, "REQUEST_DECLINED") {
-        repository.removeMember(orgId, userId)
+        repository.declineMember(orgId, userId)
     }
 
     fun changeRole(orgId: String, userId: String, role: String) = memberAction(orgId, "ROLE_UPDATED") {
@@ -306,6 +373,7 @@ class OrganizationViewModel(
                 action()
                 notice = success
                 members = repository.getMembers(orgId)
+                if (auditEvents.isNotEmpty()) loadAudit(orgId)
                 // The action may have changed the caller's own standing —
                 // demoting or removing themselves — so the organization list is
                 // re-read rather than left stale.
@@ -331,3 +399,6 @@ private suspend fun Exception.friendlyMessage(fallback: String): String {
     }
     return fallback
 }
+
+/** The backend's default page size for `GET /organizations/{id}/audit`. */
+private const val AUDIT_PAGE_SIZE = 50

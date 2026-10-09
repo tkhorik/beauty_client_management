@@ -32,12 +32,19 @@ import com.beauty.app.ui.i18n.LanguageSelector
 fun RegisterScreen(
     viewModel: AuthViewModel,
     onRegisterSuccess: () -> Unit,
-    onNavigateToLogin: () -> Unit
+    onNavigateToLogin: () -> Unit,
+    /**
+     * False when the user arrived with an organization-creation link: they
+     * are about to create their own organization, and asking to join someone
+     * else's on the same form would only confuse that.
+     */
+    offerOrganizationField: Boolean = true
 ) {
     var fullName by rememberSaveable { mutableStateOf("") }
     var email by rememberSaveable { mutableStateOf("") }
     var password by viewModel::registerPassword
     var confirmPassword by viewModel::registerConfirmPassword
+    var organizationSlug by viewModel::registerOrganizationSlug
     var showPassword by remember { mutableStateOf(false) }
 
     val state = viewModel.registerState
@@ -142,6 +149,17 @@ fun RegisterScreen(
                     onToggleShowPassword = { showPassword = !showPassword }
                 )
 
+                if (offerOrganizationField) {
+                    AuthTextField(
+                        value = organizationSlug,
+                        onValueChange = { organizationSlug = it },
+                        label = stringResource(com.beauty.app.R.string.register_organization_handle),
+                        error = fieldErrors["organizationSlug"],
+                        helper = stringResource(com.beauty.app.R.string.register_organization_handle_hint),
+                        keyboardType = KeyboardType.Ascii
+                    )
+                }
+
                 // Failures that belong to no single field.
                 errorState?.message?.let { message ->
                     Text(
@@ -152,7 +170,7 @@ fun RegisterScreen(
                 }
 
                 Button(
-                    onClick = { viewModel.register(email, password, confirmPassword, fullName) },
+                    onClick = { viewModel.register(email, password, confirmPassword, fullName, includeOrganization = offerOrganizationField) },
                     enabled = !isLoading,
                     modifier = Modifier
                         .fillMaxWidth()

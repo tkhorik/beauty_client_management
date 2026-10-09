@@ -23,6 +23,15 @@ class AppLinksTest {
         assertEquals("success", (parseAppLink("$origin/verify-email?status=success", origin) as AppLink.VerifyEmail).status)
         assertEquals("org", (parseAppLink("$origin/?orgToken=org", origin) as AppLink.CreateOrganization).token)
         assertSame(AppLink.Home, parseAppLink("$origin/clients/123", origin))
+        assertEquals("salon-a", (parseAppLink("$origin/?join=Salon-A", origin) as AppLink.JoinOrganization).slug)
+        assertEquals("org-1", (parseAppLink("$origin/?members=org-1", origin) as AppLink.ManageMembers).organizationId)
+    }
+
+    @Test fun `a creation link wins over a join handle and malformed handles go home`() {
+        assertTrue(parseAppLink("$origin/?orgToken=org&join=salon", origin) is AppLink.CreateOrganization)
+        listOf("join=", "join=a&join=b", "join=bad%20handle", "join=%3Cscript%3E").forEach { query ->
+            assertSame(query, AppLink.Home, parseAppLink("$origin/?$query", origin))
+        }
     }
 
     @Test fun `empty duplicate and malformed token parameters never become credentials`() {

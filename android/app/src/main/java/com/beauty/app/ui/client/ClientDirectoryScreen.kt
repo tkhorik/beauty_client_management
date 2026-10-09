@@ -49,6 +49,8 @@ fun ClientDirectoryScreen(
     onSettings: () -> Unit,
     onAbout: () -> Unit,
     onOrganizations: () -> Unit,
+    /** Join requests awaiting this admin's approval in the active organization. */
+    pendingRequestCount: Int = 0,
     onAdmin: (() -> Unit)?,
     onLogout: () -> Unit,
     updateManager: com.beauty.app.updater.UpdateManager? = null,
@@ -85,12 +87,20 @@ fun ClientDirectoryScreen(
                 IconButton(onClick = { menu = true }) {
                     // The dot points at "About" once an update is waiting, so the
                     // menu is discoverable even after the banner scrolls away.
-                    BadgedBox(badge = { if (hasActiveUpdate) Badge(containerColor = RoseGoldPrimary) }) {
+                    BadgedBox(badge = { if (hasActiveUpdate || pendingRequestCount > 0) Badge(containerColor = RoseGoldPrimary) }) {
                         Icon(Icons.Default.MoreVert, if (hasActiveUpdate) stringResource(com.beauty.app.R.string.more_options_update_available) else stringResource(com.beauty.app.R.string.more_options))
                     }
                 }
                 DropdownMenu(menu, onDismissRequest = { menu = false }) {
-                    DropdownMenuItem(text = { Text(stringResource(com.beauty.app.R.string.organizations_members)) }, onClick = { menu = false; onOrganizations() })
+                    DropdownMenuItem(
+                        text = { Text(stringResource(com.beauty.app.R.string.organizations_members)) },
+                        trailingIcon = if (pendingRequestCount > 0) ({
+                            Badge(containerColor = RoseGoldPrimary) {
+                                Text(if (pendingRequestCount > 99) "99+" else pendingRequestCount.toString(), color = Color.Black)
+                            }
+                        }) else null,
+                        onClick = { menu = false; onOrganizations() }
+                    )
                     DropdownMenuItem(text = { Text(stringResource(com.beauty.app.R.string.account_settings)) }, onClick = { menu = false; onSettings() })
                     if (onAdmin != null) DropdownMenuItem(text = { Text(stringResource(com.beauty.app.R.string.admin_panel)) }, onClick = { menu = false; onAdmin() })
                     DropdownMenuItem(

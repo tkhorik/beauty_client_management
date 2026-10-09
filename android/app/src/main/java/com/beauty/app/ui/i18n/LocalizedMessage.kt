@@ -121,6 +121,8 @@ fun localizedMessage(raw: String): String {
         "ATTACHMENT_TOO_LARGE" -> R.string.error_attachment_too_large
         "LINK_NOT_FOUND" -> R.string.error_link_not_found
         "REQUEST_NOT_FOUND" -> R.string.error_request_not_found
+        "JOIN_REQUEST_DECLINED" -> R.string.error_join_request_declined
+        "COULD_NOT_LOAD_ACTIVITY" -> R.string.error_could_not_load_activity
         "ORGANIZATION_MISMATCH" -> R.string.error_organization_mismatch
         "INTERNAL_ERROR" -> R.string.error_internal_error
         else -> R.string.error_action_failed

@@ -2,6 +2,7 @@ package com.beauty.app.data
 
 import com.beauty.app.data.api.AdminOrganizationDto
 import com.beauty.app.data.api.ArchiveOrganizationRequest
+import com.beauty.app.data.api.AuditEventDto
 import com.beauty.app.data.api.AdminUserDto
 import com.beauty.app.data.api.AuthResponse
 import com.beauty.app.data.api.BeautyApi
@@ -189,6 +190,11 @@ class BeautyRepository(
     suspend fun getMembers(orgId: String): List<MemberDto> = api.getMembers(orgId)
 
     suspend fun approveMember(orgId: String, userId: String) = api.approveMember(orgId, userId)
+
+    suspend fun declineMember(orgId: String, userId: String) = api.declineMember(orgId, userId)
+
+    suspend fun getOrganizationAudit(orgId: String, before: String? = null): List<AuditEventDto> =
+        api.getOrganizationAudit(orgId, before)
 
     suspend fun inviteMember(orgId: String, email: String, role: String) =
         api.inviteMember(orgId, InviteMemberRequest(email, role))

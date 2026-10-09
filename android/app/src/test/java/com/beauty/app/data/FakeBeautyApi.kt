@@ -3,6 +3,7 @@ package com.beauty.app.data
 import com.beauty.app.data.api.AdminOrganizationDto
 import com.beauty.app.data.api.AdminUserDto
 import com.beauty.app.data.api.ArchiveOrganizationRequest
+import com.beauty.app.data.api.AuditEventDto
 import com.beauty.app.data.api.AuthRequest
 import com.beauty.app.data.api.AuthResponse
 import com.beauty.app.data.api.BeautyApi
@@ -69,6 +70,8 @@ abstract class FakeBeautyApi(private val reason: String = "not used in this test
     override suspend fun requestToJoinOrganization(request: JoinOrganizationRequest): OrganizationDto = error(reason)
     override suspend fun getMembers(orgId: String): List<MemberDto> = error(reason)
     override suspend fun approveMember(orgId: String, userId: String): Unit = error(reason)
+    override suspend fun declineMember(orgId: String, userId: String): Unit = error(reason)
+    override suspend fun getOrganizationAudit(orgId: String, before: String?): List<AuditEventDto> = error(reason)
     override suspend fun inviteMember(orgId: String, request: InviteMemberRequest): Unit = error(reason)
     override suspend fun changeMemberRole(orgId: String, userId: String, request: ChangeMemberRoleRequest): Unit = error(reason)
     override suspend fun removeMember(orgId: String, userId: String): Unit = error(reason)

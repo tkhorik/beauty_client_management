@@ -13,6 +13,7 @@ fun statusLabel(status: String): String = stringResource(when (status) {
     "PENDING" -> R.string.status_pending
     "INVITED" -> R.string.status_invited
     "SUSPENDED" -> R.string.status_suspended
+    "DECLINED" -> R.string.status_declined
     else -> R.string.status_unknown
 })
 
@@ -49,3 +50,20 @@ fun localizedIsoDate(value: String): String = runCatching {
     val parsed = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).parse(value.take(10))
     java.text.DateFormat.getDateInstance(java.text.DateFormat.MEDIUM).format(requireNotNull(parsed))
 }.getOrDefault(value.take(10))
+
+/**
+ * A server-side local timestamp (`2026-10-09T14:03:00[.ffffff]`) as a
+ * [java.util.Date], or null if it cannot be read. `SimpleDateFormat`, not
+ * `java.time`: see [com.beauty.app.ui.verification.daysUntil] for why
+ * `java.time` is off limits at this module's `minSdk`.
+ */
+fun parseServerDateTime(value: String): java.util.Date? = runCatching {
+    java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", java.util.Locale.US)
+        .apply { isLenient = false }
+        .parse(value.take(19))
+}.getOrNull()
+
+fun localizedIsoDateTime(value: String): String =
+    parseServerDateTime(value)?.let {
+        java.text.DateFormat.getDateTimeInstance(java.text.DateFormat.MEDIUM, java.text.DateFormat.SHORT).format(it)
+    } ?: value
