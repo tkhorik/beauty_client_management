@@ -13,6 +13,9 @@ import type {
   AdminOrganization,
   OrganizationCreationLink,
   CreateCreationLinkResult,
+  InviteLink,
+  CreateInviteLinkResult,
+  InviteLinkPreview,
 } from '../types';
 import { getToken, clearToken } from '../auth/tokenStore';
 import { getActiveOrgId } from '../auth/orgStore';
@@ -809,6 +812,42 @@ class ApiService {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', [ORG_HEADER]: orgId },
       body: JSON.stringify({ email, role }),
+    });
+  }
+
+  /** Single-use invite links that admit their holder without an approval step. Admin-only. */
+  async getInviteLinks(orgId: string): Promise<InviteLink[]> {
+    return this.orgJson<InviteLink[]>(`/organizations/${orgId}/invite-links`, {
+      headers: { [ORG_HEADER]: orgId },
+    });
+  }
+
+  /** Issues a link. The returned `url` is the only time its token is ever visible. */
+  async createInviteLink(orgId: string): Promise<CreateInviteLinkResult> {
+    return this.orgJson<CreateInviteLinkResult>(`/organizations/${orgId}/invite-links`, {
+      method: 'POST',
+      headers: { [ORG_HEADER]: orgId },
+    });
+  }
+
+  async revokeInviteLink(orgId: string, linkId: string): Promise<void> {
+    await this.orgJson(`/organizations/${orgId}/invite-links/${linkId}/revoke`, {
+      method: 'POST',
+      headers: { [ORG_HEADER]: orgId },
+    });
+  }
+
+  /** Which organization an invite link leads to, for the confirmation prompt. Advisory only. */
+  async previewInviteLink(token: string): Promise<InviteLinkPreview> {
+    return this.orgJson<InviteLinkPreview>(`/organizations/invite-links/preview?token=${encodeURIComponent(token)}`);
+  }
+
+  /** Redeems an invite link; the result is an `ACTIVE` membership, with no approval to wait for. */
+  async acceptInviteLink(token: string): Promise<Organization> {
+    return this.orgJson<Organization>('/organizations/invite-links/accept', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token }),
     });
   }
 

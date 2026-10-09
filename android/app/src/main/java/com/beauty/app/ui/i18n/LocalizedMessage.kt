@@ -124,6 +124,10 @@ fun localizedMessage(raw: String): String {
         "JOIN_REQUEST_DECLINED" -> R.string.error_join_request_declined
         "ACCESS_REVOKED" -> R.string.notice_access_revoked
         "ACCESS_RESTORED" -> R.string.notice_access_restored
+        "INVITE_LINK_INVALID" -> R.string.error_invite_link_invalid
+        "INVITE_LINK_NOT_FOUND" -> R.string.error_invite_link_not_found
+        "INVITE_LINK_CREATED" -> R.string.notice_invite_link_created
+        "INVITE_LINK_REVOKED" -> R.string.notice_invite_link_revoked
         "CANNOT_REVOKE_SELF" -> R.string.error_cannot_revoke_self
         "MEMBERSHIP_NOT_SUSPENDED" -> R.string.error_membership_not_suspended
         "COULD_NOT_LOAD_ACTIVITY" -> R.string.error_could_not_load_activity

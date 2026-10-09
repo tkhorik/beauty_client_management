@@ -45,7 +45,10 @@ class OrgAuditService {
         ROLE_CHANGED,
         REMOVED,
         REVOKED,
-        RESTORED;
+        RESTORED,
+        INVITE_LINK_CREATED,
+        INVITE_LINK_REVOKED,
+        INVITE_LINK_ACCEPTED;
 
         companion object {
             fun parse(raw: String): Action? = entries.firstOrNull { it.name == raw }

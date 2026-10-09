@@ -119,6 +119,7 @@ object DatabaseFactory {
             RefreshTokensTable,
             OneTimeTokensTable,
             OrganizationCreationTokensTable,
+            OrganizationInviteLinksTable,
             ClientsTable,
             VisitsTable,
             AttachmentsTable

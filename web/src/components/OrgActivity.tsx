@@ -18,6 +18,9 @@ const ACTION_KEYS: Record<OrgAuditEvent['action'], TranslationKey> = {
   REMOVED: 'orgActivity.REMOVED',
   REVOKED: 'orgActivity.REVOKED',
   RESTORED: 'orgActivity.RESTORED',
+  INVITE_LINK_CREATED: 'orgActivity.INVITE_LINK_CREATED',
+  INVITE_LINK_REVOKED: 'orgActivity.INVITE_LINK_REVOKED',
+  INVITE_LINK_ACCEPTED: 'orgActivity.INVITE_LINK_ACCEPTED',
 };
 
 /**

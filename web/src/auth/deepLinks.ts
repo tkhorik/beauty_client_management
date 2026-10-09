@@ -12,11 +12,14 @@
  *                         on the registration form and the onboarding screen.
  * - `?members=<orgId>` — from the "new access request" email. Opens that
  *                         organization's members screen once signed in.
+ * - `?invite=<token>`  — an admin's single-use invite link. Once signed in,
+ *                         the user confirms and joins with no approval step.
  */
 const params = new URLSearchParams(window.location.search);
 
 let joinSlug: string | null = params.get('join')?.trim().toLowerCase() || null;
 let membersOrgId: string | null = params.get('members')?.trim() || null;
+let inviteToken: string | null = params.get('invite')?.trim() || null;
 
 /** Whether the visitor arrived with an organization-creation link instead. */
 export const arrivedWithCreationLink = params.has('orgToken');
@@ -43,14 +46,24 @@ export function clearMembersDeepLink(): void {
   membersOrgId = null;
 }
 
+/** The invite-link token waiting for the user's confirmation, if any. */
+export function pendingInviteToken(): string | null {
+  return inviteToken;
+}
+
+/** Forgets the invite token once it has been accepted or turned down. */
+export function clearInviteToken(): void {
+  inviteToken = null;
+}
+
 /**
- * Removes `?join=` / `?members=` from the address bar once captured, so a
+ * Removes `?join=` / `?members=` / `?invite=` from the address bar once captured, so a
  * reload or a shared screenshot does not replay them. Left alone when an
  * `?orgToken=` is also present: that flow strips the URL itself, after
  * reading it.
  */
 export function stripDeepLinkParams(): void {
   if (arrivedWithCreationLink) return;
-  if (!params.has('join') && !params.has('members')) return;
+  if (!params.has('join') && !params.has('members') && !params.has('invite')) return;
   window.history.replaceState({}, '', window.location.pathname);
 }

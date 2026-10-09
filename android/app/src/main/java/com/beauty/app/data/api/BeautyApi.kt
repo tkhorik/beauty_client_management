@@ -270,6 +270,27 @@ data class ValidateCreationTokenResponse(val valid: Boolean = false)
 data class JoinOrganizationRequest(val slug: String)
 
 @Serializable
+data class AcceptInviteLinkRequest(val token: String)
+
+/** An outstanding single-use invite link. The raw token is only in [CreateInviteLinkResponse]. */
+@Serializable
+data class InviteLinkDto(
+    val id: String,
+    val createdByName: String,
+    val expiresAt: String,
+    val createdAt: String
+)
+
+@Serializable
+data class CreateInviteLinkResponse(val token: String, val url: String, val info: InviteLinkDto)
+
+@Serializable
+data class InviteLinkOrganizationDto(val id: String, val name: String, val slug: String)
+
+@Serializable
+data class InviteLinkPreviewResponse(val valid: Boolean, val organization: InviteLinkOrganizationDto? = null)
+
+@Serializable
 data class InviteMemberRequest(val email: String, val role: String = "ORG_USER")
 
 @Serializable
@@ -495,6 +516,17 @@ interface BeautyApi {
 
     /** Asks to join by handle, or accepts a standing invitation. */
     suspend fun requestToJoinOrganization(request: JoinOrganizationRequest): OrganizationDto
+
+    /** Which organization an invite link leads to. Advisory; [acceptInviteLink] re-checks. */
+    suspend fun previewInviteLink(token: String): InviteLinkPreviewResponse
+
+    /** Joins through an admin's single-use link; the membership comes back `ACTIVE`. */
+    suspend fun acceptInviteLink(request: AcceptInviteLinkRequest): OrganizationDto
+
+    /** Unused invite links. Administrators only. */
+    suspend fun getInviteLinks(orgId: String): List<InviteLinkDto>
+    suspend fun createInviteLink(orgId: String): CreateInviteLinkResponse
+    suspend fun revokeInviteLink(orgId: String, linkId: String)
 
     /** The roster, including pending requests. Administrators only. */
     suspend fun getMembers(orgId: String): List<MemberDto>
@@ -723,6 +755,25 @@ class KtorBeautyApi(private val client: HttpClient) : BeautyApi {
             contentType(ContentType.Application.Json)
             setBody(request)
         }.body()
+
+    override suspend fun previewInviteLink(token: String): InviteLinkPreviewResponse =
+        client.get("api/organizations/invite-links/preview") { parameter("token", token) }.body()
+
+    override suspend fun acceptInviteLink(request: AcceptInviteLinkRequest): OrganizationDto =
+        client.post("api/organizations/invite-links/accept") {
+            contentType(ContentType.Application.Json)
+            setBody(request)
+        }.body()
+
+    override suspend fun getInviteLinks(orgId: String): List<InviteLinkDto> =
+        client.get("api/organizations/$orgId/invite-links") { header(ORG_HEADER, orgId) }.body()
+
+    override suspend fun createInviteLink(orgId: String): CreateInviteLinkResponse =
+        client.post("api/organizations/$orgId/invite-links") { header(ORG_HEADER, orgId) }.body()
+
+    override suspend fun revokeInviteLink(orgId: String, linkId: String) {
+        client.post("api/organizations/$orgId/invite-links/$linkId/revoke") { header(ORG_HEADER, orgId) }
+    }
 
     override suspend fun getMembers(orgId: String): List<MemberDto> =
         client.get("api/organizations/$orgId/members") { header(ORG_HEADER, orgId) }.body()

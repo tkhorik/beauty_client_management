@@ -309,6 +309,43 @@ object OrganizationCreationTokensTable : Table("organization_creation_tokens") {
     override val primaryKey = PrimaryKey(id)
 }
 
+/**
+ * Single-use links an organization admin hands to one new member.
+ *
+ * Redeeming one makes the holder an `ACTIVE` `ORG_USER` without a further
+ * approval: the admin's decision to issue the link *is* the approval, the
+ * same reasoning that lets an `INVITED` row activate when its invitee
+ * accepts. That is why a link is single-use and always expires — a link
+ * that kept working would admit anyone it was forwarded to.
+ *
+ * Only the SHA-256 hash is stored, as for every bearer-token table.
+ * Hand-written migration: `backend/migrations/010_organization_invite_links.sql`.
+ */
+object OrganizationInviteLinksTable : Table("organization_invite_links") {
+    val id = varchar("id", 64)
+    val organizationId = varchar("organization_id", 64).references(OrganizationsTable.id).index()
+
+    /** SHA-256 hex digest of the token. Never the raw value — see [RefreshTokensTable]. */
+    val tokenHash = varchar("token_hash", 64).uniqueIndex()
+
+    val createdBy = varchar("created_by", 64).references(UsersTable.id)
+    val expiresAt = datetime("expires_at")
+
+    /**
+     * Set, together with [usedBy], by the atomic `UPDATE ... WHERE used_at IS NULL`
+     * that redeems the link — the same single-use technique as [OneTimeTokensTable.usedAt].
+     */
+    val usedAt = datetime("used_at").nullable()
+    val usedBy = varchar("used_by", 64).references(UsersTable.id).nullable()
+
+    /** Set when an admin kills the link before it is used. */
+    val revokedAt = datetime("revoked_at").nullable()
+
+    val createdAt = datetime("created_at")
+
+    override val primaryKey = PrimaryKey(id)
+}
+
 object ClientsTable : Table("clients") {
     val id = varchar("id", 64)
 

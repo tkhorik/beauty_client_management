@@ -111,6 +111,8 @@ fun OrganizationScreen(
         if (orgId != null && viewModel.canManage(current)) viewModel.loadMembers(orgId)
     }
 
+    viewModel.inviteOffer?.let { offer -> InviteOfferDialog(offer, onJoin = viewModel::acceptInvite, onDismiss = viewModel::dismissInvite) }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -362,6 +364,17 @@ fun OrganizationScreen(
                     }
                 }
 
+                // -- Invite links --------------------------------------------
+                item { SectionTitle(stringResource(com.beauty.app.R.string.invite_links_title)) }
+                item {
+                    InviteLinksCard(
+                        issuedUrl = viewModel.issuedInviteUrl,
+                        links = viewModel.inviteLinks,
+                        onGenerate = { viewModel.issueInviteLink(current.id) },
+                        onRevoke = { viewModel.revokeInviteLink(current.id, it) }
+                    )
+                }
+
                 // -- Activity ------------------------------------------------
                 item { SectionTitle(stringResource(com.beauty.app.R.string.org_activity)) }
                 if (viewModel.auditEvents.isEmpty()) {
@@ -500,11 +513,114 @@ private fun AuditRow(event: AuditEventDto) {
         "REMOVED" -> stringResource(com.beauty.app.R.string.audit_removed, actor, target)
         "REVOKED" -> stringResource(com.beauty.app.R.string.audit_revoked, actor, target)
         "RESTORED" -> stringResource(com.beauty.app.R.string.audit_restored, actor, target)
+        "INVITE_LINK_CREATED" -> stringResource(com.beauty.app.R.string.audit_invite_link_created, actor)
+        "INVITE_LINK_REVOKED" -> stringResource(com.beauty.app.R.string.audit_invite_link_revoked, actor)
+        "INVITE_LINK_ACCEPTED" -> stringResource(com.beauty.app.R.string.audit_invite_link_accepted, actor)
         else -> event.action
     }
     val time = localizedIsoDateTime(event.createdAt)
     Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
         Text(text, fontSize = 13.sp)
         Text(time, color = TextMuted, fontSize = 12.sp)
+    }
+}
+
+/**
+ * "Join this organization?" for an admin's invite link. Opening the link
+ * joins nothing; only [onJoin] does, and then with no approval to wait for.
+ */
+@Composable
+private fun InviteOfferDialog(
+    offer: OrganizationViewModel.InviteOffer,
+    onJoin: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    val status = offer.status
+    val name = offer.organizationName.orEmpty()
+    AlertDialog(
+        onDismissRequest = { if (status != OrganizationViewModel.InviteStatus.JOINING) onDismiss() },
+        title = {
+            Text(
+                if (status == OrganizationViewModel.InviteStatus.READY || status == OrganizationViewModel.InviteStatus.JOINING)
+                    stringResource(com.beauty.app.R.string.invite_accept_title, name)
+                else stringResource(com.beauty.app.R.string.invite_accept_heading)
+            )
+        },
+        text = {
+            Text(
+                when (status) {
+                    OrganizationViewModel.InviteStatus.CHECKING -> stringResource(com.beauty.app.R.string.invite_accept_checking)
+                    OrganizationViewModel.InviteStatus.INVALID -> stringResource(com.beauty.app.R.string.error_invite_link_invalid)
+                    else -> stringResource(com.beauty.app.R.string.invite_accept_body, name)
+                }
+            )
+        },
+        confirmButton = {
+            if (status == OrganizationViewModel.InviteStatus.INVALID) {
+                TextButton(onClick = onDismiss) { Text(stringResource(com.beauty.app.R.string.invite_accept_close)) }
+            } else {
+                Button(
+                    onClick = onJoin,
+                    enabled = status == OrganizationViewModel.InviteStatus.READY,
+                    colors = ButtonDefaults.buttonColors(containerColor = RoseGoldPrimary)
+                ) { Text(stringResource(com.beauty.app.R.string.invite_accept_join)) }
+            }
+        },
+        dismissButton = {
+            if (status != OrganizationViewModel.InviteStatus.INVALID) {
+                TextButton(onClick = onDismiss, enabled = status != OrganizationViewModel.InviteStatus.JOINING) {
+                    Text(stringResource(com.beauty.app.R.string.invite_accept_not_now), color = TextMuted)
+                }
+            }
+        }
+    )
+}
+
+/** Generates single-use invite links and lists the unused ones for revoking. */
+@Composable
+private fun InviteLinksCard(
+    issuedUrl: String?,
+    links: List<com.beauty.app.data.api.InviteLinkDto>,
+    onGenerate: () -> Unit,
+    onRevoke: (String) -> Unit
+) {
+    val clipboard = LocalClipboardManager.current
+    val context = androidx.compose.ui.platform.LocalContext.current
+    var copied by remember(issuedUrl) { mutableStateOf(false) }
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(stringResource(com.beauty.app.R.string.invite_links_hint), color = TextMuted, fontSize = 12.sp)
+        Button(onClick = onGenerate, colors = ButtonDefaults.buttonColors(containerColor = RoseGoldPrimary)) {
+            Text(stringResource(com.beauty.app.R.string.invite_links_generate))
+        }
+        if (issuedUrl != null) {
+            Text(issuedUrl, color = TextMuted, fontSize = 12.sp)
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(onClick = { clipboard.setText(AnnotatedString(issuedUrl)); copied = true }) {
+                    Text(stringResource(com.beauty.app.R.string.org_copy_join_link))
+                }
+                val shareTitle = stringResource(com.beauty.app.R.string.invite_links_share)
+                OutlinedButton(onClick = {
+                    val send = android.content.Intent(android.content.Intent.ACTION_SEND)
+                        .setType("text/plain")
+                        .putExtra(android.content.Intent.EXTRA_TEXT, issuedUrl)
+                    context.startActivity(android.content.Intent.createChooser(send, shareTitle))
+                }) { Text(shareTitle) }
+                if (copied) Text(stringResource(com.beauty.app.R.string.org_join_link_copied), color = RoseGoldPrimary, fontSize = 12.sp)
+            }
+            Text(stringResource(com.beauty.app.R.string.invite_links_shown_once), color = TextMuted, fontSize = 12.sp)
+        }
+        links.forEach { link ->
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    stringResource(com.beauty.app.R.string.invite_links_expires, link.createdByName, localizedIsoDateTime(link.expiresAt)),
+                    color = TextMuted,
+                    fontSize = 12.sp,
+                    modifier = Modifier.weight(1f)
+                )
+                TextButton(onClick = { onRevoke(link.id) }) {
+                    Text(stringResource(com.beauty.app.R.string.invite_links_revoke), color = RoseGoldPrimary)
+                }
+            }
+        }
     }
 }

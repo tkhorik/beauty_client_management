@@ -7,6 +7,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.beauty.app.data.BeautyRepository
 import com.beauty.app.data.api.AuditEventDto
+import com.beauty.app.data.api.InviteLinkDto
 import com.beauty.app.data.api.MemberDto
 import com.beauty.app.data.api.OrganizationDto
 import com.beauty.app.data.api.ValidationErrorResponse
@@ -66,6 +67,19 @@ class OrganizationViewModel(
 
     /** The join form's handle. Here rather than in the screen so a `?join=` link can fill it. */
     var joinDraft by mutableStateOf("")
+
+    /** An invite link waiting for the user's yes or no. See [offerInvite]. */
+    data class InviteOffer(val token: String, val status: InviteStatus, val organizationName: String? = null)
+    enum class InviteStatus { CHECKING, READY, INVALID, JOINING }
+    var inviteOffer by mutableStateOf<InviteOffer?>(null)
+        private set
+
+    /** The administered organization's unused invite links. */
+    var inviteLinks by mutableStateOf<List<InviteLinkDto>>(emptyList())
+        private set
+    /** The URL of a link issued on this screen — the only time its token is ever visible. */
+    var issuedInviteUrl by mutableStateOf<String?>(null)
+        private set
 
     /** [activeOrgId]'s membership history, newest first, loaded on demand for administrators. */
     var auditEvents by mutableStateOf<List<AuditEventDto>>(emptyList())
@@ -211,6 +225,8 @@ class OrganizationViewModel(
         orgStore.setActiveOrgId(orgId)
         activeOrgId = orgId
         members = emptyList()
+        inviteLinks = emptyList()
+        issuedInviteUrl = null
         auditEvents = emptyList()
         auditHasMore = false
     }
@@ -340,6 +356,7 @@ class OrganizationViewModel(
             error = null
             try {
                 members = repository.getMembers(orgId)
+                inviteLinks = repository.getInviteLinks(orgId)
             } catch (e: Exception) {
                 error = e.friendlyMessage("COULD_NOT_LOAD_MEMBERS")
             }
@@ -380,6 +397,63 @@ class OrganizationViewModel(
         repository.inviteMember(orgId, email.trim().lowercase(), role)
     }
 
+    /**
+     * Shows the "join this organization?" prompt for an invite link. Nothing
+     * is joined until [acceptInvite]; the preview only names the organization.
+     */
+    fun offerInvite(token: String) {
+        inviteOffer = InviteOffer(token, InviteStatus.CHECKING)
+        viewModelScope.launch {
+            val organization = runCatching { repository.previewInviteLink(token) }.getOrNull()
+                ?.takeIf { it.valid }?.organization
+            if (inviteOffer?.token == token) {
+                inviteOffer = if (organization != null) InviteOffer(token, InviteStatus.READY, organization.name)
+                    else InviteOffer(token, InviteStatus.INVALID)
+            }
+        }
+    }
+
+    fun dismissInvite() { inviteOffer = null }
+
+    /** Joins through the offered link. There is no approval step: the result is an active membership. */
+    fun acceptInvite() {
+        val offer = inviteOffer?.takeIf { it.status == InviteStatus.READY } ?: return
+        inviteOffer = offer.copy(status = InviteStatus.JOINING)
+        viewModelScope.launch {
+            error = null
+            notice = null
+            try {
+                val org = repository.acceptInviteLink(offer.token)
+                inviteOffer = null
+                notice = "ORGANIZATION_JOINED:${org.name}"
+                loadOrganizations()
+                select(org.id)
+            } catch (e: Exception) {
+                inviteOffer = null
+                error = e.friendlyMessage("INVITE_LINK_INVALID")
+                runCatching { loadOrganizations() }
+            }
+        }
+    }
+
+    fun issueInviteLink(orgId: String) {
+        viewModelScope.launch {
+            error = null
+            notice = null
+            try {
+                issuedInviteUrl = repository.createInviteLink(orgId).url
+                inviteLinks = repository.getInviteLinks(orgId)
+                notice = "INVITE_LINK_CREATED"
+            } catch (e: Exception) {
+                error = e.friendlyMessage("ACTION_FAILED")
+            }
+        }
+    }
+
+    fun revokeInviteLink(orgId: String, linkId: String) = memberAction(orgId, "INVITE_LINK_REVOKED") {
+        repository.revokeInviteLink(orgId, linkId)
+    }
+
     fun clearMessages() {
         error = null
         notice = null
@@ -393,6 +467,7 @@ class OrganizationViewModel(
                 action()
                 notice = success
                 members = repository.getMembers(orgId)
+                inviteLinks = repository.getInviteLinks(orgId)
                 if (auditEvents.isNotEmpty()) loadAudit(orgId)
                 // The action may have changed the caller's own standing —
                 // demoting or removing themselves — so the organization list is

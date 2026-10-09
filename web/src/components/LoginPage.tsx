@@ -9,7 +9,7 @@ import { LanguageSelector } from './LanguageSelector';
 import { useAppTranslation, useLocale } from '../i18n/LocaleProvider';
 import { effectiveAcceptLanguage } from '../i18n/store';
 import { errorTranslationKey, translatedFieldErrors } from '../i18n/errors';
-import { arrivedWithCreationLink, clearJoinSlug, pendingJoinSlug, stripDeepLinkParams } from '../auth/deepLinks';
+import { arrivedWithCreationLink, clearJoinSlug, pendingInviteToken, pendingJoinSlug, stripDeepLinkParams } from '../auth/deepLinks';
 
 type Mode = 'login' | 'register';
 
@@ -183,6 +183,11 @@ export function LoginPage() {
           <p style={{ color: 'var(--text-muted)', fontSize: '14px' }}>
             {mode === 'login' ? t('auth.signInAccount') : t('auth.createYourAccount')}
           </p>
+          {pendingInviteToken() && (
+            <p role="status" style={{ color: 'var(--rose-gold-primary)', fontSize: '13px', marginTop: '10px' }}>
+              {t('loginPage.inviteNotice')}
+            </p>
+          )}
         </div>
 
         {/* Form */}

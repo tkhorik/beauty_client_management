@@ -25,6 +25,14 @@ class AppLinksTest {
         assertSame(AppLink.Home, parseAppLink("$origin/clients/123", origin))
         assertEquals("salon-a", (parseAppLink("$origin/?join=Salon-A", origin) as AppLink.JoinOrganization).slug)
         assertEquals("org-1", (parseAppLink("$origin/?members=org-1", origin) as AppLink.ManageMembers).organizationId)
+        assertEquals("tok_EN-1", (parseAppLink("$origin/?invite=tok_EN-1", origin) as AppLink.AcceptInvite).token)
+    }
+
+    @Test fun `an invite link wins over a join handle and malformed invites go home`() {
+        assertTrue(parseAppLink("$origin/?invite=tok&join=salon", origin) is AppLink.AcceptInvite)
+        listOf("invite=", "invite=a&invite=b", "invite=bad%20token").forEach { query ->
+            assertSame(query, AppLink.Home, parseAppLink("$origin/?$query", origin))
+        }
     }
 
     @Test fun `a creation link wins over a join handle and malformed handles go home`() {

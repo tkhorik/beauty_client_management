@@ -522,6 +522,46 @@ data class ValidateCreationTokenResponse(
     val valid: Boolean
 )
 
+/**
+ * One outstanding invite link, for `GET /api/organizations/{id}/invite-links`.
+ * The raw token is never included — only [CreateInviteLinkResponse] carries it, once.
+ */
+@Serializable
+data class InviteLinkDto(
+    val id: String,
+    val createdByName: String,
+    val expiresAt: String,
+    val createdAt: String
+)
+
+/** Response for `POST /api/organizations/{id}/invite-links` — the only time the raw token is returned. */
+@Serializable
+data class CreateInviteLinkResponse(
+    val token: String,
+    val url: String,
+    val info: InviteLinkDto
+)
+
+/** Response for `GET /api/organizations/invite-links/preview`. [organization] is null when the link is not redeemable. */
+@Serializable
+data class InviteLinkPreviewResponse(
+    val valid: Boolean,
+    val organization: InviteLinkOrganizationDto? = null
+)
+
+@Serializable
+data class InviteLinkOrganizationDto(
+    val id: String,
+    val name: String,
+    val slug: String
+)
+
+/** Body for `POST /api/organizations/invite-links/accept`. */
+@Serializable
+data class AcceptInviteLinkRequest(
+    val token: String
+)
+
 @Serializable
 data class UpdateLanguageRequest(
     val preference: String,

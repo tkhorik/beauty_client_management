@@ -24,6 +24,9 @@ internal class AppLinkViewModel : ViewModel() {
     /** A `?join=` handle waiting for the register or organization screen. Not a credential. */
     var pendingJoinSlug by mutableStateOf<String?>(null)
         private set
+    /** An invite-link token waiting for a session and the user's confirmation. */
+    var pendingInviteToken by mutableStateOf<String?>(null)
+        private set
     /** An organization whose members screen should open once signed in. */
     var pendingMembersOrgId by mutableStateOf<String?>(null)
         private set
@@ -50,6 +53,8 @@ internal class AppLinkViewModel : ViewModel() {
     fun takeOrganization(): String? = pendingOrganizationToken.also { pendingOrganizationToken = null }
     fun holdJoin(slug: String) { pendingJoinSlug = slug }
     fun takeJoin(): String? = pendingJoinSlug.also { pendingJoinSlug = null }
+    fun holdInvite(token: String) { pendingInviteToken = token }
+    fun takeInvite(): String? = pendingInviteToken.also { pendingInviteToken = null }
     fun holdMembers(orgId: String) { pendingMembersOrgId = orgId }
     fun takeMembers(): String? = pendingMembersOrgId.also { pendingMembersOrgId = null }
 

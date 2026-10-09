@@ -11,6 +11,9 @@ import com.beauty.mail.AccountMailer
 import com.beauty.mail.MailSender
 import com.beauty.auth.MembershipStatus
 import com.beauty.auth.GlobalRole
+import com.beauty.auth.InviteLinkResult
+import com.beauty.auth.OrgInviteLinkService
+import com.beauty.auth.OrganizationInviteLink
 import com.beauty.auth.OrgCreationTokenService
 import com.beauty.auth.OrgRole
 import com.beauty.db.DatabaseFactory.dbQuery
@@ -37,6 +40,8 @@ import org.jetbrains.exposed.sql.SortOrder
 import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.select
+import java.net.URLEncoder
+import java.nio.charset.StandardCharsets
 import java.time.LocalDateTime
 import java.util.UUID
 
@@ -65,6 +70,7 @@ private const val SQLSTATE_UNIQUE_VIOLATION = "23505"
 fun Route.organizationRoutes() {
     val memberships = MembershipService()
     val creationTokens = OrgCreationTokenService()
+    val inviteLinks = OrgInviteLinkService()
     val audit = OrgAuditService()
     val settings = AppSettings(application.environment.config)
     // `application` is the scope the SMTP sends run in — see AccountMailer.
@@ -323,6 +329,61 @@ fun Route.organizationRoutes() {
             }
         }
         } // end rateLimit(RATE_LIMIT_EMAIL)
+
+        /**
+         * What an invite link leads to, for the "join this organization?"
+         * confirmation. Advisory only — `/accept` re-checks everything. Behind
+         * sign-in so a link found lying around does not name its salon to
+         * anyone who opens it.
+         */
+        get("/invite-links/preview") {
+            requireActiveAccount(memberships) ?: return@get
+            val org = inviteLinks.preview(call.request.queryParameters["token"].orEmpty())
+            call.respond(
+                InviteLinkPreviewResponse(
+                    valid = org != null,
+                    organization = org?.let { InviteLinkOrganizationDto(it.id, it.name, it.slug) }
+                )
+            )
+        }
+
+        /**
+         * Joins the organization an admin's invite link names, at once.
+         *
+         * No approval follows: the admin issuing a single-use link is the
+         * approval, as with an invitation the invitee accepts. Open to
+         * unverified accounts for the same reason `/join-requests` is — they
+         * land inside the organization read-only. Under the credential rate
+         * limit: the token is unguessable, but the bound costs nothing.
+         */
+        rateLimit(RateLimitName(RATE_LIMIT_AUTH)) {
+        post("/invite-links/accept") {
+            val userId = requireActiveAccount(memberships) ?: return@post
+
+            val token = call.receive<AcceptInviteLinkRequest>().token
+            when (val result = inviteLinks.accept(userId, token)) {
+                InviteLinkResult.Invalid -> call.respond(
+                    HttpStatusCode.NotFound,
+                    mapOf("error" to "This invite link is invalid, expired or already used.", "code" to "INVITE_LINK_INVALID")
+                )
+                is InviteLinkResult.AlreadyMember -> call.respond(
+                    HttpStatusCode.Conflict,
+                    mapOf("error" to "You are already a member of this organization.", "code" to "ALREADY_A_MEMBER")
+                )
+                is InviteLinkResult.Suspended -> call.respond(
+                    HttpStatusCode.Forbidden,
+                    mapOf(
+                        "error" to "Your access to this organization has been suspended. Contact an administrator.",
+                        "code" to "MEMBERSHIP_SUSPENDED"
+                    )
+                )
+                is InviteLinkResult.Joined -> {
+                    audit.record(result.org.id, userId, OrgAuditService.Action.INVITE_LINK_ACCEPTED, targetUserId = userId)
+                    call.respond(HttpStatusCode.OK, result.org.toDto(OrgRole.ORG_USER, MembershipStatus.ACTIVE))
+                }
+            }
+        }
+        } // end rateLimit(RATE_LIMIT_AUTH)
 
         // -------------------------------------------------------------------
         // Administration of one organization
@@ -606,6 +667,61 @@ fun Route.organizationRoutes() {
         }
 
         /**
+         * Single-use invite links: whoever redeems one becomes a member with
+         * no further approval, so issuing one is itself an admin decision.
+         */
+        route("/{orgId}/invite-links") {
+
+            /** Links that can still be redeemed. Never includes a raw token. */
+            get {
+                val ctx = requireOrgAccess(memberships, requireAdmin = true) ?: return@get
+                val orgId = call.parameters["orgId"]!!
+                if (!ctx.matches(orgId)) return@get call.respondOrgMismatch()
+
+                call.respond(inviteLinks.listActive(orgId).map { it.toDto() })
+            }
+
+            /** Issues a link. The raw token is in this response and nowhere else, ever. */
+            post {
+                val ctx = requireOrgAccess(memberships, requireAdmin = true) ?: return@post
+                val orgId = call.parameters["orgId"]!!
+                if (!ctx.matches(orgId)) return@post call.respondOrgMismatch()
+                // A super admin acting globally has passed the access check
+                // without naming an organization, so the path id is unchecked.
+                if (memberships.organizationRef(orgId) == null) {
+                    call.respond(HttpStatusCode.NotFound, mapOf("error" to "No such organization.", "code" to "ORGANIZATION_NOT_FOUND"))
+                    return@post
+                }
+
+                val (id, rawToken) = inviteLinks.issue(orgId, ctx.userId)
+                val issued = inviteLinks.getById(orgId, id)!! // just inserted, in the same request
+                audit.record(orgId, ctx.userId, OrgAuditService.Action.INVITE_LINK_CREATED)
+
+                call.respond(
+                    HttpStatusCode.Created,
+                    CreateInviteLinkResponse(
+                        token = rawToken,
+                        url = "${settings.publicUrl}/?invite=${URLEncoder.encode(rawToken, StandardCharsets.UTF_8)}",
+                        info = issued.toDto()
+                    )
+                )
+            }
+
+            post("/{linkId}/revoke") {
+                val ctx = requireOrgAccess(memberships, requireAdmin = true) ?: return@post
+                val orgId = call.parameters["orgId"]!!
+                if (!ctx.matches(orgId)) return@post call.respondOrgMismatch()
+
+                if (!inviteLinks.revoke(orgId, call.parameters["linkId"]!!)) {
+                    call.respond(HttpStatusCode.NotFound, mapOf("error" to "No unused invite link with that id.", "code" to "INVITE_LINK_NOT_FOUND"))
+                    return@post
+                }
+                audit.record(orgId, ctx.userId, OrgAuditService.Action.INVITE_LINK_REVOKED)
+                call.respond(HttpStatusCode.OK, MessageResponse("Invite link revoked."))
+            }
+        }
+
+        /**
          * The organization's membership history, newest first.
          *
          * Admin-only, like the roster it describes. `before` is the
@@ -667,4 +783,11 @@ private fun OrgRef.toDto(role: OrgRole, status: MembershipStatus) = Organization
     slug = slug,
     role = role.name,
     status = status.name
+)
+
+private fun OrganizationInviteLink.toDto() = InviteLinkDto(
+    id = id,
+    createdByName = createdByName,
+    expiresAt = expiresAt.toString(),
+    createdAt = createdAt.toString()
 )

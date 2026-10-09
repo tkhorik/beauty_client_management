@@ -17,7 +17,8 @@ import { SettingsModal } from './components/SettingsModal';
 import { VerificationBanner } from './components/VerificationBanner';
 import { Users, Sparkles } from 'lucide-react';
 import { useAppTranslation } from './i18n/LocaleProvider';
-import { clearMembersDeepLink, membersDeepLink, stripDeepLinkParams } from './auth/deepLinks';
+import { clearMembersDeepLink, membersDeepLink, pendingInviteToken, stripDeepLinkParams } from './auth/deepLinks';
+import { InviteAcceptDialog } from './components/InviteAcceptDialog';
 
 export function App() {
   const { token, initialising, logout } = useAuth();
@@ -25,6 +26,9 @@ export function App() {
   const [creationLinkOpen, setCreationLinkOpen] = useState(
     () => new URLSearchParams(window.location.search).has('orgToken')
   );
+  // Held across sign-in/sign-up: the confirmation only appears once there is
+  // a session to join with.
+  const [inviteToken, setInviteToken] = useState(pendingInviteToken);
 
   // Listen for 401 responses emitted by authFetch and force logout.
   // authFetch only emits this after a refresh attempt has already failed, so
@@ -35,7 +39,7 @@ export function App() {
     return () => window.removeEventListener('beauty:unauthorized', handler);
   }, [logout]);
 
-  // `?join=` / `?members=` were captured in memory when the app loaded.
+  // `?join=` / `?members=` / `?invite=` were captured in memory when the app loaded.
   useEffect(() => { stripDeepLinkParams(); }, []);
 
   // On a reload the access token is always briefly absent while the refresh
@@ -64,6 +68,7 @@ export function App() {
         onCloseCreationLink={() => setCreationLinkOpen(false)}
       />
       {isAdminPanelOpen && <AdminPanel onClose={() => setIsAdminPanelOpen(false)} />}
+      {inviteToken && <InviteAcceptDialog token={inviteToken} onDone={() => setInviteToken(null)} />}
     </>
   );
 }
