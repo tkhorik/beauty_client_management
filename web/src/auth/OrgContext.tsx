@@ -1,6 +1,6 @@
-import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import type { Organization } from '../types';
-import { api, ApiError } from '../services/api';
+import { api, ApiError, MEMBERSHIP_LOST_EVENT } from '../services/api';
 import { getActiveOrgId, setActiveOrgId, clearActiveOrgId } from './orgStore';
 import { useAuth } from './AuthContext';
 
@@ -100,6 +100,21 @@ export function OrgProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     void load();
+  }, [load]);
+
+  // Removed or revoked while this tab was open: the next scoped request comes
+  // back NOT_A_MEMBER. Re-reading the list drops that organization (see the
+  // re-validation in `load`). Several requests usually fail together, so the
+  // reloads collapse into one.
+  const reloading = useRef(false);
+  useEffect(() => {
+    const handler = () => {
+      if (reloading.current) return;
+      reloading.current = true;
+      void load().finally(() => { reloading.current = false; });
+    };
+    window.addEventListener(MEMBERSHIP_LOST_EVENT, handler);
+    return () => window.removeEventListener(MEMBERSHIP_LOST_EVENT, handler);
   }, [load]);
 
   const select = useCallback((orgId: string) => {

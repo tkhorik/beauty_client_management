@@ -1,6 +1,6 @@
 import { useAppTranslation } from '../i18n/LocaleProvider';
 import React, { useCallback, useEffect, useState } from 'react';
-import { X, Users, UserPlus, Check, Trash2, Shield, Link2, History } from 'lucide-react';
+import { X, Users, UserPlus, Check, Trash2, Shield, Link2, History, Ban, RotateCcw } from 'lucide-react';
 import type { OrgMember, OrgRole } from '../types';
 import { OrgActivity } from './OrgActivity';
 import { api, writeErrorMessage } from '../services/api';
@@ -169,7 +169,15 @@ export const MembersModal: React.FC<MembersModalProps> = ({ orgId, orgName, onCl
     }
   }
 
+  function confirmRevoke(member: OrgMember) {
+    const identity = `${member.fullName} (${member.email})`;
+    if (window.confirm(t('membersModal.confirmRevoke', { identity, organization: orgName }))) {
+      void run(() => api.revokeMember(orgId, member.userId), t('membersModal.accessRevoked', { name: member.fullName }));
+    }
+  }
+
   const pending = members.filter(m => m.status === 'PENDING');
+  const suspended = members.filter(m => m.status === 'SUSPENDED');
   const invited = members.filter(m => m.status === 'INVITED');
   const active = members.filter(m => m.status === 'ACTIVE');
 
@@ -304,6 +312,11 @@ export const MembersModal: React.FC<MembersModalProps> = ({ orgId, orgName, onCl
                     <option value="ORG_USER">{t('membersModal.member')}</option>
                     <option value="ORG_ADMIN">{t('membersModal.administrator')}</option>
                   </select>
+                  {m.userId !== user?.id && (
+                    <IconButton title={t('membersModal.revokeAccess')} onClick={() => confirmRevoke(m)}>
+                      <Ban size={15} />
+                    </IconButton>
+                  )}
                   <IconButton
                     title={m.userId === user?.id ?t('membersModal.leaveOrganization') :t('membersModal.removeFromOrganization')}
                     onClick={() => confirmRemoval(m)}
@@ -317,6 +330,28 @@ export const MembersModal: React.FC<MembersModalProps> = ({ orgId, orgName, onCl
               {t('membersModal.removingSomeoneRevokesTheirAccessImmediatelyTheirCurrentSessionS')}
             </p>
           </section>
+
+          {suspended.length > 0 && (
+            <section style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <h3 style={{ fontSize: '14px', color: 'var(--rose-gold-primary)' }}>
+                {t('membersModal.revokedSection', { count: suspended.length })}
+              </h3>
+              {suspended.map(m => (
+                <MemberRow key={m.userId} member={m}>
+                  <button
+                    className="btn-secondary"
+                    style={{ padding: '6px 12px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}
+                    onClick={() => run(() => api.restoreMember(orgId, m.userId), t('membersModal.accessRestored', { name: m.fullName }))}
+                  >
+                    <RotateCcw size={14} /> {t('membersModal.restoreAccess')}
+                  </button>
+                  <IconButton title={t('membersModal.removeFromOrganization')} onClick={() => confirmRemoval(m)}>
+                    <Trash2 size={15} />
+                  </IconButton>
+                </MemberRow>
+              ))}
+            </section>
+          )}
 
           {/* Invite */}
           <form onSubmit={handleInvite} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>

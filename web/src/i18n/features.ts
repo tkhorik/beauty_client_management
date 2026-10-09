@@ -184,6 +184,12 @@ export const featureEn = {
   'organizationOnboarding.declinedUntil': "{{name}} declined your request. You can ask again after {{date}}.",
   'organizationOnboarding.declinedCanRetry': "{{name}} declined your request. You can ask again now.",
   'organizationOnboarding.declinedRetryAfter': "This organization declined your request. You can ask again after {{date}}.",
+  'membersModal.revokeAccess': "Revoke access",
+  'membersModal.restoreAccess': "Restore",
+  'membersModal.confirmRevoke': "Revoke {{identity}}'s access to {{organization}}? They lose access on their next request and cannot ask to join again until you restore them.",
+  'membersModal.accessRevoked': "Access revoked for {{name}}.",
+  'membersModal.accessRestored': "Access restored for {{name}}.",
+  'membersModal.revokedSection': "Access revoked ({{count}})",
 } as const;
 
 export const featureRu: { [K in keyof typeof featureEn]: string } = {
@@ -372,6 +378,12 @@ export const featureRu: { [K in keyof typeof featureEn]: string } = {
   'organizationOnboarding.declinedUntil': "Организация «{{name}}» отклонила ваш запрос. Повторно запросить доступ можно после {{date}}.",
   'organizationOnboarding.declinedCanRetry': "Организация «{{name}}» отклонила ваш запрос. Теперь можно запросить доступ повторно.",
   'organizationOnboarding.declinedRetryAfter': "Организация отклонила ваш запрос. Повторно запросить доступ можно после {{date}}.",
+  'membersModal.revokeAccess': "Отозвать доступ",
+  'membersModal.restoreAccess': "Восстановить",
+  'membersModal.confirmRevoke': "Отозвать доступ {{identity}} к {{organization}}? Доступ пропадёт при следующем запросе, и повторно запросить его будет нельзя, пока вы его не восстановите.",
+  'membersModal.accessRevoked': "Доступ для {{name}} отозван.",
+  'membersModal.accessRestored': "Доступ для {{name}} восстановлен.",
+  'membersModal.revokedSection': "Доступ отозван ({{count}})",
 };
 
 export type FeatureKey = keyof typeof featureEn;
