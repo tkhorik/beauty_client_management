@@ -1,11 +1,12 @@
 import { useAppTranslation } from '../i18n/LocaleProvider';
 import React, { useCallback, useEffect, useState } from 'react';
 import { X, Users, UserPlus, Check, Trash2, Shield, Link2, History, Ban, RotateCcw } from 'lucide-react';
-import type { OrgMember, OrgRole } from '../types';
+import type { InviteLink, OrgMember, OrgRole } from '../types';
 import { OrgActivity } from './OrgActivity';
 import { api, writeErrorMessage } from '../services/api';
 import { useAuth } from '../auth/AuthContext';
 import { useOrg } from '../auth/OrgContext';
+import { useLocale } from '../i18n/LocaleProvider';
 
 interface MembersModalProps {
   /**
@@ -62,6 +63,11 @@ export const MembersModal: React.FC<MembersModalProps> = ({ orgId, orgName, onCl
   const [inviteRole, setInviteRole] = useState<OrgRole>('ORG_USER');
   const [inviting, setInviting] = useState(false);
   const [tab, setTab] = useState<'members' | 'activity'>('members');
+  const { formatDate } = useLocale();
+  const [inviteLinks, setInviteLinks] = useState<InviteLink[]>([]);
+  /** The URL of the link issued in this session — the only time its token is visible. */
+  const [issuedLink, setIssuedLink] = useState<string | null>(null);
+  const [issuing, setIssuing] = useState(false);
 
   /**
    * Whether the target is one of the caller's own organizations, which decides
@@ -98,7 +104,9 @@ export const MembersModal: React.FC<MembersModalProps> = ({ orgId, orgName, onCl
     setLoading(true);
     setError('');
     try {
-      setMembers(await api.getOrganizationMembers(orgId));
+      const [roster, links] = await Promise.all([api.getOrganizationMembers(orgId), api.getInviteLinks(orgId)]);
+      setMembers(roster);
+      setInviteLinks(links);
     } catch (err) {
       setError(writeErrorMessage(err, t('membersModal.couldNotLoadMembers')));
     } finally {
@@ -127,6 +135,27 @@ export const MembersModal: React.FC<MembersModalProps> = ({ orgId, orgName, onCl
       if (isOwnOrganization) await refreshOrgs();
     } catch (err) {
       setError(writeErrorMessage(err, t('membersModal.thatActionFailed')));
+    }
+  }
+
+  async function issueInviteLink() {
+    setError('');
+    setNotice('');
+    setIssuing(true);
+    try {
+      const { url } = await api.createInviteLink(orgId);
+      setIssuedLink(url);
+      setInviteLinks(await api.getInviteLinks(orgId));
+      try {
+        await navigator.clipboard.writeText(url);
+        setNotice(t('membersModal.inviteLinkCreated'));
+      } catch {
+        setNotice(t('membersModal.inviteLinkCreatedNotCopied'));
+      }
+    } catch (err) {
+      setError(writeErrorMessage(err, t('membersModal.thatActionFailed')));
+    } finally {
+      setIssuing(false);
     }
   }
 
@@ -384,6 +413,43 @@ export const MembersModal: React.FC<MembersModalProps> = ({ orgId, orgName, onCl
               {t('membersModal.theyNeedAnAccountAlreadyInvitationsMatchAnExistingEmailAddress')}
             </p>
           </form>
+
+          <section style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <h3 style={{ fontSize: '14px', color: 'var(--rose-gold-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <Link2 size={16} /> {t('membersModal.inviteLinksTitle')}
+            </h3>
+            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
+              {issuedLink && (
+                <code style={{ flex: '1 1 260px', fontSize: '12px', wordBreak: 'break-all', color: 'var(--text-muted)' }}>{issuedLink}</code>
+              )}
+              <button type="button" className="btn-rose" disabled={issuing} onClick={() => void issueInviteLink()}>
+                {t('membersModal.generateInviteLink')}
+              </button>
+            </div>
+            <p style={{ color: 'var(--text-muted)', fontSize: '12px' }}>{t('membersModal.inviteLinksHint')}</p>
+            {inviteLinks.length > 0 && (
+              <>
+                <h4 style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
+                  {t('membersModal.activeInviteLinks', { count: inviteLinks.length })}
+                </h4>
+                {inviteLinks.map(link => (
+                  <div key={link.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', fontSize: '13px' }}>
+                    <span style={{ color: 'var(--text-muted)' }}>
+                      {t('membersModal.inviteLinkExpires', { name: link.createdByName, date: formatDate(link.expiresAt) })}
+                    </span>
+                    <button
+                      type="button"
+                      className="btn-secondary"
+                      style={{ padding: '6px 12px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}
+                      onClick={() => run(() => api.revokeInviteLink(orgId, link.id), t('membersModal.inviteLinkRevoked'))}
+                    >
+                      <Ban size={14} /> {t('adminPanel.revoke')}
+                    </button>
+                  </div>
+                ))}
+              </>
+            )}
+          </section>
 
           {joinLink && (
             <section style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>

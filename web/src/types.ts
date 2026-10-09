@@ -112,7 +112,8 @@ export interface Organization {
 export interface OrgAuditEvent {
   id: string;
   action: 'ORG_CREATED' | 'JOIN_REQUESTED' | 'APPROVED' | 'DECLINED' | 'INVITED' | 'INVITATION_ACCEPTED'
-    | 'ROLE_CHANGED' | 'REMOVED' | 'REVOKED' | 'RESTORED';
+    | 'ROLE_CHANGED' | 'REMOVED' | 'REVOKED' | 'RESTORED'
+    | 'INVITE_LINK_CREATED' | 'INVITE_LINK_REVOKED' | 'INVITE_LINK_ACCEPTED';
   actorUserId: string;
   actorName?: string;
   targetUserId?: string;
@@ -180,6 +181,25 @@ export interface CreateCreationLinkResult {
   token: string;
   url: string;
   info: OrganizationCreationLink;
+}
+
+/** An outstanding single-use invite link. The raw token is only ever in `CreateInviteLinkResult`. */
+export interface InviteLink {
+  id: string;
+  createdByName: string;
+  expiresAt: string;
+  createdAt: string;
+}
+
+export interface CreateInviteLinkResult {
+  token: string;
+  url: string;
+  info: InviteLink;
+}
+
+export interface InviteLinkPreview {
+  valid: boolean;
+  organization?: { id: string; name: string; slug: string } | null;
 }
 
 export interface CreateVisitInput {
