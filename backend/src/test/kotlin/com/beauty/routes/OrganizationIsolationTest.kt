@@ -685,4 +685,131 @@ class OrganizationIsolationTest {
         }
         assertEquals(HttpStatusCode.Conflict, removed.status, removed.bodyAsText())
     }
+
+    // -----------------------------------------------------------------------
+    // Join-request decisions, revocation and the audit log
+    // -----------------------------------------------------------------------
+
+    @Test
+    fun `another organization's audit log and member decisions are out of reach`() = testApplication {
+        startApp()
+
+        val alice = register("alice@example.com")
+        val orgA = createOrg(alice, "org-a")
+        val bob = register("bob@example.com")
+        val orgB = createOrg(bob, "org-b")
+        val carol = register("carol@example.com")
+        client.post("/api/organizations/join-requests") {
+            bearerAuth(carol)
+            contentType(ContentType.Application.Json)
+            setBody("""{"slug":"org-b"}""")
+        }
+        val carolId = userId(carol)
+
+        // Alice names org-b in both the header and the path: she is not a member.
+        val audit = client.get("/api/organizations/$orgB/audit") {
+            bearerAuth(alice)
+            header(ORG_HEADER, orgB)
+        }
+        assertEquals(HttpStatusCode.Forbidden, audit.status)
+        assertEquals("NOT_A_MEMBER", Json.parseToJsonElement(audit.bodyAsText()).jsonObject["code"]!!.jsonPrimitive.content)
+
+        // Her own header with org-b's path: refused as a mismatch, nothing changes.
+        for (action in listOf("decline", "approval", "revoke", "restore")) {
+            val response = client.post("/api/organizations/$orgB/members/$carolId/$action") {
+                bearerAuth(alice)
+                header(ORG_HEADER, orgA)
+            }
+            assertEquals(HttpStatusCode.Forbidden, response.status, action)
+        }
+        val roster = client.get("/api/organizations/$orgB/members") {
+            bearerAuth(bob)
+            header(ORG_HEADER, orgB)
+        }
+        val carolRow = Json.parseToJsonElement(roster.bodyAsText()).jsonArray
+            .map { it.jsonObject }
+            .single { it["userId"]!!.jsonPrimitive.content == carolId }
+        assertEquals("PENDING", carolRow["status"]!!.jsonPrimitive.content)
+    }
+
+    @Test
+    fun `a revoked member loses access on the next request and cannot ask back in`() = testApplication {
+        startApp()
+
+        val alice = register("alice@example.com")
+        val orgA = createOrg(alice, "org-a")
+        createClient(alice, orgA, "Private Client")
+        val bob = register("bob@example.com")
+        client.post("/api/organizations/join-requests") {
+            bearerAuth(bob)
+            contentType(ContentType.Application.Json)
+            setBody("""{"slug":"org-a"}""")
+        }
+        val bobId = userId(bob)
+        client.post("/api/organizations/$orgA/members/$bobId/approval") {
+            bearerAuth(alice)
+            header(ORG_HEADER, orgA)
+        }
+        val before = client.get("/api/clients") { bearerAuth(bob); header(ORG_HEADER, orgA) }
+        assertEquals(HttpStatusCode.OK, before.status)
+
+        val revoke = client.post("/api/organizations/$orgA/members/$bobId/revoke") {
+            bearerAuth(alice)
+            header(ORG_HEADER, orgA)
+        }
+        assertEquals(HttpStatusCode.OK, revoke.status, revoke.bodyAsText())
+
+        // Same, still-valid access token.
+        val after = client.get("/api/clients") { bearerAuth(bob); header(ORG_HEADER, orgA) }
+        assertEquals(HttpStatusCode.Forbidden, after.status)
+
+        val again = client.post("/api/organizations/join-requests") {
+            bearerAuth(bob)
+            contentType(ContentType.Application.Json)
+            setBody("""{"slug":"org-a"}""")
+        }
+        assertEquals(HttpStatusCode.Forbidden, again.status)
+        assertEquals("MEMBERSHIP_SUSPENDED", Json.parseToJsonElement(again.bodyAsText()).jsonObject["code"]!!.jsonPrimitive.content)
+
+        val invite = client.post("/api/organizations/$orgA/members/invitations") {
+            bearerAuth(alice)
+            header(ORG_HEADER, orgA)
+            contentType(ContentType.Application.Json)
+            setBody("""{"email":"bob@example.com","role":"ORG_USER"}""")
+        }
+        assertEquals(HttpStatusCode.Conflict, invite.status)
+
+        val restore = client.post("/api/organizations/$orgA/members/$bobId/restore") {
+            bearerAuth(alice)
+            header(ORG_HEADER, orgA)
+        }
+        assertEquals(HttpStatusCode.OK, restore.status)
+        val restored = client.get("/api/clients") { bearerAuth(bob); header(ORG_HEADER, orgA) }
+        assertEquals(HttpStatusCode.OK, restored.status)
+    }
+
+    @Test
+    fun `the last administrator cannot be revoked and nobody can revoke themselves`() = testApplication {
+        startApp()
+
+        val alice = register("alice@example.com")
+        val orgA = createOrg(alice, "org-a")
+        val aliceId = userId(alice)
+
+        val self = client.post("/api/organizations/$orgA/members/$aliceId/revoke") {
+            bearerAuth(alice)
+            header(ORG_HEADER, orgA)
+        }
+        assertEquals(HttpStatusCode.Conflict, self.status)
+        assertEquals("CANNOT_REVOKE_SELF", Json.parseToJsonElement(self.bodyAsText()).jsonObject["code"]!!.jsonPrimitive.content)
+
+        val root = register("root@example.com")
+        promoteToSuperAdmin(userId(root))
+        val byRoot = client.post("/api/organizations/$orgA/members/$aliceId/revoke") {
+            bearerAuth(root)
+            header(ORG_HEADER, orgA)
+        }
+        assertEquals(HttpStatusCode.Conflict, byRoot.status)
+        assertEquals("LAST_ADMIN", Json.parseToJsonElement(byRoot.bodyAsText()).jsonObject["code"]!!.jsonPrimitive.content)
+    }
 }

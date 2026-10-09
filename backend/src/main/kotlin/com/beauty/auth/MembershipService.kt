@@ -425,6 +425,40 @@ class MembershipService {
     }
 
     /**
+     * Revokes an active member's access without deleting the row: the status
+     * becomes `SUSPENDED`, which every authorization check already refuses,
+     * and which [requestToJoin] and invitations both decline to lift. Only
+     * [restore] brings them back. Returns false if they were not active —
+     * the status predicate is part of the `UPDATE`.
+     */
+    suspend fun revoke(userId: String, organizationId: String, decidedBy: String): Boolean =
+        transition(userId, organizationId, from = MembershipStatus.ACTIVE, to = MembershipStatus.SUSPENDED, decidedBy)
+
+    /** Lifts a revocation. Returns false if the membership was not suspended. */
+    suspend fun restore(userId: String, organizationId: String, decidedBy: String): Boolean =
+        transition(userId, organizationId, from = MembershipStatus.SUSPENDED, to = MembershipStatus.ACTIVE, decidedBy)
+
+    private suspend fun transition(
+        userId: String,
+        organizationId: String,
+        from: MembershipStatus,
+        to: MembershipStatus,
+        decidedBy: String
+    ): Boolean = dbQuery {
+        val now = LocalDateTime.now()
+        UserOrganizationsTable.update({
+            (UserOrganizationsTable.userId eq userId) and
+                (UserOrganizationsTable.organizationId eq organizationId) and
+                (UserOrganizationsTable.status eq from.name)
+        }) {
+            it[status] = to.name
+            it[UserOrganizationsTable.decidedBy] = decidedBy
+            it[decidedAt] = now
+            it[updatedAt] = now
+        } > 0
+    }
+
+    /**
      * Files a join request by organization handle, or resolves what an
      * existing row means for one.
      *

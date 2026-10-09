@@ -399,6 +399,63 @@ fun Route.organizationRoutes() {
             }
 
             /**
+             * Revokes a member's access while keeping their membership on record.
+             *
+             * Unlike removal, the person cannot simply ask to join again — a
+             * `SUSPENDED` row refuses join requests and invitations alike —
+             * so this is the action for "this person must not get back in".
+             * Takes effect on their next request, like removal, because every
+             * data route re-reads membership. The same last-admin guard
+             * applies, and an admin cannot revoke themselves: nobody would be
+             * left able to undo it on their behalf except another admin, and
+             * "leave" is what removal is for.
+             */
+            post("/{userId}/revoke") {
+                val ctx = requireOrgAccess(memberships, requireAdmin = true) ?: return@post
+                val orgId = call.parameters["orgId"]!!
+                val targetUserId = call.parameters["userId"]!!
+                if (!ctx.matches(orgId)) return@post call.respondOrgMismatch()
+
+                if (targetUserId == ctx.userId) {
+                    call.respond(HttpStatusCode.Conflict, mapOf("error" to "You cannot revoke your own access. Leave the organization instead.", "code" to "CANNOT_REVOKE_SELF"))
+                    return@post
+                }
+                val existing = memberships.membership(targetUserId, orgId)
+                if (existing == null || existing.status != MembershipStatus.ACTIVE) {
+                    call.respond(HttpStatusCode.NotFound, mapOf("error" to "That user is not an active member.", "code" to "NOT_A_MEMBER"))
+                    return@post
+                }
+                if (existing.role == OrgRole.ORG_ADMIN && memberships.activeAdminCount(orgId) <= 1) {
+                    call.respond(
+                        HttpStatusCode.Conflict,
+                        mapOf("error" to "This is the only administrator. Promote someone else first.", "code" to "LAST_ADMIN")
+                    )
+                    return@post
+                }
+                if (!memberships.revoke(targetUserId, orgId, decidedBy = ctx.userId)) {
+                    call.respond(HttpStatusCode.NotFound, mapOf("error" to "That user is not an active member.", "code" to "NOT_A_MEMBER"))
+                    return@post
+                }
+                audit.record(orgId, ctx.userId, OrgAuditService.Action.REVOKED, targetUserId = targetUserId)
+                call.respond(HttpStatusCode.OK, MessageResponse("Access revoked."))
+            }
+
+            /** Restores a revoked member, with the role they had before. */
+            post("/{userId}/restore") {
+                val ctx = requireOrgAccess(memberships, requireAdmin = true) ?: return@post
+                val orgId = call.parameters["orgId"]!!
+                val targetUserId = call.parameters["userId"]!!
+                if (!ctx.matches(orgId)) return@post call.respondOrgMismatch()
+
+                if (!memberships.restore(targetUserId, orgId, decidedBy = ctx.userId)) {
+                    call.respond(HttpStatusCode.NotFound, mapOf("error" to "That user's access is not revoked.", "code" to "MEMBERSHIP_NOT_SUSPENDED"))
+                    return@post
+                }
+                audit.record(orgId, ctx.userId, OrgAuditService.Action.RESTORED, targetUserId = targetUserId)
+                call.respond(HttpStatusCode.OK, MessageResponse("Access restored."))
+            }
+
+            /**
              * Invites an existing account into the organization.
              *
              * Only matches accounts that already exist — there is no
@@ -443,8 +500,8 @@ fun Route.organizationRoutes() {
                         return@post
                     }
                     // A suspension is a deliberate block; re-inviting must not
-                    // be a side-channel around it. The admin has to unsuspend
-                    // explicitly via PATCH .../members/{userId} first.
+                    // be a side-channel around it. The admin has to restore
+                    // them explicitly via POST .../members/{userId}/restore.
                     MembershipStatus.SUSPENDED -> {
                         call.respond(
                             HttpStatusCode.Conflict,
