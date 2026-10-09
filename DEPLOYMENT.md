@@ -355,6 +355,9 @@ Current migrations, in order:
 | `004_email_verification_enforcement.sql` | No schema change. Clears `email_verified_at` for every account so all users must re-verify, and retires outstanding verification tokens | Data only — see below |
 | `005_attachment_integrity_and_indexes.sql` | `ON DELETE CASCADE` on `visits.client_id` and `attachments.visit_id`, plus the indexes those lookups use | No — but see `006` |
 | `006_drop_legacy_restrict_foreign_keys.sql` | Nothing new. Removes the original RESTRICT foreign keys that `005` failed to drop, which were still blocking the deletes it was meant to enable | No, and safe to re-run |
+| `007_account_language.sql` | `users.language_preference`, `users.language_revision` and their check constraints | No |
+| `008_archive_organizations.sql` | `organizations.archived_at` and its index | No |
+| `009_membership_decisions_and_audit.sql` | `user_organizations.decided_at`/`decided_by`, `organization_audit_events` | No, and safe to re-run |
 
 `006` exists because `005` reported success and changed nothing observable.
 It dropped the constraint names PostgreSQL generates by default, but these

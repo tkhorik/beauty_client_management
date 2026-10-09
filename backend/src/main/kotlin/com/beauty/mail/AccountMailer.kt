@@ -1,8 +1,10 @@
 package com.beauty.mail
 
+import com.beauty.auth.AdminContact
 import com.beauty.auth.OneTimeTokenService
 import com.beauty.auth.TokenPurpose
 import com.beauty.config.AppSettings
+import com.beauty.i18n.Languages
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -117,6 +119,47 @@ class AccountMailer(
         // failure to deliver it is a security-relevant event, not just a
         // bounced email.
         dispatch("password-changed notice", template.copy(to = email))
+    }
+
+    /**
+     * Tells each of an organization's admins that someone asked to join.
+     *
+     * One message per admin, each in that admin's own language — there is no
+     * request header to fall back on, since none of them made this request.
+     * The link opens the members screen for that organization; it carries no
+     * token, so forwarding it grants nothing.
+     */
+    fun sendJoinRequestToAdmins(
+        organizationId: String,
+        organizationName: String,
+        requesterName: String,
+        requesterEmail: String,
+        admins: List<AdminContact>
+    ) {
+        val link = "${settings.publicUrl}/?members=${URLEncoder.encode(organizationId, StandardCharsets.UTF_8)}"
+        for (admin in admins) {
+            val template = EmailTemplates.joinRequest(
+                adminName = admin.fullName,
+                requesterName = requesterName,
+                requesterEmail = requesterEmail,
+                organizationName = organizationName,
+                link = link,
+                language = Languages.resolve(admin.languagePreference, null)
+            )
+            dispatch("join-request notice", template.copy(to = admin.email))
+        }
+    }
+
+    /** Tells a requester their join request was approved or declined. */
+    fun sendJoinDecision(email: String, fullName: String, languagePreference: String, organizationName: String, approved: Boolean) {
+        val template = EmailTemplates.joinDecision(
+            fullName = fullName,
+            organizationName = organizationName,
+            approved = approved,
+            link = "${settings.publicUrl}/",
+            language = Languages.resolve(languagePreference, null)
+        )
+        dispatch(if (approved) "join-approved notice" else "join-declined notice", template.copy(to = email))
     }
 
     /**

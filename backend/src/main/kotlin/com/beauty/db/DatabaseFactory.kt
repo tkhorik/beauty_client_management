@@ -115,6 +115,7 @@ object DatabaseFactory {
             UsersTable,
             OrganizationsTable,
             UserOrganizationsTable,
+            OrganizationAuditTable,
             RefreshTokensTable,
             OneTimeTokensTable,
             OrganizationCreationTokensTable,

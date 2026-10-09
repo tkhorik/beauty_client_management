@@ -55,8 +55,8 @@ enum class OrgRole {
 /**
  * Where a membership sits in the join handshake.
  *
- * Only [ACTIVE] grants access. The other three exist so that a request, an
- * invitation, or an admin's block can be recorded without conferring
+ * Only [ACTIVE] grants access. The others exist so that a request, an
+ * invitation, an admin's block or a refusal can be recorded without conferring
  * anything, which is why every authorization query matches this column
  * explicitly rather than testing for the row's existence.
  */
@@ -81,7 +81,18 @@ enum class MembershipStatus {
      * rather than testing row existence, so a membership newly in this state
      * is denied everywhere without touching a single existing check.
      */
-    SUSPENDED;
+    SUSPENDED,
+
+    /**
+     * An admin turned down this user's join request. Grants nothing.
+     *
+     * Kept as a row rather than deleted so the requester is told the answer
+     * instead of watching the request silently vanish, and so the decision
+     * time (`decided_at`) can bound how soon they may ask again — see
+     * [com.beauty.auth.MembershipService.REREQUEST_COOLDOWN]. Safe for the same
+     * reason as [SUSPENDED]: every check matches `== ACTIVE`.
+     */
+    DECLINED;
 
     companion object {
         fun parse(raw: String?): MembershipStatus? =

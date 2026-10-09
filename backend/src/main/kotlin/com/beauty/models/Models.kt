@@ -101,7 +101,13 @@ data class RegisterRequest(
     val email: String,
     val password: String,
     val fullName: String,
-    val languagePreference: String = "system"
+    val languagePreference: String = "system",
+    /**
+     * Optional handle of an organization to request access to as part of
+     * signing up. Files a `PENDING` request — it grants nothing until an
+     * admin approves it.
+     */
+    val organizationSlug: String? = null
 )
 
 @Serializable
@@ -147,6 +153,21 @@ data class ResetPasswordRequest(
 @Serializable
 data class MessageResponse(
     val message: String
+)
+
+/**
+ * 409 from a join request the organization turned down too recently to ask
+ * again. A typed body rather than a map because it carries a timestamp the
+ * clients render ("you can ask again after …").
+ */
+@OptIn(ExperimentalSerializationApi::class)
+@Serializable
+data class RequestDeclinedResponse(
+    val retryAfter: String,
+    @EncodeDefault(EncodeDefault.Mode.ALWAYS)
+    val error: String = "This organization declined your request. You can ask again later.",
+    @EncodeDefault(EncodeDefault.Mode.ALWAYS)
+    val code: String = "REQUEST_DECLINED"
 )
 
 /** Body for `/api/auth/refresh` and `/api/auth/logout` from non-browser clients. */
@@ -298,9 +319,16 @@ data class OrganizationDto(
     val slug: String,
     /** `ORG_ADMIN` or `ORG_USER`. */
     val role: String,
-    /** `ACTIVE`, `PENDING`, `INVITED` or `SUSPENDED`. Only `ACTIVE` grants access to any data. */
+    /** `ACTIVE`, `PENDING`, `INVITED`, `SUSPENDED` or `DECLINED`. Only `ACTIVE` grants access to any data. */
     val status: String,
-    val createdAt: String? = null
+    val createdAt: String? = null,
+    /**
+     * Requests waiting on approval. Present only where the caller is an active
+     * admin — a plain member has no business knowing the queue's size.
+     */
+    val pendingRequestCount: Int? = null,
+    /** For a `DECLINED` row: the earliest time the caller may ask again. */
+    val retryAfter: String? = null
 )
 
 /**
@@ -356,6 +384,20 @@ data class MemberDto(
     val role: String,
     val status: String,
     val joinedAt: String
+)
+
+/** One entry of `GET /api/organizations/{id}/audit`. */
+@Serializable
+data class AuditEventDto(
+    val id: String,
+    /** An `OrgAuditService.Action` name, e.g. `APPROVED`. */
+    val action: String,
+    val actorUserId: String,
+    val actorName: String? = null,
+    val targetUserId: String? = null,
+    val targetName: String? = null,
+    val detail: String? = null,
+    val createdAt: String
 )
 
 // ---------------------------------------------------------------------------

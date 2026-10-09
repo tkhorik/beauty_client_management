@@ -1,7 +1,7 @@
 package com.beauty.mail
 
 /**
- * Bodies for the three transactional emails this app sends.
+ * Bodies for the transactional emails this app sends.
  *
  * Kept together so the tone and the security wording stay consistent, and so
  * the expiry stated in the copy is derived from the same constant the server
@@ -162,6 +162,78 @@ object EmailTemplates {
             link = supportLink
         )
     )
+    /**
+     * Organization and person names reach subject lines here, and both are
+     * user input. Line breaks are stripped so a crafted name cannot start a
+     * new header; the body copies are HTML-escaped as everywhere else.
+     */
+    private fun oneLine(raw: String): String = raw.replace(Regex("[\\r\\n]+"), " ").trim()
+
+    /** To an organization's admins: someone asked to join. */
+    fun joinRequest(
+        adminName: String,
+        requesterName: String,
+        requesterEmail: String,
+        organizationName: String,
+        link: String,
+        language: String = "en"
+    ): Email {
+        val who = oneLine(requesterName.ifBlank { requesterEmail })
+        val org = oneLine(organizationName)
+        if (language == "ru") return russianEmail(
+            adminName, "Новый запрос на доступ", "$who просит доступ к «$org»",
+            "$who ($requesterEmail) запросил(а) доступ к организации «$org». Запрос не даёт никакого доступа, пока администратор его не одобрит.",
+            "Если вы не знаете этого человека, отклоните запрос.",
+            "Открыть запросы", link
+        )
+        val greeting = "Hi ${adminName.ifBlank { "there" }},"
+        val body = "$who ($requesterEmail) has asked to join $org. The request grants no access until an administrator approves it."
+        val notice = "If you do not recognise this person, decline the request."
+        return Email(
+            to = "",
+            subject = "$who asked to join $org",
+            textBody = "$greeting\n\n$body\n\n$link\n\n$notice\n\n— $APP_NAME",
+            htmlBody = layout(
+                heading = "New access request",
+                bodyHtml = "<p>${esc(greeting)}</p><p>${esc(body)}</p><p>${esc(notice)}</p>",
+                buttonLabel = "Review requests",
+                link = link
+            )
+        )
+    }
+
+    /** To the requester: an admin approved or declined their request. */
+    fun joinDecision(fullName: String, organizationName: String, approved: Boolean, link: String, language: String = "en"): Email {
+        val org = oneLine(organizationName)
+        if (language == "ru") return if (approved) russianEmail(
+            fullName, "Доступ открыт", "Вам открыт доступ к «$org»",
+            "Администратор одобрил ваш запрос. Теперь вы участник организации «$org».",
+            "Войдите, чтобы начать работу.", "Открыть $APP_NAME", link
+        ) else russianEmail(
+            fullName, "Запрос отклонён", "Запрос на доступ к «$org» отклонён",
+            "Администратор организации «$org» отклонил ваш запрос на доступ.",
+            "Если это ошибка, свяжитесь с администратором — он может пригласить вас напрямую.",
+            "Открыть $APP_NAME", link
+        )
+        val greeting = "Hi ${fullName.ifBlank { "there" }},"
+        val subject = if (approved) "You now have access to $org" else "Your request to join $org was declined"
+        val body = if (approved) "An administrator approved your request. You are now a member of $org."
+        else "An administrator of $org declined your request to join."
+        val notice = if (approved) "Sign in to get started."
+        else "If you think this is a mistake, contact an administrator — they can invite you directly."
+        return Email(
+            to = "",
+            subject = subject,
+            textBody = "$greeting\n\n$body\n\n$link\n\n$notice\n\n— $APP_NAME",
+            htmlBody = layout(
+                heading = if (approved) "Access granted" else "Request declined",
+                bodyHtml = "<p>${esc(greeting)}</p><p>${esc(body)}</p><p>${esc(notice)}</p>",
+                buttonLabel = "Open $APP_NAME",
+                link = link
+            )
+        )
+    }
+
     private fun russianEmail(
         fullName: String, heading: String, subject: String, body: String,
         notice: String, buttonLabel: String, link: String

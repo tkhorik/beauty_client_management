@@ -1,6 +1,14 @@
 package com.beauty.routes
 
+import com.beauty.auth.JoinRequestNotifier
+import com.beauty.auth.JoinResult
 import com.beauty.auth.MembershipService
+import com.beauty.auth.OneTimeTokenService
+import com.beauty.auth.OrgAuditService
+import com.beauty.auth.OrgRef
+import com.beauty.config.AppSettings
+import com.beauty.mail.AccountMailer
+import com.beauty.mail.MailSender
 import com.beauty.auth.MembershipStatus
 import com.beauty.auth.GlobalRole
 import com.beauty.auth.OrgCreationTokenService
@@ -12,6 +20,7 @@ import com.beauty.models.*
 import com.beauty.plugins.ORG_HEADER
 import com.beauty.plugins.OrgContext
 import com.beauty.plugins.RATE_LIMIT_AUTH
+import com.beauty.plugins.RATE_LIMIT_EMAIL
 import com.beauty.plugins.requireActiveAccount
 import com.beauty.plugins.requireOrgAccess
 import com.beauty.plugins.requireWritableAccount
@@ -56,6 +65,11 @@ private const val SQLSTATE_UNIQUE_VIOLATION = "23505"
 fun Route.organizationRoutes() {
     val memberships = MembershipService()
     val creationTokens = OrgCreationTokenService()
+    val audit = OrgAuditService()
+    val settings = AppSettings(application.environment.config)
+    // `application` is the scope the SMTP sends run in — see AccountMailer.
+    val mailer = AccountMailer(settings, OneTimeTokenService(), MailSender.from(settings), application)
+    val notifier = JoinRequestNotifier(memberships, audit, mailer)
 
     route("/api/organizations") {
 
@@ -78,26 +92,38 @@ fun Route.organizationRoutes() {
                         .orderBy(OrganizationsTable.name to SortOrder.ASC)
                         .toList()
                 }
+                val pendingCounts = memberships.pendingRequestCounts(organizations.map { it[OrganizationsTable.id] })
                 call.respond(organizations.map {
                     OrganizationDto(
                         id = it[OrganizationsTable.id],
                         name = it[OrganizationsTable.name],
                         slug = it[OrganizationsTable.slug],
                         role = OrgRole.ORG_ADMIN.name,
-                        status = MembershipStatus.ACTIVE.name
+                        status = MembershipStatus.ACTIVE.name,
+                        pendingRequestCount = pendingCounts[it[OrganizationsTable.id]] ?: 0
                     )
                 })
                 return@get
             }
 
+            val mine = memberships.organizationsForUser(userId)
+            val administered = mine
+                .filter { it.status == MembershipStatus.ACTIVE && it.role == OrgRole.ORG_ADMIN }
+                .map { it.organizationId }
+                .toSet()
+            val pendingCounts = memberships.pendingRequestCounts(administered)
             call.respond(
-                memberships.organizationsForUser(userId).map {
+                mine.map {
                     OrganizationDto(
                         id = it.organizationId,
                         name = it.organizationName,
                         slug = it.organizationSlug,
                         role = it.role.name,
-                        status = it.status.name
+                        status = it.status.name,
+                        pendingRequestCount = if (it.organizationId in administered) pendingCounts[it.organizationId] ?: 0 else null,
+                        retryAfter = if (it.status == MembershipStatus.DECLINED) {
+                            (it.decidedAt ?: LocalDateTime.MIN).plus(MembershipService.REREQUEST_COOLDOWN).toString()
+                        } else null
                     )
                 }
             )
@@ -207,6 +233,7 @@ fun Route.organizationRoutes() {
             }
 
             memberships.upsert(userId, id, OrgRole.ORG_ADMIN, MembershipStatus.ACTIVE)
+            audit.record(id, userId, OrgAuditService.Action.ORG_CREATED)
 
             call.respond(
                 HttpStatusCode.Created,
@@ -239,6 +266,11 @@ fun Route.organizationRoutes() {
          * no way to offer "type your salon's handle" without confirming whether
          * the handle exists.
          *
+         * Under the email rate limit, because a newly filed request mails every
+         * admin of the organization — an address the caller does not own. Only
+         * a *new* request mails anyone; re-asking while pending is a no-op, and
+         * a declined requester waits out `REREQUEST_COOLDOWN`.
+         *
          * **Deliberately open to unverified accounts**, and the one write-shaped
          * endpoint that is. Joining grants nothing by itself — a `PENDING` row
          * is inert until an admin approves it, and an `INVITED` one means an
@@ -249,68 +281,48 @@ fun Route.organizationRoutes() {
          * read-only mode and stay there until they verify, which is exactly the
          * intended shape of the restriction.
          */
+        rateLimit(RateLimitName(RATE_LIMIT_EMAIL)) {
         post("/join-requests") {
             val userId = requireActiveAccount(memberships) ?: return@post
 
-            val slug = call.receive<JoinOrganizationRequest>().slug.trim().lowercase()
-            val org = dbQuery {
-                OrganizationsTable.select {
-                    (OrganizationsTable.slug eq slug) and OrganizationsTable.archivedAt.isNull()
-                }.singleOrNull()
-            }
-            if (org == null) {
-                call.respond(HttpStatusCode.NotFound, mapOf("error" to "No organization with that handle.", "code" to "ORGANIZATION_NOT_FOUND"))
-                return@post
-            }
-
-            val orgId = org[OrganizationsTable.id]
-            val existing = memberships.membership(userId, orgId)
-
-            val resulting = when (existing?.status) {
-                MembershipStatus.ACTIVE -> {
-                    call.respond(
-                        HttpStatusCode.Conflict,
-                        mapOf("error" to "You are already a member of this organization.", "code" to "ALREADY_A_MEMBER")
-                    )
-                    return@post
-                }
-                // The admin already asked them in; this is the acceptance.
-                MembershipStatus.INVITED -> {
-                    memberships.activate(userId, orgId)
-                    MembershipStatus.ACTIVE
-                }
-                MembershipStatus.PENDING -> MembershipStatus.PENDING // idempotent re-request
+            val slug = call.receive<JoinOrganizationRequest>().slug
+            when (val result = memberships.requestToJoin(userId, slug)) {
+                JoinResult.NotFound -> call.respond(
+                    HttpStatusCode.NotFound,
+                    mapOf("error" to "No organization with that handle.", "code" to "ORGANIZATION_NOT_FOUND")
+                )
+                is JoinResult.AlreadyMember -> call.respond(
+                    HttpStatusCode.Conflict,
+                    mapOf("error" to "You are already a member of this organization.", "code" to "ALREADY_A_MEMBER")
+                )
                 // A blocked membership does not lift itself by re-requesting —
                 // that would make suspension pointless. Only an admin's
-                // explicit unsuspend action (PATCH .../members/{userId}) may
-                // restore access.
-                MembershipStatus.SUSPENDED -> {
-                    call.respond(
-                        HttpStatusCode.Forbidden,
-                        mapOf(
-                            "error" to "Your access to this organization has been suspended. Contact an administrator.",
-                            "code" to "MEMBERSHIP_SUSPENDED"
-                        )
+                // explicit restore may lift it.
+                is JoinResult.Suspended -> call.respond(
+                    HttpStatusCode.Forbidden,
+                    mapOf(
+                        "error" to "Your access to this organization has been suspended. Contact an administrator.",
+                        "code" to "MEMBERSHIP_SUSPENDED"
                     )
-                    return@post
+                )
+                is JoinResult.Declined -> call.respond(
+                    HttpStatusCode.Conflict,
+                    RequestDeclinedResponse(retryAfter = result.retryAfter.toString())
+                )
+                is JoinResult.Filed -> {
+                    notifier.requestFiled(result.org, userId)
+                    call.respond(HttpStatusCode.OK, result.org.toDto(OrgRole.ORG_USER, MembershipStatus.PENDING))
                 }
-                null -> {
-                    memberships.upsert(userId, orgId, OrgRole.ORG_USER, MembershipStatus.PENDING)
-                    MembershipStatus.PENDING
+                is JoinResult.AlreadyPending ->
+                    call.respond(HttpStatusCode.OK, result.org.toDto(OrgRole.ORG_USER, MembershipStatus.PENDING))
+                // The admin already asked them in; this is the acceptance.
+                is JoinResult.Activated -> {
+                    audit.record(result.org.id, userId, OrgAuditService.Action.INVITATION_ACCEPTED, targetUserId = userId)
+                    call.respond(HttpStatusCode.OK, result.org.toDto(result.role, MembershipStatus.ACTIVE))
                 }
             }
-
-            call.respond(
-                HttpStatusCode.OK,
-                OrganizationDto(
-                    id = orgId,
-                    name = org[OrganizationsTable.name],
-                    slug = slug,
-                    role = (existing?.role ?: OrgRole.ORG_USER).name,
-                    status = resulting.name
-                )
-            )
         }
+        } // end rateLimit(RATE_LIMIT_EMAIL)
 
         // -------------------------------------------------------------------
         // Administration of one organization
@@ -357,8 +369,33 @@ fun Route.organizationRoutes() {
                     return@post
                 }
 
-                memberships.activate(targetUserId, orgId, OrgRole.ORG_USER)
+                memberships.activate(targetUserId, orgId, OrgRole.ORG_USER, decidedBy = ctx.userId)
+                audit.record(orgId, ctx.userId, OrgAuditService.Action.APPROVED, targetUserId = targetUserId)
+                memberships.organizationRef(orgId)?.let { notifier.decisionMade(it, targetUserId, approved = true) }
                 call.respond(HttpStatusCode.OK, MessageResponse("Request approved."))
+            }
+
+            /**
+             * Turns down a pending join request.
+             *
+             * The row becomes `DECLINED` rather than disappearing, so the
+             * requester is told the answer and cannot simply ask again at once
+             * (see `MembershipService.REREQUEST_COOLDOWN`). An admin who changes
+             * their mind can invite the person directly at any time.
+             */
+            post("/{userId}/decline") {
+                val ctx = requireOrgAccess(memberships, requireAdmin = true) ?: return@post
+                val orgId = call.parameters["orgId"]!!
+                val targetUserId = call.parameters["userId"]!!
+                if (!ctx.matches(orgId)) return@post call.respondOrgMismatch()
+
+                if (!memberships.decline(targetUserId, orgId, decidedBy = ctx.userId)) {
+                    call.respond(HttpStatusCode.NotFound, mapOf("error" to "No pending request from that user.", "code" to "REQUEST_NOT_FOUND"))
+                    return@post
+                }
+                audit.record(orgId, ctx.userId, OrgAuditService.Action.DECLINED, targetUserId = targetUserId)
+                memberships.organizationRef(orgId)?.let { notifier.decisionMade(it, targetUserId, approved = false) }
+                call.respond(HttpStatusCode.OK, MessageResponse("Request declined."))
             }
 
             /**
@@ -399,7 +436,12 @@ fun Route.organizationRoutes() {
                     }
                     // They asked, the admin is now asking back: both sides agree,
                     // so this is an approval rather than a second invitation.
-                    MembershipStatus.PENDING -> memberships.activate(targetUserId, orgId, role)
+                    MembershipStatus.PENDING -> {
+                        memberships.activate(targetUserId, orgId, role, decidedBy = ctx.userId)
+                        audit.record(orgId, ctx.userId, OrgAuditService.Action.APPROVED, targetUserId = targetUserId, detail = role.name)
+                        call.respond(HttpStatusCode.OK, MessageResponse("Request approved."))
+                        return@post
+                    }
                     // A suspension is a deliberate block; re-inviting must not
                     // be a side-channel around it. The admin has to unsuspend
                     // explicitly via PATCH .../members/{userId} first.
@@ -410,6 +452,8 @@ fun Route.organizationRoutes() {
                         )
                         return@post
                     }
+                    // A fresh invitation, or one overriding an earlier decline:
+                    // the admin vouching for them now is the point.
                     else -> memberships.upsert(
                         userId = targetUserId,
                         organizationId = orgId,
@@ -418,6 +462,7 @@ fun Route.organizationRoutes() {
                         invitedBy = ctx.userId
                     )
                 }
+                audit.record(orgId, ctx.userId, OrgAuditService.Action.INVITED, targetUserId = targetUserId, detail = role.name)
 
                 call.respond(HttpStatusCode.OK, MessageResponse("Invitation sent."))
             }
@@ -455,6 +500,9 @@ fun Route.organizationRoutes() {
                 }
 
                 memberships.changeRole(targetUserId, orgId, role)
+                if (existing.role != role) {
+                    audit.record(orgId, ctx.userId, OrgAuditService.Action.ROLE_CHANGED, targetUserId = targetUserId, detail = role.name)
+                }
                 call.respond(HttpStatusCode.OK, MessageResponse("Role updated."))
             }
 
@@ -495,8 +543,41 @@ fun Route.organizationRoutes() {
                 }
 
                 memberships.remove(targetUserId, orgId)
+                audit.record(orgId, ctx.userId, OrgAuditService.Action.REMOVED, targetUserId = targetUserId, detail = existing.status.name)
                 call.respond(HttpStatusCode.OK, MessageResponse("Member removed."))
             }
+        }
+
+        /**
+         * The organization's membership history, newest first.
+         *
+         * Admin-only, like the roster it describes. `before` is the
+         * `createdAt` of the oldest event the client already has.
+         */
+        get("/{orgId}/audit") {
+            val ctx = requireOrgAccess(memberships, requireAdmin = true) ?: return@get
+            val orgId = call.parameters["orgId"]!!
+            if (!ctx.matches(orgId)) return@get call.respondOrgMismatch()
+
+            val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 50).coerceIn(1, 100)
+            val before = call.request.queryParameters["before"]?.let {
+                runCatching { LocalDateTime.parse(it) }.getOrNull() ?: run {
+                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Invalid 'before' timestamp.", "code" to "INVALID_CURSOR"))
+                    return@get
+                }
+            }
+            call.respond(audit.eventsFor(orgId, limit, before).map {
+                AuditEventDto(
+                    id = it.id,
+                    action = it.action.name,
+                    actorUserId = it.actorUserId,
+                    actorName = it.actorName,
+                    targetUserId = it.targetUserId,
+                    targetName = it.targetName,
+                    detail = it.detail,
+                    createdAt = it.createdAt.toString()
+                )
+            })
         }
     }
 }
@@ -521,4 +602,12 @@ private suspend fun ApplicationCall.respondOrgMismatch() = respond(
         "error" to "The $ORG_HEADER header does not match the organization in the path.",
         "code" to "ORGANIZATION_MISMATCH"
     )
+)
+
+private fun OrgRef.toDto(role: OrgRole, status: MembershipStatus) = OrganizationDto(
+    id = id,
+    name = name,
+    slug = slug,
+    role = role.name,
+    status = status.name
 )

@@ -4,7 +4,11 @@ import com.beauty.i18n.Languages
 
 import com.beauty.auth.AccountStatus
 import com.beauty.auth.GlobalRole
+import com.beauty.auth.JoinRequestNotifier
+import com.beauty.auth.JoinResult
+import com.beauty.auth.MembershipService
 import com.beauty.auth.OneTimeTokenService
+import com.beauty.auth.OrgAuditService
 import com.beauty.auth.RefreshTokenService
 import com.beauty.auth.TokenPurpose
 import com.beauty.auth.VerificationPolicy
@@ -19,6 +23,7 @@ import com.beauty.plugins.RATE_LIMIT_EMAIL
 import com.beauty.plugins.generateJwtToken
 import com.beauty.plugins.userId
 import com.beauty.validation.Validation
+import com.beauty.validation.ValidationIssue
 import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.plugins.origin
@@ -239,6 +244,8 @@ fun Route.authRoutes() {
         return result.userId
     }
     val verification = VerificationPolicy(settings)
+    val memberships = MembershipService()
+    val joinNotifier = JoinRequestNotifier(memberships, OrgAuditService(), accountMailer)
 
     /** Reads the refresh token from the cookie, falling back to the request body. */
     suspend fun ApplicationCall.readRefreshToken(): String? {
@@ -269,7 +276,20 @@ fun Route.authRoutes() {
             val email = Validation.normaliseEmail(req.email)
             val fullName = req.fullName.trim()
 
-            val errors = Validation.registrationIssues(email, req.password, fullName)
+            // An optional "request access to this organization" as part of
+            // signing up. Resolved before anything is written and reported
+            // alongside the other field errors, so a mistyped handle never
+            // leaves behind an account that silently asked to join nothing.
+            // That this confirms whether a handle exists is accepted for the
+            // same reason as on `/join-requests`: handles are meant to be
+            // shared out loud, and this endpoint is rate-limited.
+            val requestedSlug = req.organizationSlug?.trim()?.lowercase()?.takeIf { it.isNotEmpty() }
+            val requestedOrg = requestedSlug?.let { memberships.findActiveOrganization(it) }
+
+            val errors = Validation.registrationIssues(email, req.password, fullName).toMutableMap()
+            if (requestedSlug != null && requestedOrg == null) {
+                errors["organizationSlug"] = ValidationIssue("ORGANIZATION_NOT_FOUND", "No organization with that handle.")
+            }
             if (errors.isNotEmpty()) {
                 call.respond(HttpStatusCode.BadRequest, ValidationErrorResponse.from(errors))
                 return@post
@@ -326,6 +346,15 @@ fun Route.authRoutes() {
             // off to the application scope so a slow server does not hold the
             // new user on a spinner.
             accountMailer.sendVerification(id, email, fullName, Languages.resolve(req.languagePreference, call.request.headers[HttpHeaders.AcceptLanguage]))
+
+            // A brand-new account has no membership rows, so this can only file
+            // a request — unless the organization was archived in the moment
+            // since the check above, in which case the account stands and the
+            // user can ask again from the onboarding screen.
+            if (requestedOrg != null) {
+                val joined = memberships.requestToJoin(id, requestedOrg.slug)
+                if (joined is JoinResult.Filed) joinNotifier.requestFiled(joined.org, id)
+            }
 
             // One timestamp, used for both the stored row and the response.
             // Computing it twice means the client is told a creation time that
