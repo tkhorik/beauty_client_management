@@ -850,4 +850,31 @@ class OrganizationIsolationTest {
         assertEquals(HttpStatusCode.Conflict, byRoot.status)
         assertEquals("LAST_ADMIN", Json.parseToJsonElement(byRoot.bodyAsText()).jsonObject["code"]!!.jsonPrimitive.content)
     }
+
+    @Test
+    fun `historical local visit date survives creation and history reload`() = testApplication {
+        startApp()
+        val token = register("historical-visit@example.com")
+        val orgId = createOrg(token, "historical-visit")
+        val clientId = createClient(token, orgId, "Historical Client")
+        // Exact datetime-local shape sent by the web form (no Z or offset).
+        val selectedTime = "2020-01-02T00:05"
+        val created = client.post("/api/visits") {
+            bearerAuth(token)
+            header(ORG_HEADER, orgId)
+            contentType(ContentType.Application.Json)
+            setBody("""{"clientId":"$clientId","visitDateTime":"$selectedTime","durationMinutes":60,"procedureNotes":"Historical visit","status":"COMPLETED"}""")
+        }
+        assertEquals(HttpStatusCode.Created, created.status)
+        assertEquals(selectedTime, Json.parseToJsonElement(created.bodyAsText()).jsonObject["visitDateTime"]!!.jsonPrimitive.content)
+        val history = client.get("/api/visits?clientId=$clientId") {
+            bearerAuth(token)
+            header(ORG_HEADER, orgId)
+        }
+        assertEquals(HttpStatusCode.OK, history.status)
+        val visit = Json.parseToJsonElement(history.bodyAsText()).jsonArray.single().jsonObject
+        assertEquals(selectedTime, visit["visitDateTime"]!!.jsonPrimitive.content)
+        assertEquals(clientId, visit["clientId"]!!.jsonPrimitive.content)
+    }
+
 }

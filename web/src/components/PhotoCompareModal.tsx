@@ -44,6 +44,8 @@ export const PhotoCompareModal: React.FC<PhotoCompareModalProps> = ({ attachment
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: '12px',
           background: 'rgba(15, 14, 19, 0.8)'
         }}>
           <div>
@@ -107,7 +109,7 @@ export const PhotoCompareModal: React.FC<PhotoCompareModalProps> = ({ attachment
                 style={{
                   position: 'relative',
                   width: '100%',
-                  height: '420px',
+                  aspectRatio: '16 / 9',
                   borderRadius: '16px',
                   overflow: 'hidden',
                   userSelect: 'none',
@@ -151,17 +153,14 @@ export const PhotoCompareModal: React.FC<PhotoCompareModalProps> = ({ attachment
                 {/* BEFORE Photo (Clipped Overlay) */}
                 <div style={{
                   position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  bottom: 0,
-                  width: `${sliderPos}%`,
-                  overflow: 'hidden',
-                  borderRight: '2px solid var(--rose-gold-primary)'
+                  inset: 0,
+                  clipPath: `inset(0 ${100 - sliderPos}% 0 0)`,
+                  pointerEvents: 'none'
                 }}>
                   <img
                     src={beforePhoto?.fileUrl}
                     alt={t('photoCompareModal.beforeProcedure')}
-                    style={{ width: '750px', height: '420px', objectFit: 'cover', maxWidth: 'none' }}
+                    style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
                   />
                   <div style={{
                     position: 'absolute',
@@ -213,6 +212,23 @@ export const PhotoCompareModal: React.FC<PhotoCompareModalProps> = ({ attachment
                 </div>
               </div>
 
+              <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '12px', marginTop: '14px' }}>
+                <label htmlFor="photo-comparison-position" style={{ color: 'var(--text-muted)', fontSize: '13px', whiteSpace: 'nowrap' }}>
+                  {t('photoCompareModal.comparisonPosition')}
+                </label>
+                <input
+                  id="photo-comparison-position"
+                  type="range"
+                  min="0"
+                  max="100"
+                  step="1"
+                  value={sliderPos}
+                  onChange={(event) => setSliderPos(Number(event.target.value))}
+                  aria-valuetext={t('photoCompareModal.beforePercentage', { count: Math.round(sliderPos) })}
+                  style={{ flex: '1 1 140px', minWidth: 0, maxWidth: '100%', accentColor: 'var(--rose-gold-primary)' }}
+                />
+              </div>
+
               {/* Slider Helper Note */}
               <p style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px', marginTop: '12px' }}>
                 {t('photoCompareModal.dragOrHoverAcrossThePhotoToSplitBeforeAndAfterResults')}
@@ -220,7 +236,7 @@ export const PhotoCompareModal: React.FC<PhotoCompareModalProps> = ({ attachment
             </div>
           ) : (
             /* Side by Side Mode */
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', width: '100%' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))', gap: '20px', width: '100%' }}>
               <div style={{ borderRadius: '16px', overflow: 'hidden', border: '1px solid var(--border-color)', background: 'rgba(0,0,0,0.4)', padding: '12px' }}>
                 <div style={{ position: 'relative', height: '320px', borderRadius: '12px', overflow: 'hidden', marginBottom: '10px' }}>
                   <img src={beforePhoto?.fileUrl} alt={t('photoCompareModal.before')} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />

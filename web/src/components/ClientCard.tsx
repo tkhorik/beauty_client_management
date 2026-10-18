@@ -2,6 +2,7 @@ import React from 'react';
 import type { Client } from '../types';
 import { Phone, Calendar, Tag, ChevronRight, AlertCircle } from 'lucide-react';
 import { useAppTranslation, useLocale } from '../i18n/LocaleProvider';
+import './ClientCard.css';
 
 interface ClientCardProps {
   client: Client;
@@ -15,19 +16,17 @@ export const ClientCard: React.FC<ClientCardProps> = ({ client, onSelect, onLogV
   const customFieldsKeys = Object.keys(client.customFields ?? {});
 
   return (
-    <div 
-      className="glass-panel"
+    <article
+      className="glass-panel client-card"
       style={{
         padding: '24px',
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'space-between',
         transition: 'transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease',
-        cursor: 'pointer',
         position: 'relative',
         overflow: 'hidden'
       }}
-      onClick={() => onSelect(client)}
       onMouseEnter={(e) => {
         e.currentTarget.style.transform = 'translateY(-3px)';
         e.currentTarget.style.borderColor = 'var(--rose-gold-primary)';
@@ -39,16 +38,23 @@ export const ClientCard: React.FC<ClientCardProps> = ({ client, onSelect, onLogV
         e.currentTarget.style.boxShadow = 'var(--shadow-card)';
       }}
     >
+      <button
+        type="button"
+        className="client-card__open"
+        onClick={() => onSelect(client)}
+        aria-label={t('clientCard.openClient', { name: client.name })}
+      />
       {/* Top Section */}
-      <div>
+      <div className="client-card__content">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '14px' }}>
-          <div>
+          <div style={{ minWidth: 0 }}>
             <h3 style={{ fontSize: '18px', color: '#fff', marginBottom: '4px' }}>{client.name}</h3>
             <p style={{ fontSize: '13px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '6px' }}>
               <Phone size={13} color="var(--rose-gold-primary)" /> {client.phone}
             </p>
           </div>
           <span style={{
+            flexShrink: 0,
             fontSize: '11px',
             fontWeight: 700,
             background: 'rgba(229, 184, 153, 0.1)',
@@ -102,27 +108,24 @@ export const ClientCard: React.FC<ClientCardProps> = ({ client, onSelect, onLogV
       </div>
 
       {/* Footer */}
-      <div style={{
+      <div className="client-card__footer" style={{
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
         paddingTop: '12px',
         borderTop: '1px solid rgba(255,255,255,0.05)'
       }}>
-        <span style={{ fontSize: '12px', color: 'var(--text-dim)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+        <span style={{ fontSize: '12px', color: 'var(--text-dim)', display: 'flex', alignItems: 'center', gap: '4px', minWidth: 0 }}>
           <Calendar size={12} /> {t('clients.updated', { date: formatDate(client.updatedAt) })}
         </span>
         <button 
-          onClick={(e) => {
-            e.stopPropagation();
-            onLogVisit(client);
-          }}
+          onClick={() => onLogVisit(client)}
           className="btn-secondary"
           style={{ padding: '6px 12px', fontSize: '12px' }}
         >
           {t('clientCard.logVisit')} <ChevronRight size={14} />
         </button>
       </div>
-    </div>
+    </article>
   );
 };

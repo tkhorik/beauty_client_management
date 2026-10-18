@@ -3,6 +3,8 @@ package com.beauty.app.ui.client
 import com.beauty.app.data.BeautyRepository
 import com.beauty.app.data.FakeBeautyApi
 import com.beauty.app.data.api.VisitHistoryDto
+import com.beauty.app.data.api.ClientDto
+import com.beauty.app.data.api.UpdateClientRequest
 import com.beauty.app.data.local.ClientDao
 import com.beauty.app.data.local.ClientEntity
 import com.beauty.app.data.local.VisitDao
@@ -15,6 +17,7 @@ import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
+import kotlinx.serialization.json.JsonObject
 import org.junit.After
 import org.junit.Assert.*
 import org.junit.Before
@@ -109,6 +112,31 @@ class ClientDetailViewModelTest {
         advanceUntilIdle()
         assertNotNull(vm.saveError)
         verify(visitDao, never()).insertVisit(any())
+    }
+
+    @Test fun `attribute save publishes matching draft success only after a successful update`() = runTest(dispatcher) {
+        whenever(clientDao.getClientById("client", "org")).thenReturn(client)
+        var failSave = true
+        val vm = model(object : FakeBeautyApi() {
+            override suspend fun getVisitsForClient(orgId: String, clientId: String) = emptyList<VisitHistoryDto>()
+            override suspend fun updateClient(orgId: String, id: String, request: UpdateClientRequest): ClientDto {
+                if (failSave) error("offline")
+                return ClientDto(id, request.name, request.phone, customFields = request.customFields,
+                    createdAt = "2026-10-01", updatedAt = "2026-10-01")
+            }
+        })
+        vm.refresh()
+        advanceUntilIdle()
+        vm.saveAttributes(JsonObject(emptyMap()), "draft-session")
+        advanceUntilIdle()
+        assertNull(vm.savedAttributesDraftId)
+        assertNotNull(vm.attributesError)
+        failSave = false
+        vm.saveAttributes(JsonObject(emptyMap()), "draft-session")
+        advanceUntilIdle()
+        assertEquals("draft-session", vm.savedAttributesDraftId)
+        assertNull(vm.attributesError)
+        assertFalse(vm.savingAttributes)
     }
 
     @Test fun `duration follows the web form's 15-minute steps`() {

@@ -1,0 +1,47 @@
+.client-card {
+  min-width: 0;
+}
+
+.client-card__open {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  width: 100%;
+  border: 0;
+  border-radius: inherit;
+  background: transparent;
+  cursor: pointer;
+}
+
+.client-card__open:focus-visible {
+  outline: 3px solid var(--rose-gold-primary);
+  outline-offset: -3px;
+}
+
+.client-card__content {
+  position: relative;
+  z-index: 2;
+  min-width: 0;
+  pointer-events: none;
+}
+
+.client-card__content h3,
+.client-card__content p,
+.client-card__content span {
+  overflow-wrap: anywhere;
+}
+
+.client-card__footer {
+  position: relative;
+  z-index: 2;
+  min-width: 0;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  pointer-events: none;
+}
+
+.client-card__footer .btn-secondary {
+  flex: 0 1 auto;
+  max-width: 100%;
+  pointer-events: auto;
+}
