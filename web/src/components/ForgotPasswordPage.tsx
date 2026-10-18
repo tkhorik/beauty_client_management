@@ -107,7 +107,7 @@ export function ForgotPasswordPage() {
             name="email"
             type="email"
             autoComplete="email"
-            className="glass-input"
+            className="input-field"
             value={email}
             onChange={e => setEmail(e.target.value)}
             placeholder="you@example.com"

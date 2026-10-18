@@ -167,7 +167,7 @@ export function ResetPasswordPage({ token }: { token: string }) {
               type={showPassword ? 'text' : 'password'}
               autoComplete="new-password"
               minLength={PASSWORD_MIN_LENGTH}
-              className="glass-input"
+              className="input-field"
               value={password}
               onChange={e => setPassword(e.target.value)}
               placeholder="••••••••"
@@ -215,7 +215,7 @@ export function ResetPasswordPage({ token }: { token: string }) {
             name="confirmPassword"
             type={showPassword ? 'text' : 'password'}
             autoComplete="new-password"
-            className="glass-input"
+            className="input-field"
             value={confirmPassword}
             onChange={e => setConfirmPassword(e.target.value)}
             placeholder="••••••••"
