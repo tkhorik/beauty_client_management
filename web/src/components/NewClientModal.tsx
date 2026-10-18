@@ -1,5 +1,5 @@
 import { useAppTranslation } from '../i18n/LocaleProvider';
-import React, { useState } from 'react';
+import React, { useId, useState } from 'react';
 import { api, writeErrorMessage } from '../services/api';
 import { X, UserPlus } from 'lucide-react';
 import { AttributeEditor } from './AttributeEditor';
@@ -12,6 +12,7 @@ interface NewClientModalProps {
 
 export const NewClientModal: React.FC<NewClientModalProps> = ({ onClose, onSuccess }) => {
   const { t } = useAppTranslation();
+  const fieldId = useId();
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
@@ -65,17 +66,22 @@ export const NewClientModal: React.FC<NewClientModalProps> = ({ onClose, onSucce
   };
 
   return (
-    <div style={{
-      position: 'fixed',
-      inset: 0,
-      background: 'rgba(0,0,0,0.85)',
-      backdropFilter: 'blur(10px)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      zIndex: 1000,
-      padding: '20px'
-    }}>
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby={`${fieldId}-title`}
+      style={{
+        position: 'fixed',
+        inset: 0,
+        background: 'rgba(0,0,0,0.85)',
+        backdropFilter: 'blur(10px)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 1000,
+        padding: '20px'
+      }}
+    >
       <div className="glass-panel-glow" style={{
         width: '650px',
         maxWidth: '95vw',
@@ -94,7 +100,7 @@ export const NewClientModal: React.FC<NewClientModalProps> = ({ onClose, onSucce
           alignItems: 'center',
           background: 'rgba(15, 14, 19, 0.9)'
         }}>
-          <h2 className="text-gradient" style={{ fontSize: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <h2 id={`${fieldId}-title`} className="text-gradient" style={{ fontSize: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
             <UserPlus size={20} /> {t('newClientModal.createNewClientProfile')}
           </h2>
           <button aria-label={t('common.close')} onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
@@ -107,8 +113,9 @@ export const NewClientModal: React.FC<NewClientModalProps> = ({ onClose, onSucce
           
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
             <div>
-              <label style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px', display: 'block' }}>{t('newClientModal.fullNameRequired')}</label>
+              <label htmlFor={`${fieldId}-name`} style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px', display: 'block' }}>{t('newClientModal.fullNameRequired')}</label>
               <input
+                id={`${fieldId}-name`}
                 type="text"
                 required
                 className="input-field"
@@ -119,8 +126,9 @@ export const NewClientModal: React.FC<NewClientModalProps> = ({ onClose, onSucce
             </div>
 
             <div>
-              <label style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px', display: 'block' }}>{t('newClientModal.phoneNumberRequired')}</label>
+              <label htmlFor={`${fieldId}-phone`} style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px', display: 'block' }}>{t('newClientModal.phoneNumberRequired')}</label>
               <input
+                id={`${fieldId}-phone`}
                 type="text"
                 required
                 className="input-field"
@@ -132,8 +140,9 @@ export const NewClientModal: React.FC<NewClientModalProps> = ({ onClose, onSucce
           </div>
 
           <div>
-            <label style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px', display: 'block' }}>{t('newClientModal.emailOptional')}</label>
+            <label htmlFor={`${fieldId}-email`} style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px', display: 'block' }}>{t('newClientModal.emailOptional')}</label>
             <input
+              id={`${fieldId}-email`}
               type="email"
               className="input-field"
               placeholder="client@example.com"
@@ -144,9 +153,10 @@ export const NewClientModal: React.FC<NewClientModalProps> = ({ onClose, onSucce
 
           {/* Client Tags */}
           <div>
-            <label style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px', display: 'block' }}>{t('newClientModal.primaryTags')}</label>
+            <label htmlFor={`${fieldId}-tag`} style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px', display: 'block' }}>{t('newClientModal.primaryTags')}</label>
             <div style={{ display: 'flex', gap: '8px', marginBottom: '10px' }}>
               <input
+                id={`${fieldId}-tag`}
                 type="text"
                 className="input-field"
                 placeholder={t('newClientModal.addTagPlaceholder')}
