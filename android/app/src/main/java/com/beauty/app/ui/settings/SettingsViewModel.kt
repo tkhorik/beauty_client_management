@@ -13,6 +13,7 @@ import com.beauty.app.ui.auth.AuthValidation
 import io.ktor.client.call.body
 import io.ktor.client.plugins.ClientRequestException
 import io.ktor.http.HttpStatusCode
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 
 /**
@@ -27,9 +28,18 @@ class SettingsViewModel(
 ) : ViewModel() {
 
     // In-memory only: retain through locale recreation, never through process death.
-    var currentPasswordDraft by mutableStateOf("")
-    var newPasswordDraft by mutableStateOf("")
-    var confirmPasswordDraft by mutableStateOf("")
+    private var currentPasswordValue by mutableStateOf("")
+    private var newPasswordValue by mutableStateOf("")
+    private var confirmPasswordValue by mutableStateOf("")
+    var currentPasswordDraft: String
+        get() = currentPasswordValue
+        set(value) { if (passwordState !is PasswordState.Loading) currentPasswordValue = value }
+    var newPasswordDraft: String
+        get() = newPasswordValue
+        set(value) { if (passwordState !is PasswordState.Loading) newPasswordValue = value }
+    var confirmPasswordDraft: String
+        get() = confirmPasswordValue
+        set(value) { if (passwordState !is PasswordState.Loading) confirmPasswordValue = value }
 
     sealed interface ProfileState {
         object Idle : ProfileState
@@ -55,6 +65,8 @@ class SettingsViewModel(
     var passwordState: PasswordState by mutableStateOf(PasswordState.Idle)
         private set
 
+    private var fullNameEdited = false
+
     init {
         viewModelScope.launch {
             // Best-effort: the JWT itself only carries id and email, not the
@@ -63,28 +75,35 @@ class SettingsViewModel(
             // the screen — the user can still retype their name and save.
             runCatching { repository.getCurrentUser() }.onSuccess {
                 email = it.email
-                fullName = it.fullName
+                if (!fullNameEdited) fullName = it.fullName
             }
         }
     }
 
     fun updateFullName(value: String) {
+        if (profileState is ProfileState.Loading) return
+        fullNameEdited = true
         fullName = value
     }
 
     fun saveProfile() {
+        if (profileState is ProfileState.Loading) return
         val trimmed = fullName.trim()
         AuthValidation.fullNameError(trimmed)?.let {
             profileState = ProfileState.Error(fieldErrors = mapOf("fullName" to it))
             return
         }
 
+        // Set synchronously so a second tap cannot launch another request before dispatch.
+        profileState = ProfileState.Loading
+        fullNameEdited = true
         viewModelScope.launch {
-            profileState = ProfileState.Loading
             profileState = try {
                 val updated = repository.updateProfile(trimmed)
                 fullName = updated.fullName
                 ProfileState.Success
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: ClientRequestException) {
                 if (e.response.status == HttpStatusCode.BadRequest) {
                     val parsed = runCatching { e.response.body<ValidationErrorResponse>() }.getOrNull()
@@ -103,6 +122,7 @@ class SettingsViewModel(
     }
 
     fun changePassword(currentPassword: String, newPassword: String, confirmNewPassword: String) {
+        if (passwordState is PasswordState.Loading) return
         val localErrors = buildMap {
             if (currentPassword.isEmpty()) {
                 put("currentPassword", "CURRENT_PASSWORD_REQUIRED")
@@ -122,8 +142,8 @@ class SettingsViewModel(
             return
         }
 
+        passwordState = PasswordState.Loading
         viewModelScope.launch {
-            passwordState = PasswordState.Loading
             passwordState = try {
                 val response = repository.changePassword(currentPassword, newPassword)
                 // The backend just revoked every session tied to this account,
@@ -133,7 +153,13 @@ class SettingsViewModel(
                 // app logged out by its own password change on the next
                 // refresh attempt.
                 tokenStore.saveSession(response.token, response.refreshToken)
+                // Clear before publishing success; a delayed UI effect must not erase a newer draft.
+                currentPasswordValue = ""
+                newPasswordValue = ""
+                confirmPasswordValue = ""
                 PasswordState.Success
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: ClientRequestException) {
                 when (e.response.status) {
                     HttpStatusCode.Unauthorized -> PasswordState.Error(
@@ -157,10 +183,10 @@ class SettingsViewModel(
 
     /** Clears stale success/error banners when the fields are edited again. */
     fun resetProfileState() {
-        profileState = ProfileState.Idle
+        if (profileState !is ProfileState.Loading) profileState = ProfileState.Idle
     }
 
     fun resetPasswordState() {
-        passwordState = PasswordState.Idle
+        if (passwordState !is PasswordState.Loading) passwordState = PasswordState.Idle
     }
 }

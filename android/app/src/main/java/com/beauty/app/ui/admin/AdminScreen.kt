@@ -51,7 +51,7 @@ fun AdminScreen(
     onDone: () -> Unit,
     onOpenOrganization: (AdminOrganizationDto) -> Unit
 ) {
-    var tab by remember { mutableStateOf(AdminTab.USERS) }
+    var tab by rememberSaveable { mutableStateOf(AdminTab.USERS) }
     val managingOrg = viewModel.managingOrg
 
     Scaffold(

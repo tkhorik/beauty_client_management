@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { Client, Visit, Attachment, Organization } from './types';
 import { api } from './services/api';
 import { useAuth } from './auth/AuthContext';
@@ -160,6 +160,11 @@ function AuthenticatedApp({
   // Modals state
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [selectedClientVisits, setSelectedClientVisits] = useState<Visit[]>([]);
+  const [visitsLoading, setVisitsLoading] = useState(false);
+  const [visitsError, setVisitsError] = useState(false);
+  const [refreshGeneration, setRefreshGeneration] = useState(0);
+  const clientRequest = useRef(0);
+  const detailRequest = useRef(0);
   const [isNewClientOpen, setIsNewClientOpen] = useState(false);
   const [isNewVisitOpen, setIsNewVisitOpen] = useState(false);
   const [newVisitTargetClient, setNewVisitTargetClient] = useState<Client | undefined>(undefined);
@@ -176,32 +181,57 @@ function AuthenticatedApp({
     if (membersDeepLink() === organization.id) clearMembersDeepLink();
   }, [organization.id]);
 
-  const loadData = async () => {
-    setLoading(true);
-    try {
-      const data = await api.getClients(searchQuery, selectedTag);
-      setClients(data);
-      if (selectedClient) {
-        const updatedClient = await api.getClient(selectedClient.id);
-        if (updatedClient) setSelectedClient(updatedClient);
-        const visits = await api.getVisits(selectedClient.id);
-        setSelectedClientVisits(visits);
-      }
-    } catch (err) {
-      console.error('Error loading client data:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Refresh via state so delayed mutation callbacks always use today's filters
+  // and selection, not the values captured when a form was submitted.
+  const loadData = () => setRefreshGeneration(generation => generation + 1);
 
   useEffect(() => {
-    loadData();
-  }, [searchQuery, selectedTag]);
+    const request = ++clientRequest.current;
+    let active = true;
+    setLoading(true);
+    void api.getClients(searchQuery, selectedTag).then(data => {
+      if (active && request === clientRequest.current) setClients(data);
+    }).catch(err => {
+      if (active && request === clientRequest.current) console.error('Error loading client data:', err);
+    }).finally(() => {
+      if (active && request === clientRequest.current) setLoading(false);
+    });
+    return () => { active = false; };
+  }, [searchQuery, selectedTag, refreshGeneration]);
 
-  const handleSelectClient = async (client: Client) => {
+  const selectedClientId = selectedClient?.id;
+  useEffect(() => {
+    if (!selectedClientId) return;
+    const request = ++detailRequest.current;
+    let active = true;
+    setSelectedClientVisits([]);
+    setVisitsLoading(true);
+    setVisitsError(false);
+    void Promise.all([api.getClient(selectedClientId), api.getVisits(selectedClientId)]).then(([client, visits]) => {
+      if (!active || request !== detailRequest.current) return;
+      if (client) setSelectedClient(client);
+      setSelectedClientVisits(visits);
+    }).catch(() => {
+      if (active && request === detailRequest.current) setVisitsError(true);
+    }).finally(() => {
+      if (active && request === detailRequest.current) setVisitsLoading(false);
+    });
+    return () => { active = false; };
+  }, [selectedClientId, refreshGeneration]);
+
+  const handleSelectClient = (client: Client) => {
+    if (selectedClient?.id === client.id) return;
+    ++detailRequest.current;
+    setSelectedClientVisits([]);
+    setVisitsLoading(true);
+    setVisitsError(false);
     setSelectedClient(client);
-    const visits = await api.getVisits(client.id);
-    setSelectedClientVisits(visits);
+  };
+
+  const handleCloseClient = () => {
+    ++detailRequest.current;
+    setSelectedClient(null);
+    setSelectedClientVisits([]);
   };
 
   const handleOpenNewVisit = (client?: Client) => {
@@ -210,7 +240,7 @@ function AuthenticatedApp({
   };
 
   return (
-    <div style={{ minHeight: '100vh', padding: '24px 32px', maxWidth: '1400px', margin: '0 auto' }}>
+    <div className="client-directory" style={{ minHeight: '100vh', maxWidth: '1400px', margin: '0 auto' }}>
       
       {/* Navigation Header */}
       <Header
@@ -249,7 +279,7 @@ function AuthenticatedApp({
         ) : (
           <div style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 360px), 1fr))',
             gap: '24px'
           }}>
             {clients.map(client => (
@@ -267,9 +297,12 @@ function AuthenticatedApp({
       {/* Client Detail Modal */}
       {selectedClient && (
         <ClientDetailModal
+          key={selectedClient.id}
           client={selectedClient}
           visits={selectedClientVisits}
-          onClose={() => setSelectedClient(null)}
+          visitsLoading={visitsLoading}
+          visitsError={visitsError}
+          onClose={handleCloseClient}
           onRefresh={loadData}
           onOpenNewVisit={(c) => handleOpenNewVisit(c)}
           onOpenPhotoCompare={(atts) => setCompareAttachments(atts)}

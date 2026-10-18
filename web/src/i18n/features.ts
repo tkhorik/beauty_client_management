@@ -1,4 +1,11 @@
 export const featureEn = {
+  "clientCard.openClient": "Open client: {{name}}",
+  "photoCompareModal.comparisonPosition": "Comparison split",
+  "photoCompareModal.beforePercentage": "Before: {{count}}%",
+  "clientDetailModal.loadingVisits": "Loading visit history…",
+  "clientDetailModal.failedToLoadVisits": "Could not load visit history.",
+  "clientDetailModal.retryVisits": "Retry",
+
   'adminPanel.1Day': "1 day",
   'adminPanel.1Year': "1 year",
   'adminPanel.30Days': "30 days",
@@ -221,6 +228,13 @@ export const featureEn = {
 } as const;
 
 export const featureRu: { [K in keyof typeof featureEn]: string } = {
+  "clientCard.openClient": "Открыть карточку: {{name}}",
+  "photoCompareModal.comparisonPosition": "Граница сравнения",
+  "photoCompareModal.beforePercentage": "До: {{count}}%",
+  "clientDetailModal.loadingVisits": "Загрузка истории процедур…",
+  "clientDetailModal.failedToLoadVisits": "Не удалось загрузить историю процедур.",
+  "clientDetailModal.retryVisits": "Повторить",
+
   'adminPanel.1Day': "1 день",
   'adminPanel.1Year': "1 год",
   'adminPanel.30Days': "30 дней",

@@ -13,6 +13,8 @@ import { defaultPhotoTag } from '../utils/photoTags';
 interface ClientDetailModalProps {
   client: Client;
   visits: Visit[];
+  visitsLoading?: boolean;
+  visitsError?: boolean;
   onClose: () => void;
   onRefresh: () => void;
   onOpenNewVisit: (client: Client) => void;
@@ -22,6 +24,8 @@ interface ClientDetailModalProps {
 export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
   client,
   visits,
+  visitsLoading = false,
+  visitsError = false,
   onClose,
   onRefresh,
   onOpenNewVisit,
@@ -204,7 +208,14 @@ export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
               <Calendar size={20} color="var(--rose-gold-primary)" /> {t('clientDetailModal.visitHistoryAndProcedureTimeline')}
             </h3>
 
-            {visits.length === 0 ? (
+            {visitsLoading ? (
+              <p role="status">{t('clientDetailModal.loadingVisits')}</p>
+            ) : visitsError ? (
+              <div role="alert">
+                <p>{t('clientDetailModal.failedToLoadVisits')}</p>
+                <button className="btn-secondary" onClick={onRefresh}>{t('clientDetailModal.retryVisits')}</button>
+              </div>
+            ) : visits.length === 0 ? (
               <div className="glass-panel" style={{ padding: '30px', textAlign: 'center', color: 'var(--text-muted)' }}>
                 <FileText size={32} style={{ marginBottom: '10px', opacity: 0.5 }} />
                 <p>{t('clientDetailModal.noVisitLogsFoundForThisClientYet')}</p>

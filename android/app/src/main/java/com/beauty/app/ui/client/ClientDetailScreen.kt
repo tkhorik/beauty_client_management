@@ -52,9 +52,7 @@ import com.beauty.app.ui.theme.TextMuted
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.jsonObject
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -77,7 +75,13 @@ fun ClientDetailScreen(
     var showVisitForm by rememberSaveable { mutableStateOf(openVisitForm) }
     var savedMessage by rememberSaveable { mutableStateOf(false) }
     var confirmDelete by rememberSaveable { mutableStateOf(false) }
-    var editingAttributes by rememberSaveable { mutableStateOf(false) }
+    val attributeEditor = rememberSaveable(
+        viewModel.organizationId, viewModel.clientId,
+        saver = AttributeEditorState.saver(viewModel.organizationId, viewModel.clientId)
+    ) { AttributeEditorState(viewModel.organizationId, viewModel.clientId) }
+    LaunchedEffect(viewModel.savedAttributesDraftId, attributeEditor) {
+        attributeEditor.clearIfSaved(viewModel.savedAttributesDraftId)
+    }
     var compareAttachments by remember { mutableStateOf<List<VisitAttachmentDto>?>(null) }
     // The visit a new photo is for. Saved, along with the source below, because the
     // system may reclaim the app while its camera is in the foreground.
@@ -162,12 +166,14 @@ fun ClientDetailScreen(
                 item {
                     AttributesCard(
                         customFieldsJson = client.customFieldsJson,
-                        editing = editingAttributes,
+                        editor = attributeEditor,
                         saving = viewModel.savingAttributes,
                         error = viewModel.attributesError,
-                        onStartEditing = { viewModel.clearAttributesError(); editingAttributes = true },
-                        onCancel = { viewModel.clearAttributesError(); editingAttributes = false },
-                        onSave = { fields -> viewModel.saveAttributes(fields) { editingAttributes = false } }
+                        onStartEditing = { viewModel.clearAttributesError(); attributeEditor.start(client.customFieldsJson) },
+                        onCancel = { viewModel.clearAttributesError(); attributeEditor.clear() },
+                        onSave = { fields ->
+                            attributeEditor.draftId?.let { viewModel.saveAttributes(fields, it) }
+                        }
                     )
                 }
             } else if (!viewModel.loading) item { Text(stringResource(com.beauty.app.R.string.ui2_this_client_is_no_longer_available_return_to_the_directory_and_re)) }
@@ -306,7 +312,7 @@ fun ClientDetailScreen(
 @Composable
 private fun AttributesCard(
     customFieldsJson: String,
-    editing: Boolean,
+    editor: AttributeEditorState,
     saving: Boolean,
     error: String?,
     onStartEditing: () -> Unit,
@@ -316,12 +322,8 @@ private fun AttributesCard(
     val original = remember(customFieldsJson) {
         runCatching { Json.parseToJsonElement(customFieldsJson).jsonObject }.getOrDefault(JsonObject(emptyMap()))
     }
-    // Seeded from the saved record when editing starts. Keyed on `editing` only:
-    // an ON_RESUME refresh that re-reads the record must not wipe a draft in progress.
-    val draft = remember(editing) {
-        mutableStateListOf<AttributeDraft>().apply { addAll(original.map { (k, v) -> AttributeDraft(k, displayValue(v), v) }) }
-    }
-    var draftError by remember(editing) { mutableStateOf<String?>(null) }
+    val editing = editor.rows != null
+    val draft = editor.rows.orEmpty()
 
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -338,22 +340,22 @@ private fun AttributesCard(
                             name = field.key,
                             value = field.value,
                             enabled = !saving,
-                            onNameChange = { draft[index] = field.copy(key = it); draftError = null },
-                            onValueChange = { draft[index] = field.copy(value = it) },
-                            onRemove = { draft.removeAt(index); draftError = null }
+                            onNameChange = { editor.update(index, field.copy(key = it)); editor.error = null },
+                            onValueChange = { editor.update(index, field.copy(value = it)) },
+                            onRemove = { editor.remove(index); editor.error = null }
                         )
                     }
                 }
-                OutlinedButton(enabled = !saving, onClick = { draft.add(AttributeDraft("", "")) }) {
+                OutlinedButton(enabled = !saving, onClick = { editor.add() }) {
                     Text(stringResource(com.beauty.app.R.string.add_attribute))
                 }
-                (draftError ?: error)?.let { Text(localizedMessage(it), color = MaterialTheme.colorScheme.error, fontSize = 13.sp) }
+                (editor.error ?: error)?.let { Text(localizedMessage(it), color = MaterialTheme.colorScheme.error, fontSize = 13.sp) }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(enabled = !saving, onClick = {
                         val named = draft.filter { it.key.isNotBlank() }
                         val duplicate = named.groupingBy { it.key.trim() }.eachCount().entries.firstOrNull { it.value > 1 }?.key
                         if (duplicate != null) {
-                            draftError = "DUPLICATE_FIELD:$duplicate"
+                            editor.error = "DUPLICATE_FIELD:$duplicate"
                         } else {
                             onSave(JsonObject(named.associate { it.key.trim() to it.toJson() }))
                         }
@@ -380,20 +382,6 @@ private fun AttributesCard(
         }
     }
 }
-
-private var nextAttributeDraftId = 0L
-
-private data class AttributeDraft(
-    val key: String,
-    val value: String,
-    val original: JsonElement? = null,
-    val id: Long = nextAttributeDraftId++
-) {
-    fun toJson(): JsonElement =
-        if (original != null && value == displayValue(original)) original else JsonPrimitive(value.trim())
-}
-
-private fun displayValue(element: JsonElement): String = (element as? JsonPrimitive)?.content ?: element.toString()
 
 private data class HistoryRow(
     val key: String,

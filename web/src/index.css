@@ -342,3 +342,8 @@ h1, h2, h3, h4, h5, h6 {
   color: #f87171;
   border: 1px solid rgba(239, 68, 68, 0.25);
 }
+
+.client-directory { padding: 24px 32px; }
+@media (max-width: 600px) {
+  .client-directory { padding: 16px 12px; }
+}

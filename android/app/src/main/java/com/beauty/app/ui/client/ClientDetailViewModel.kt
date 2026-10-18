@@ -25,7 +25,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 class ClientDetailViewModel(
-    private val clientId: String,
+    val clientId: String,
     val organizationId: String,
     private val repository: BeautyRepository,
     private val clientDao: ClientDao,
@@ -88,6 +88,8 @@ class ClientDetailViewModel(
 
     var savingAttributes by mutableStateOf(false)
         private set
+    var savedAttributesDraftId by mutableStateOf<String?>(null)
+        private set
     var attributesError by mutableStateOf<String?>(null)
         private set
 
@@ -99,7 +101,7 @@ class ClientDetailViewModel(
      * cache has it — the equivalent of the web's `updateClient(id, { customFields })`.
      * Requires connectivity, like every other client write.
      */
-    fun saveAttributes(fields: JsonObject, onSaved: () -> Unit) {
+    fun saveAttributes(fields: JsonObject, draftId: String) {
         val current = client ?: return
         if (savingAttributes) return
         savingAttributes = true
@@ -118,7 +120,7 @@ class ClientDetailViewModel(
                 val entity = dto.toEntity(organizationId)
                 repository.upsertClientLocally(entity)
                 client = entity
-                onSaved()
+                savedAttributesDraftId = draftId
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (error: Exception) {

@@ -2,6 +2,7 @@ import { useAppTranslation } from '../i18n/LocaleProvider';
 import React, { useState } from 'react';
 import type { Client, Visit } from '../types';
 import { api, writeErrorMessage } from '../services/api';
+import { localDateTimeInputValue } from '../utils/localDateTime';
 import { compressImage } from '../utils/imageCompressor';
 import { PhotoSourcePicker } from './PhotoSourcePicker';
 import { X, Calendar } from 'lucide-react';
@@ -21,7 +22,7 @@ export const NewVisitModal: React.FC<NewVisitModalProps> = ({
 }) => {
   const { t } = useAppTranslation();
   const [selectedClientId, setSelectedClientId] = useState(client?.id || (clientsList[0]?.id || ''));
-  const [visitDateTime, setVisitDateTime] = useState(new Date().toISOString().slice(0, 16));
+  const [visitDateTime, setVisitDateTime] = useState(() => localDateTimeInputValue(new Date()));
   const [durationMinutes, setDurationMinutes] = useState(60);
   const [procedureNotes, setProcedureNotes] = useState('');
   const [status, setStatus] = useState<Visit['status']>('COMPLETED');
@@ -57,7 +58,7 @@ export const NewVisitModal: React.FC<NewVisitModalProps> = ({
     try {
       const visit = await api.createVisit({
         clientId: selectedClientId,
-        visitDateTime: new Date(visitDateTime).toISOString(),
+        visitDateTime,
         durationMinutes,
         procedureNotes,
         status

@@ -50,16 +50,6 @@ fun SettingsScreen(
     val passwordFieldErrors = passwordError?.fieldErrors ?: emptyMap()
     val isPasswordLoading = passwordState is SettingsViewModel.PasswordState.Loading
 
-    // A successful change clears the form — leaving the old password sitting
-    // in the fields would be an easy way to accidentally submit it again.
-    LaunchedEffect(passwordState) {
-        if (passwordState is SettingsViewModel.PasswordState.Success) {
-            currentPassword = ""
-            newPassword = ""
-            confirmNewPassword = ""
-        }
-    }
-
     Scaffold(
         topBar = {
             TopAppBar(
@@ -125,6 +115,7 @@ fun SettingsScreen(
                             viewModel.updateFullName(it)
                             viewModel.resetProfileState()
                         },
+                        enabled = !isProfileLoading,
                         label = stringResource(com.beauty.app.R.string.full_name),
                         error = profileFieldErrors["fullName"]
                     )
@@ -167,6 +158,7 @@ fun SettingsScreen(
                         onValueChange = { currentPassword = it; viewModel.resetPasswordState() },
                         label = stringResource(com.beauty.app.R.string.current_password),
                         error = passwordFieldErrors["currentPassword"],
+                        enabled = !isPasswordLoading,
                         isPassword = true,
                         showPassword = showPassword,
                         onToggleShowPassword = { showPassword = !showPassword }
@@ -182,6 +174,7 @@ fun SettingsScreen(
                         } else {
                             null
                         },
+                        enabled = !isPasswordLoading,
                         isPassword = true,
                         showPassword = showPassword,
                         onToggleShowPassword = { showPassword = !showPassword }
@@ -192,6 +185,7 @@ fun SettingsScreen(
                         onValueChange = { confirmNewPassword = it; viewModel.resetPasswordState() },
                         label = stringResource(com.beauty.app.R.string.confirm_new_password_2),
                         error = passwordFieldErrors["confirmNewPassword"],
+                        enabled = !isPasswordLoading,
                         isPassword = true,
                         showPassword = showPassword,
                         onToggleShowPassword = { showPassword = !showPassword }
@@ -261,7 +255,7 @@ private fun SettingsTextField(
             },
             trailingIcon = if (isPassword && onToggleShowPassword != null) {
                 {
-                    IconButton(onClick = onToggleShowPassword) {
+                    IconButton(onClick = onToggleShowPassword, enabled = enabled) {
                         Icon(
                             imageVector = if (showPassword) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
                             contentDescription = if (showPassword) stringResource(com.beauty.app.R.string.hide_password) else stringResource(com.beauty.app.R.string.show_password),
