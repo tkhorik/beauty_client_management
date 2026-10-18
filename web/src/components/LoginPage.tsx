@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { useAuth } from '../auth/AuthContext';
-import { Sparkles, Eye, EyeOff } from 'lucide-react';
+import { Sparkles, Eye, EyeOff, ArrowLeft } from 'lucide-react';
 import { API_BASE_URL } from '../config';
 import { AUTH_TRANSPORT_HEADERS } from '../auth/session';
 import { PASSWORD_MIN_LENGTH, validatePasswordLocally } from '../utils/passwordRules';
@@ -11,17 +11,19 @@ import { effectiveAcceptLanguage } from '../i18n/store';
 import { errorTranslationKey, translatedFieldErrors } from '../i18n/errors';
 import { arrivedWithCreationLink, clearJoinSlug, pendingInviteToken, pendingJoinSlug, stripDeepLinkParams } from '../auth/deepLinks';
 
-type Mode = 'login' | 'register';
+export type LoginMode = 'login' | 'register';
+
+type Mode = LoginMode;
 
 type FieldErrors = Record<string, string>;
 
-export function LoginPage() {
+export function LoginPage({ initialMode = 'login', onBack }: { initialMode?: LoginMode; onBack?: () => void } = {}) {
   const { login } = useAuth();
   const { t } = useAppTranslation();
   const { preference, locale } = useLocale();
   // A "join my salon" link is almost always followed by someone without an
   // account yet, so it opens on the registration form.
-  const [mode, setMode] = useState<Mode>(() => (pendingJoinSlug() ? 'register' : 'login'));
+  const [mode, setMode] = useState<Mode>(() => (pendingJoinSlug() ? 'register' : initialMode));
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -175,7 +177,18 @@ export function LoginPage() {
       }}>
         {/* Header */}
         <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '12px' }}><LanguageSelector compact /></div>
+          <div style={{ display: 'flex', justifyContent: onBack ? 'space-between' : 'flex-end', alignItems: 'center', marginBottom: '12px' }}>
+            {onBack && (
+              <button
+                type="button"
+                onClick={onBack}
+                style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '13px', display: 'inline-flex', alignItems: 'center', gap: '6px', padding: 0 }}
+              >
+                <ArrowLeft size={14} aria-hidden="true" /> {t('loginPage.back')}
+              </button>
+            )}
+            <LanguageSelector compact />
+          </div>
           <Sparkles size={36} color="var(--rose-gold-primary)" style={{ marginBottom: '12px' }} />
           <h1 className="text-gradient" style={{ fontSize: '26px', marginBottom: '6px' }}>
             {t('common.appName')}

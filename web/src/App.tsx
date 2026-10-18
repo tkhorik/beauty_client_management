@@ -3,7 +3,8 @@ import type { Client, Visit, Attachment, Organization } from './types';
 import { api } from './services/api';
 import { useAuth } from './auth/AuthContext';
 import { useOrg } from './auth/OrgContext';
-import { LoginPage } from './components/LoginPage';
+import { LoginPage, type LoginMode } from './components/LoginPage';
+import { LandingPage } from './components/LandingPage';
 import { OrganizationOnboarding } from './components/OrganizationOnboarding';
 import { MembersModal } from './components/MembersModal';
 import { AdminPanel } from './components/AdminPanel';
@@ -17,7 +18,7 @@ import { SettingsModal } from './components/SettingsModal';
 import { VerificationBanner } from './components/VerificationBanner';
 import { Users, Sparkles } from 'lucide-react';
 import { useAppTranslation } from './i18n/LocaleProvider';
-import { clearMembersDeepLink, membersDeepLink, pendingInviteToken, stripDeepLinkParams } from './auth/deepLinks';
+import { arrivedWithCreationLink, clearMembersDeepLink, membersDeepLink, pendingInviteToken, pendingJoinSlug, stripDeepLinkParams } from './auth/deepLinks';
 import { InviteAcceptDialog } from './components/InviteAcceptDialog';
 
 export function App() {
@@ -29,6 +30,12 @@ export function App() {
   // Held across sign-in/sign-up: the confirmation only appears once there is
   // a session to join with.
   const [inviteToken, setInviteToken] = useState(pendingInviteToken);
+  // Signed-out visitors see the landing page first. Anyone who followed an
+  // invite, join, members or creation link already knows the product and is
+  // mid-flow, so they go straight to the form, as before.
+  const [authScreen, setAuthScreen] = useState<'landing' | LoginMode>(() =>
+    pendingInviteToken() || pendingJoinSlug() || membersDeepLink() || arrivedWithCreationLink ? 'login' : 'landing'
+  );
 
   // Listen for 401 responses emitted by authFetch and force logout.
   // authFetch only emits this after a refresh attempt has already failed, so
@@ -47,8 +54,13 @@ export function App() {
   // flash a login form at a user who is in fact signed in.
   if (initialising) return null;
 
-  // Show login page when unauthenticated
-  if (!token) return <LoginPage />;
+  // Show the landing page, then the login form, when unauthenticated
+  if (!token) {
+    if (authScreen === 'landing') {
+      return <LandingPage onSignIn={() => setAuthScreen('login')} onGetStarted={() => setAuthScreen('register')} />;
+    }
+    return <LoginPage key={authScreen} initialMode={authScreen} onBack={() => setAuthScreen('landing')} />;
+  }
 
   return (
     <>

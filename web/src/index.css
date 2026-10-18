@@ -359,7 +359,7 @@ h1, h2, h3, h4, h5, h6 {
   width: 100%;
   max-width: 1120px;
   margin: 0 auto;
-  padding: 0 24px;
+  padding-inline: 24px;
 }
 
 .landing-topbar {
@@ -745,7 +745,7 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 @media (max-width: 720px) {
-  .landing-container { padding: 0 16px; }
+  .landing-container { padding-inline: 16px; }
   .landing-section { padding-block: 52px; }
   .landing-grid, .landing-steps, .landing-roles { grid-template-columns: 1fr; }
   .landing-android { grid-template-columns: 1fr; padding: 28px 22px; gap: 20px; }
