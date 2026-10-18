@@ -1,6 +1,8 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap');
 
 :root {
+  /* Native controls (date pickers, scrollbars, autofill) render in their dark variant. */
+  color-scheme: dark;
   --bg-dark: #0f0e13;
   --bg-card: #181622;
   --bg-card-hover: #211e30;
@@ -99,11 +101,13 @@ h1, h2, h3, h4, h5, h6 {
   cursor: pointer;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
+  text-align: center;
   transition: all 0.2s ease;
   font-family: 'Outfit', sans-serif;
 }
-.btn-rose:hover {
+.btn-rose:hover:not(:disabled) {
   transform: translateY(-1px);
   box-shadow: 0 4px 15px rgba(229, 184, 153, 0.35);
   filter: brightness(1.08);
@@ -118,28 +122,74 @@ h1, h2, h3, h4, h5, h6 {
   cursor: pointer;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
+  font: inherit;
+  text-align: center;
   transition: all 0.2s ease;
 }
-.btn-secondary:hover {
+.btn-rose:disabled,
+.btn-secondary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.btn-rose:focus-visible,
+.btn-secondary:focus-visible {
+  outline: 2px solid var(--rose-gold-primary);
+  outline-offset: 2px;
+}
+.btn-secondary:hover:not(:disabled) {
   background: rgba(255, 255, 255, 0.1);
   border-color: var(--border-active);
 }
 
 .input-field {
   width: 100%;
+  min-height: 44px;
   background: rgba(15, 14, 19, 0.6);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-sm);
   padding: 10px 14px;
   color: var(--text-main);
-  font-size: 14px;
+  font-family: inherit;
+  /* 16px keeps iOS Safari from zooming into the field on focus. */
+  font-size: 16px;
+  line-height: 1.4;
   outline: none;
-  transition: border-color 0.2s ease;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
 }
+.input-field::placeholder { color: var(--text-dim); opacity: 1; }
+.input-field:hover:not(:disabled):not(:focus) { border-color: rgba(229, 184, 153, 0.28); }
 .input-field:focus {
   border-color: var(--rose-gold-primary);
-  box-shadow: 0 0 0 2px rgba(229, 184, 153, 0.15);
+  background-color: rgba(15, 14, 19, 0.85);
+  box-shadow: 0 0 0 3px rgba(229, 184, 153, 0.15);
+}
+.input-field[aria-invalid='true'] {
+  border-color: #e87c8a;
+  box-shadow: 0 0 0 3px rgba(232, 124, 138, 0.12);
+}
+.input-field:disabled { opacity: 0.6; cursor: not-allowed; }
+textarea.input-field { min-height: 88px; resize: vertical; }
+select.input-field {
+  appearance: none;
+  padding-right: 38px;
+  cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%239e9aa8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+}
+/* Browser autofill would otherwise paint a pale yellow/white box. */
+.input-field:-webkit-autofill,
+.input-field:-webkit-autofill:hover,
+.input-field:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--text-main);
+  caret-color: var(--text-main);
+  -webkit-box-shadow: 0 0 0 1000px #17151d inset;
+  transition: background-color 9999s ease-out 0s;
+}
+@media (min-width: 721px) {
+  .input-field { font-size: 14px; }
 }
 
 .attribute-grid {

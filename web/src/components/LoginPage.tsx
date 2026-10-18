@@ -216,7 +216,7 @@ export function LoginPage({ initialMode = 'login', onBack }: { initialMode?: Log
                 name="fullName"
                 type="text"
                 autoComplete="name"
-                className="glass-input"
+                className="input-field"
                 value={fullName}
                 onChange={e => setFullName(e.target.value)}
                 placeholder={t('loginPage.yourName')}
@@ -240,7 +240,7 @@ export function LoginPage({ initialMode = 'login', onBack }: { initialMode?: Log
                  offer to save or fill this pair — which is the single biggest
                  practical driver of password reuse. */
               autoComplete="email"
-              className="glass-input"
+              className="input-field"
               value={email}
               onChange={e => setEmail(e.target.value)}
               placeholder="you@example.com"
@@ -265,7 +265,7 @@ export function LoginPage({ initialMode = 'login', onBack }: { initialMode?: Log
                    one. Using the wrong one breaks both behaviours. */
                 autoComplete={isRegister ? 'new-password' : 'current-password'}
                 minLength={isRegister ? PASSWORD_MIN_LENGTH : undefined}
-                className="glass-input"
+                className="input-field"
                 value={password}
                 onChange={e => setPassword(e.target.value)}
                 placeholder="••••••••"
@@ -326,7 +326,7 @@ export function LoginPage({ initialMode = 'login', onBack }: { initialMode?: Log
                 name="confirmPassword"
                 type={showPassword ? 'text' : 'password'}
                 autoComplete="new-password"
-                className="glass-input"
+                className="input-field"
                 value={confirmPassword}
                 onChange={e => setConfirmPassword(e.target.value)}
                 placeholder="••••••••"
@@ -350,7 +350,7 @@ export function LoginPage({ initialMode = 'login', onBack }: { initialMode?: Log
                 autoComplete="off"
                 autoCapitalize="none"
                 spellCheck={false}
-                className="glass-input"
+                className="input-field"
                 value={organizationSlug}
                 onChange={e => setOrganizationSlug(e.target.value)}
                 placeholder="my-salon"
