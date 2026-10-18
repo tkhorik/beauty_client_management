@@ -761,3 +761,82 @@ h1, h2, h3, h4, h5, h6 {
   .landing-card:hover,
   .landing .btn-rose:hover { transform: none; }
 }
+
+/* Compact language menu — header-sized globe button used on the landing, sign-in and onboarding screens. */
+.lang-menu {
+  position: relative;
+  display: inline-flex;
+}
+.lang-menu__trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 10px 0 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border-color);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-muted);
+  font: 600 12px/1 'Inter', sans-serif;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  transition: color 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+}
+.lang-menu__trigger:hover,
+.lang-menu__trigger[aria-expanded='true'] {
+  color: var(--rose-gold-primary);
+  border-color: var(--border-active);
+  background: rgba(229, 184, 153, 0.08);
+}
+.lang-menu__trigger:focus-visible,
+.lang-menu__item:focus-visible {
+  outline: 2px solid var(--rose-gold-primary);
+  outline-offset: 2px;
+}
+.lang-menu__code { color: var(--text-main); }
+.lang-menu__chevron { transition: transform 0.2s ease; }
+.lang-menu__trigger[aria-expanded='true'] .lang-menu__chevron { transform: rotate(180deg); }
+.lang-menu__list {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 60;
+  min-width: 200px;
+  padding: 6px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+  background: rgba(24, 22, 34, 0.96);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow: var(--shadow-card), 0 0 0 1px rgba(0, 0, 0, 0.2);
+  animation: lang-menu-in 0.14s ease-out;
+}
+.lang-menu__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 9px 10px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text-main);
+  font: 400 14px/1.3 'Inter', sans-serif;
+  text-align: left;
+  cursor: pointer;
+}
+.lang-menu__item:hover,
+.lang-menu__item:focus-visible { background: rgba(229, 184, 153, 0.1); }
+.lang-menu__item[aria-checked='true'] { color: var(--rose-gold-primary); }
+.lang-menu__text { display: flex; flex-direction: column; gap: 2px; }
+.lang-menu__hint { font-size: 12px; color: var(--text-dim); }
+.lang-menu__check { flex: 0 0 15px; width: 15px; }
+@keyframes lang-menu-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lang-menu__list { animation: none; }
+  .lang-menu__chevron { transition: none; }
+}
