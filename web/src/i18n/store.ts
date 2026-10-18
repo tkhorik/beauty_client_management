@@ -26,7 +26,13 @@ export function saveLanguagePreference(preference: LanguagePreference): void {
 }
 
 /** Browser language lists can contain regional forms such as ru-RU. */
-export function resolveSystemLocale(languages: readonly string[] = typeof navigator === 'undefined' ? [] : navigator.languages): SupportedLocale {
+function browserLanguages(): readonly string[] {
+  if (typeof navigator === 'undefined') return [];
+  // Some embedded browsers leave `languages` empty and only set `language`.
+  return navigator.languages?.length ? navigator.languages : [navigator.language].filter(Boolean);
+}
+
+export function resolveSystemLocale(languages: readonly string[] = browserLanguages()): SupportedLocale {
   // `navigator.languages` is ordered by user preference.  Russian must not
   // win merely because it appears after a preferred English locale.
   const firstSupported = languages.map(language => language.toLowerCase().split('-')[0]).find(language => language === 'en' || language === 'ru');
