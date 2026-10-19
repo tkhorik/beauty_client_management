@@ -374,6 +374,7 @@
     <string name="members_of">Members of %1$s</string>
     <string name="error_client_name_required">Client name is required.</string>
     <string name="error_phone_required">Phone number is required.</string>
+    <string name="error_phone_invalid">Enter a complete phone number, e.g. +1 (555) 000-0000.</string>
     <string name="error_duplicate_field">Custom field \"%1$s\" is entered more than once. Field names must be unique.</string>
     <string name="error_duration_min">Duration must be at least %1$d minutes.</string>
     <string name="error_duration_step">Duration must be in %1$d-minute steps (15, 30, 45, 60…).</string>

@@ -215,7 +215,7 @@ class EmailVerificationEnforcementTest {
             bearerAuth(token)
             header(ORG_HEADER, orgId)
             contentType(ContentType.Application.Json)
-            setBody("""{"name":"$name","phone":"+1 555 0100"}""")
+            setBody("""{"name":"$name","phone":"+1 555 000 0100"}""")
         }
 
     private suspend fun ApplicationTestBuilder.getClients(token: String, orgId: String) =
