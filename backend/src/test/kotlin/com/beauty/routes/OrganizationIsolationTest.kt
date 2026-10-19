@@ -158,6 +158,72 @@ class OrganizationIsolationTest {
     }
 
     @Test
+    fun `the tag list covers only the requested organization's clients`() = testApplication {
+        startApp()
+
+        val alice = register("alice@example.com")
+        val bob = register("bob@example.com")
+        val orgA = createOrg(alice, "org-a")
+        val orgB = createOrg(bob, "org-b")
+
+        suspend fun tagged(token: String, orgId: String, tags: String) {
+            val response = client.post("/api/clients") {
+                bearerAuth(token)
+                header(ORG_HEADER, orgId)
+                contentType(ContentType.Application.Json)
+                setBody("""{"name":"Tagged","phone":"+1 555 000 0100","tags":[$tags]}""")
+            }
+            assertEquals(HttpStatusCode.Created, response.status, response.bodyAsText())
+        }
+        tagged(alice, orgA, "\"VIP\",\"Diabetic\"")
+        tagged(alice, orgA, "\"vip\"")
+        tagged(bob, orgB, "\"Bob Only\"")
+
+        val listed = client.get("/api/clients/tags") {
+            bearerAuth(alice)
+            header(ORG_HEADER, orgA)
+        }
+        assertEquals(HttpStatusCode.OK, listed.status)
+
+        val tags = Json.parseToJsonElement(listed.bodyAsText()).jsonArray.map {
+            it.jsonObject["name"]!!.jsonPrimitive.content.lowercase() to
+                it.jsonObject["count"]!!.jsonPrimitive.content.toInt()
+        }
+        assertEquals(listOf("vip" to 2, "diabetic" to 1), tags)
+    }
+
+    @Test
+    fun `filtering by a tag matches whole tags only`() = testApplication {
+        startApp()
+
+        val alice = register("alice@example.com")
+        val orgA = createOrg(alice, "org-a")
+
+        suspend fun tagged(name: String, tags: String) {
+            val response = client.post("/api/clients") {
+                bearerAuth(alice)
+                header(ORG_HEADER, orgA)
+                contentType(ContentType.Application.Json)
+                setBody("""{"name":"$name","phone":"+1 555 000 0100","tags":[$tags]}""")
+            }
+            assertEquals(HttpStatusCode.Created, response.status, response.bodyAsText())
+        }
+        tagged("Exact", "\"Diabetic\",\"VIP\"")
+        tagged("Spaced", "\" vip \"")
+        tagged("Lookalike", "\"Non-VIP\"")
+
+        val listed = client.get("/api/clients?tag=VIP") {
+            bearerAuth(alice)
+            header(ORG_HEADER, orgA)
+        }
+        assertEquals(HttpStatusCode.OK, listed.status)
+        val names = Json.parseToJsonElement(listed.bodyAsText()).jsonArray
+            .map { it.jsonObject["name"]!!.jsonPrimitive.content }
+            .sorted()
+        assertEquals(listOf("Exact", "Spaced"), names)
+    }
+
+    @Test
     fun `reading another organization's client answers 404, not 403`() = testApplication {
         startApp()
 
