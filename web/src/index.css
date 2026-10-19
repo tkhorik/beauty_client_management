@@ -890,3 +890,7 @@ select.input-field {
   .lang-menu__list { animation: none; }
   .lang-menu__chevron { transition: none; }
 }
+
+/* New-client name + phone: side by side, stacked on phones. */
+.new-client-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+@media (max-width: 560px) { .new-client-row { grid-template-columns: 1fr; } }
