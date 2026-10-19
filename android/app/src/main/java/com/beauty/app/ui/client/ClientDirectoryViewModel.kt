@@ -1,5 +1,6 @@
 package com.beauty.app.ui.client
 
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -15,7 +16,6 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.serialization.json.Json
 
 class ClientDirectoryViewModel(
     private val orgId: String,
@@ -50,9 +50,20 @@ class ClientDirectoryViewModel(
 
     val filtered: List<ClientEntity> get() = if (blocked) emptyList() else results ?: clients.filter {
         val q = query.trim()
-        val tags = runCatching { Json.decodeFromString<List<String>>(it.tagsJson).joinToString(",") }.getOrDefault("")
-        (q.isEmpty() || listOf(it.name, it.phone, it.email.orEmpty(), tags).any { value -> value.contains(q, true) }) &&
-            (tag.isEmpty() || tags.contains(tag, true))
+        val tags = decodeTags(it.tagsJson)
+        (q.isEmpty() || listOf(it.name, it.phone, it.email.orEmpty(), tags.joinToString(",")).any { value -> value.contains(q, true) }) &&
+            (tag.isEmpty() || tags.any { t -> t.trim().equals(tag, true) })
+    }
+
+    /**
+     * Filter chips: the tags the organization's clients carry, most common
+     * first, from the cache (it holds the whole organization, not one search
+     * page). A selected tag nobody carries any more stays, with count 0, so
+     * it can still be seen and switched off.
+     */
+    val tagChips: List<Pair<String, Int>> by derivedStateOf {
+        val counted = tagCounts(clients.map { decodeTags(it.tagsJson) })
+        if (tag.isEmpty() || counted.any { it.first.equals(tag, true) }) counted else counted + (tag to 0)
     }
 
     init {

@@ -85,11 +85,6 @@
     <string name="sign_out" formatted="false">Выйти</string>
     <string name="log_visit" formatted="false">Записать посещение</string>
     <string name="search_name_phone_email_or_tag" formatted="false">Поиск по имени, телефону, почте или метке</string>
-    <string name="vip" formatted="false">VIP</string>
-    <string name="sensitive_skin" formatted="false">Чувствительная кожа</string>
-    <string name="lash_extensions" formatted="false">Наращивание ресниц</string>
-    <string name="hair_coloring" formatted="false">Окрашивание волос</string>
-    <string name="skin_treatment" formatted="false">Уход за кожей</string>
     <string name="clear_filters" formatted="false">Сбросить фильтры</string>
     <string name="loading_saved_clients" formatted="false">Загрузка сохранённых клиентов…</string>
     <string name="synced_with_web" formatted="false">Синхронизировано с сервером</string>

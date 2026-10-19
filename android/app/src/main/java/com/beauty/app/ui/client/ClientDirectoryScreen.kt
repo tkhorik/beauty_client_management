@@ -3,6 +3,7 @@ package com.beauty.app.ui.client
 import androidx.compose.ui.res.pluralStringResource
 import com.beauty.app.ui.i18n.localizedMessage
 import androidx.compose.ui.res.stringResource
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -13,19 +14,26 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.pullrefresh.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
@@ -33,6 +41,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import com.beauty.app.data.BeautyRepository
 import com.beauty.app.data.local.ClientEntity
 import com.beauty.app.sync.SyncWorker
+import com.beauty.app.ui.theme.CardSurface
 import com.beauty.app.ui.theme.RoseGoldPrimary
 import com.beauty.app.ui.theme.TextMuted
 import com.beauty.app.ui.verification.VerificationBanner
@@ -126,20 +135,55 @@ fun ClientDirectoryScreen(
                     }
                 }
                 item {
+                    // Equal halves left "Записать посещение" wrapping onto two lines
+                    // in a taller pill. The longer label sizes its own button and
+                    // "New client" takes the rest, so both stay one line high.
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Button(onClick = onNewClient, enabled = !viewModel.blocked, modifier = Modifier.weight(1f)) { Text(stringResource(com.beauty.app.R.string.new_client)) }
-                        OutlinedButton(onClick = { chooseClient = true }, enabled = !viewModel.blocked, modifier = Modifier.weight(1f)) { Text(stringResource(com.beauty.app.R.string.log_visit)) }
+                        Button(
+                            onClick = onNewClient,
+                            enabled = !viewModel.blocked,
+                            contentPadding = HeaderButtonPadding,
+                            modifier = Modifier.weight(1f).heightIn(min = 48.dp)
+                        ) { Text(stringResource(com.beauty.app.R.string.new_client), maxLines = 1, overflow = TextOverflow.Ellipsis) }
+                        OutlinedButton(
+                            onClick = { chooseClient = true },
+                            enabled = !viewModel.blocked,
+                            contentPadding = HeaderButtonPadding,
+                            modifier = Modifier.heightIn(min = 48.dp)
+                        ) { Text(stringResource(com.beauty.app.R.string.log_visit), maxLines = 1, overflow = TextOverflow.Ellipsis) }
                     }
                 }
                 item {
-                    OutlinedTextField(value = viewModel.query, onValueChange = viewModel::updateQuery,
-                        label = { Text(stringResource(com.beauty.app.R.string.search_name_phone_email_or_tag)) }, singleLine = true,
-                        leadingIcon = { Icon(Icons.Default.Search, null) }, modifier = Modifier.fillMaxWidth())
+                    // A placeholder, not a floating label: the label is long enough
+                    // to wrap onto a second line inside the field.
+                    OutlinedTextField(
+                        value = viewModel.query,
+                        onValueChange = viewModel::updateQuery,
+                        placeholder = { Text(stringResource(com.beauty.app.R.string.search_name_phone_email_or_tag), maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                        singleLine = true,
+                        shape = RoundedCornerShape(14.dp),
+                        leadingIcon = { Icon(Icons.Default.Search, null) },
+                        trailingIcon = if (viewModel.query.isNotEmpty()) ({
+                            IconButton(onClick = { viewModel.updateQuery("") }) { Icon(Icons.Default.Close, stringResource(com.beauty.app.R.string.clear_filters)) }
+                        }) else null,
+                        modifier = Modifier.fillMaxWidth()
+                    )
                 }
                 item {
-                    Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        listOf("", "VIP", "Sensitive Skin", "Lash Extensions", "Hair Coloring", "Skin Treatment").forEach { tag ->
-                            FilterChip(selected = viewModel.tag == tag, onClick = { viewModel.updateTag(tag) }, label = { Text(com.beauty.app.ui.i18n.tagLabel(tag)) })
+                    Row(
+                        Modifier.bleed(16.dp).horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        FilterChip(selected = viewModel.tag.isEmpty(), onClick = { viewModel.updateTag("") }, label = { Text(stringResource(com.beauty.app.R.string.all)) })
+                        viewModel.tagChips.forEach { (tag, count) ->
+                            FilterChip(
+                                selected = viewModel.tag.equals(tag, ignoreCase = true),
+                                onClick = { viewModel.updateTag(tag) },
+                                label = {
+                                    Text(tag)
+                                    if (count > 0) Text(" $count", color = LocalContentColor.current.copy(alpha = 0.6f))
+                                }
+                            )
                         }
                     }
                 }
@@ -149,7 +193,11 @@ fun ClientDirectoryScreen(
                 if (viewModel.searching || viewModel.refreshing) item { LinearProgressIndicator(Modifier.fillMaxWidth()) }
                 item {
                     Text(stringResource(com.beauty.app.R.string.client_directory_count, viewModel.filtered.size), style = MaterialTheme.typography.titleMedium)
-                    Text(viewModel.message?.let { localizedMessage(it) } ?: if (viewModel.lastRefresh == 0L) stringResource(com.beauty.app.R.string.loading_saved_clients) else stringResource(com.beauty.app.R.string.synced_with_web), style = MaterialTheme.typography.bodySmall)
+                    Text(
+                        viewModel.message?.let { localizedMessage(it) } ?: if (viewModel.lastRefresh == 0L) stringResource(com.beauty.app.R.string.loading_saved_clients) else stringResource(com.beauty.app.R.string.synced_with_web),
+                        color = if (viewModel.message != null) MaterialTheme.colorScheme.error else TextMuted,
+                        style = MaterialTheme.typography.bodySmall
+                    )
                     if (viewModel.message != null) TextButton(onClick = refresh) { Text(stringResource(com.beauty.app.R.string.ui2_retry)) }
                 }
                 if (viewModel.filtered.isEmpty() && !viewModel.refreshing && !viewModel.searching && !viewModel.blocked) item {
@@ -174,7 +222,13 @@ fun ClientDirectoryScreen(
     if (chooseClient) AlertDialog(onDismissRequest = { chooseClient = false }, title = { Text(stringResource(com.beauty.app.R.string.choose_a_client)) }, text = {
         if (viewModel.clients.isEmpty()) Text(stringResource(com.beauty.app.R.string.create_a_client_before_logging_a_visit)) else LazyColumn(Modifier.heightIn(max = 400.dp)) {
             items(viewModel.clients, key = { it.id }) { client ->
-                TextButton(onClick = { chooseClient = false; onLogVisit(client.id) }, modifier = Modifier.fillMaxWidth()) { Text("${client.name} · ${client.phone}") }
+                ListItem(
+                    headlineContent = { Text(client.name, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                    supportingContent = { Text(client.phone, color = TextMuted) },
+                    trailingContent = { Icon(Icons.Default.ChevronRight, null, tint = TextMuted) },
+                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                    modifier = Modifier.clickable { chooseClient = false; onLogVisit(client.id) }
+                )
             }
         }
     }, confirmButton = {
@@ -189,13 +243,25 @@ fun ClientDirectoryScreen(
 private fun ClientCard(client: ClientEntity, logVisitEnabled: Boolean, onClick: () -> Unit, onLogVisit: () -> Unit) {
     val tags = remember(client.tagsJson) { decodeTags(client.tagsJson) }
     val attributes = remember(client.customFieldsJson) { attributeSummary(client.customFieldsJson) }
-    Card(Modifier.fillMaxWidth().clickable(onClick = onClick)) {
+    // Card(onClick) rather than Modifier.clickable, so the ripple is clipped
+    // to the rounded shape instead of flashing a rectangle.
+    Card(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(containerColor = CardSurface),
+        border = BorderStroke(1.dp, Color(0x14FFFFFF))
+    ) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(verticalAlignment = Alignment.Top) {
                 Column(Modifier.weight(1f)) {
-                    Text(client.name, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
-                    Text(client.phone, color = TextMuted, fontSize = 13.sp)
+                    Text(client.name, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Icon(Icons.Default.Phone, null, tint = TextMuted, modifier = Modifier.size(14.dp))
+                        Text(client.phone, color = TextMuted, fontSize = 13.sp)
+                    }
                 }
+                Spacer(Modifier.width(8.dp))
                 Surface(color = Color(0x1AE5B899), shape = RoundedCornerShape(12.dp)) {
                     Text(
                         pluralStringResource(com.beauty.app.R.plurals.visits_count, client.totalVisits, client.totalVisits),
@@ -218,16 +284,21 @@ private fun ClientCard(client: ClientEntity, logVisitEnabled: Boolean, onClick: 
                         .padding(horizontal = 12.dp, vertical = 8.dp),
                     verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    Text(stringResource(com.beauty.app.R.string.custom_specs_attributes), color = RoseGoldPrimary, fontSize = 10.sp, fontWeight = FontWeight.SemiBold)
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Icon(Icons.Outlined.Info, null, tint = RoseGoldPrimary, modifier = Modifier.size(12.dp))
+                        Text(stringResource(com.beauty.app.R.string.custom_specs_attributes), color = RoseGoldPrimary, fontSize = 10.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 0.5.sp)
+                    }
+                    // Value right-aligned against the edge, as on the web card.
                     attributes.forEach { (key, value) ->
-                        Row {
-                            Text("$key:", color = TextMuted, fontSize = 12.sp, modifier = Modifier.weight(1f))
+                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            Text("$key:", color = TextMuted, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
                             Text(
                                 value,
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Medium,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
+                                textAlign = TextAlign.End,
                                 modifier = Modifier.weight(1f)
                             )
                         }
@@ -237,10 +308,26 @@ private fun ClientCard(client: ClientEntity, logVisitEnabled: Boolean, onClick: 
             HorizontalDivider(color = Color(0x0DFFFFFF))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(stringResource(com.beauty.app.R.string.updated_date, formatUpdatedDate(client.updatedAt)), color = TextMuted, fontSize = 12.sp, modifier = Modifier.weight(1f))
-                OutlinedButton(onClick = onLogVisit, enabled = logVisitEnabled, contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)) {
-                    Text(stringResource(com.beauty.app.R.string.log_visit), fontSize = 12.sp)
+                Spacer(Modifier.width(8.dp))
+                OutlinedButton(onClick = onLogVisit, enabled = logVisitEnabled, contentPadding = PaddingValues(start = 14.dp, end = 8.dp, top = 4.dp, bottom = 4.dp)) {
+                    Text(stringResource(com.beauty.app.R.string.log_visit), fontSize = 12.sp, maxLines = 1)
+                    Icon(Icons.Default.ChevronRight, null, modifier = Modifier.size(18.dp))
                 }
             }
         }
     }
+}
+
+private val HeaderButtonPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp)
+
+/**
+ * Widens a horizontally scrolling row by [horizontal] on each side, under the
+ * list's own content padding, so chips scroll out to the screen edge instead
+ * of being cut off 16dp short of it.
+ */
+private fun Modifier.bleed(horizontal: Dp) = layout { measurable, constraints ->
+    val extra = horizontal.roundToPx()
+    val width = constraints.maxWidth + extra * 2
+    val placeable = measurable.measure(constraints.copy(minWidth = width, maxWidth = width))
+    layout(constraints.maxWidth, placeable.height) { placeable.place(-extra, 0) }
 }
