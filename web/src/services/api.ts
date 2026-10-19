@@ -1,5 +1,6 @@
 import type {
   Client,
+  ClientTag,
   Visit,
   Attachment,
   CreateClientInput,
@@ -406,6 +407,30 @@ class ApiService {
       clients = clients.filter(c => c.tags.some(tag => tag.toLowerCase() === t));
     }
     return clients;
+  }
+
+  async getClientTags(): Promise<ClientTag[]> {
+    try {
+      const res = await this.authFetch(`${API_BASE_URL}/clients/tags`);
+      if (!res.ok) throw await this.apiError(res);
+      return await res.json();
+    } catch (err) {
+      this.fallbackOrThrow(err);
+    }
+
+    const counts = new Map<string, ClientTag>();
+    for (const client of this.getLocalClients()) {
+      const seen = new Set<string>();
+      for (const name of client.tags.map(tag => tag.trim()).filter(Boolean)) {
+        const key = name.toLowerCase();
+        if (seen.has(key)) continue;
+        seen.add(key);
+        const entry = counts.get(key);
+        if (entry) entry.count += 1;
+        else counts.set(key, { name, count: 1 });
+      }
+    }
+    return [...counts.values()].sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
   }
 
   async getClient(id: string): Promise<Client | null> {

@@ -3,12 +3,15 @@ import React from 'react';
 import { Search, Plus, Sparkles, Filter, Settings, Users, ShieldCheck } from 'lucide-react';
 import { useAuth } from '../auth/AuthContext';
 import { useOrg } from '../auth/OrgContext';
+import type { ClientTag } from '../types';
 
 interface HeaderProps {
   searchQuery: string;
   onSearchChange: (q: string) => void;
   selectedTag: string;
   onTagSelect: (tag: string) => void;
+  /** Tags in use in the organization, most common first. */
+  tags: ClientTag[];
   onOpenNewClient: () => void;
   onOpenNewVisit: () => void;
   onOpenSettings: () => void;
@@ -22,6 +25,7 @@ export const Header: React.FC<HeaderProps> = ({
   onSearchChange,
   selectedTag,
   onTagSelect,
+  tags,
   onOpenNewClient,
   onOpenNewVisit,
   onOpenSettings,
@@ -35,14 +39,16 @@ export const Header: React.FC<HeaderProps> = ({
   // Requests waiting on approval in the active organization; the server only
   // reports it to admins, so this is 0 for everyone else.
   const pendingCount = current?.pendingRequestCount ?? 0;
-  const tagsList = [
+  // The chips are the tags clients actually carry, shown as written on the
+  // cards. A selected tag the last client just lost stays visible so the
+  // filter can still be cleared from here.
+  const tagsList: Array<{ value: string; label: string; count?: number }> = [
     { value: '', label: t('header.all') },
-    { value: 'VIP', label: 'VIP' },
-    { value: 'Sensitive Skin', label: t('header.sensitiveSkin') },
-    { value: 'Lash Extensions', label: t('header.lashExtensions') },
-    { value: 'Hair Coloring', label: t('header.hairColoring') },
-    { value: 'Skin Treatment', label: t('header.skinTreatment') },
+    ...tags.map(tag => ({ value: tag.name, label: tag.name, count: tag.count })),
   ];
+  if (selectedTag && !tags.some(tag => tag.name.toLowerCase() === selectedTag.toLowerCase())) {
+    tagsList.push({ value: selectedTag, label: selectedTag });
+  }
 
   return (
     <header className="glass-panel-glow" style={{ padding: '20px 28px', marginBottom: '28px' }}>
@@ -195,13 +201,14 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
 
         {/* Tag Filters */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflowX: 'auto', paddingBottom: '4px' }}>
+        <div style={{ flex: '1 1 300px', minWidth: 0, display: 'flex', alignItems: 'center', gap: '8px', overflowX: 'auto', paddingBottom: '4px' }}>
           <Filter size={16} style={{ color: 'var(--text-dim)', marginRight: '4px' }} />
           {tagsList.map(tag => {
-            const isActive = selectedTag === tag.value;
+            const isActive = selectedTag.toLowerCase() === tag.value.toLowerCase();
             return (
               <button
-                key={tag.label}
+                key={tag.value}
+                aria-pressed={isActive}
                 onClick={() => onTagSelect(tag.value)}
                 style={{
                   background: isActive ? 'var(--rose-gold-primary)' : 'rgba(255,255,255,0.05)',
@@ -217,6 +224,9 @@ export const Header: React.FC<HeaderProps> = ({
                 }}
               >
                 {tag.label}
+                {tag.count !== undefined && (
+                  <span style={{ marginLeft: '6px', opacity: 0.6, fontWeight: 500 }}>{tag.count}</span>
+                )}
               </button>
             );
           })}

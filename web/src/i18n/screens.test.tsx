@@ -46,7 +46,7 @@ const cases: [string, () => ReactElement, string, string][] = [
   ['email verification failure', () => <VerifyEmailPage status="invalid" />, "That link didn&#x27;t work", 'Ссылка не сработала'],
   ['settings', () => <SettingsModal onClose={noop} />, 'Account Settings', 'Настройки аккаунта'],
   ['organization onboarding', () => <OrganizationOnboarding onOpenAdmin={noop} />, 'Choose an organization', 'Выберите организацию'],
-  ['header', () => <Header searchQuery="" onSearchChange={noop} selectedTag="" onTagSelect={noop} onOpenNewClient={noop} onOpenNewVisit={noop} onOpenSettings={noop} onOpenMembers={noop} onOpenAdmin={noop} totalClients={21} />, '21 active profiles', '21 активная карточка'],
+  ['header', () => <Header searchQuery="" onSearchChange={noop} selectedTag="" onTagSelect={noop} tags={[{ name: "Customer tag", count: 1 }]} onOpenNewClient={noop} onOpenNewVisit={noop} onOpenSettings={noop} onOpenMembers={noop} onOpenAdmin={noop} totalClients={21} />, '21 active profiles', '21 активная карточка'],
   ['client directory card', () => <ClientCard client={client} onSelect={noop} onLogVisit={noop} />, '21 visits', '21 процедура'],
   ['client details', () => <ClientDetailModal client={client} visits={visits} onClose={noop} onRefresh={noop} onOpenNewVisit={noop} onOpenPhotoCompare={noop} />, 'COMPLETED', 'ЗАВЕРШЕНА'],
   ['new client', () => <NewClientModal onClose={noop} onSuccess={noop} />, 'Create New Client Profile', 'Создать карточку клиента'],

@@ -32,6 +32,12 @@ export interface Client {
   updatedAt: string;
 }
 
+/** A tag in use in the active organization, with how many clients carry it. */
+export interface ClientTag {
+  name: string;
+  count: number;
+}
+
 export interface CreateClientInput {
   name: string;
   phone: string;
