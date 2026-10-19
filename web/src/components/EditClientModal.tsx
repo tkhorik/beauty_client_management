@@ -1,10 +1,13 @@
 import { useAppTranslation } from '../i18n/LocaleProvider';
 import React, { useState } from 'react';
 import type { Client } from '../types';
-import { api, writeErrorMessage } from '../services/api';
+import { api, ApiError, writeErrorMessage } from '../services/api';
+import { translatedFieldErrors } from '../i18n/errors';
 import { X, Edit2 } from 'lucide-react';
 import { AttributeEditor } from './AttributeEditor';
 import { duplicateAttributeKey, toAttributeRecord, toAttributeRows, type AttributeRow } from './attributes';
+import { PhoneInput } from './PhoneInput';
+import { phoneIssue } from './phone';
 
 interface EditClientModalProps {
   client: Client;
@@ -16,6 +19,7 @@ export const EditClientModal: React.FC<EditClientModalProps> = ({ client, onClos
   const { t } = useAppTranslation();
   const [name, setName] = useState(client.name);
   const [phone, setPhone] = useState(client.phone);
+  const [phoneError, setPhoneError] = useState('');
   const [email, setEmail] = useState(client.email ?? '');
   const [tagInput, setTagInput] = useState('');
   const [tags, setTags] = useState<string[]>([...client.tags]);
@@ -36,10 +40,26 @@ export const EditClientModal: React.FC<EditClientModalProps> = ({ client, onClos
     setTags(tags.filter(item => item !== t));
   };
 
+  const handlePhoneChange = (value: string) => {
+    setPhone(value);
+    // Once an error is showing, let it clear (or update) as the user fixes it.
+    if (phoneError) {
+      const issue = value === client.phone ? null : phoneIssue(value);
+      setPhoneError(issue ? t(`apiErrors.${issue}`) : '');
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim() || !phone.trim()) {
+    if (!name.trim()) {
       setError(t('editClientModal.pleaseFillInClientNameAndPhoneNumber'));
+      return;
+    }
+    // An unchanged number is not re-checked, matching the server: clients
+    // saved before validation existed must stay editable.
+    const issue = phone === client.phone ? null : phoneIssue(phone);
+    if (issue) {
+      setPhoneError(t(`apiErrors.${issue}`));
       return;
     }
     const duplicate = duplicateAttributeKey(customFields);
@@ -63,7 +83,9 @@ export const EditClientModal: React.FC<EditClientModalProps> = ({ client, onClos
       onSuccess();
       onClose();
     } catch (err) {
-      setError(writeErrorMessage(err,t('editClientModal.failedToSaveChangesPleaseTryAgain')));
+      const serverPhoneError = err instanceof ApiError ? translatedFieldErrors(err.body).phone : undefined;
+      if (serverPhoneError) setPhoneError(serverPhoneError);
+      else setError(writeErrorMessage(err,t('editClientModal.failedToSaveChangesPleaseTryAgain')));
     } finally {
       setIsSubmitting(false);
     }
@@ -123,17 +145,7 @@ export const EditClientModal: React.FC<EditClientModalProps> = ({ client, onClos
               />
             </div>
 
-            <div>
-              <label style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px', display: 'block' }}>{t('editClientModal.phoneNumber')}</label>
-              <input
-                type="text"
-                required
-                className="input-field"
-                placeholder="+1 (555) 000-0000"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-              />
-            </div>
+            <PhoneInput id="edit-client-phone" label={t('editClientModal.phoneNumber')} value={phone} onChange={handlePhoneChange} error={phoneError} />
           </div>
 
           <div>

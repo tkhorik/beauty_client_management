@@ -1,9 +1,12 @@
 import { useAppTranslation } from '../i18n/LocaleProvider';
 import React, { useState } from 'react';
-import { api, writeErrorMessage } from '../services/api';
+import { api, ApiError, writeErrorMessage } from '../services/api';
+import { translatedFieldErrors } from '../i18n/errors';
 import { X, UserPlus } from 'lucide-react';
 import { AttributeEditor } from './AttributeEditor';
 import { duplicateAttributeKey, toAttributeRecord, type AttributeRow } from './attributes';
+import { PhoneInput } from './PhoneInput';
+import { phoneIssue } from './phone';
 
 interface NewClientModalProps {
   onClose: () => void;
@@ -14,6 +17,7 @@ export const NewClientModal: React.FC<NewClientModalProps> = ({ onClose, onSucce
   const { t } = useAppTranslation();
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
+  const [phoneError, setPhoneError] = useState('');
   const [email, setEmail] = useState('');
   const [tagInput, setTagInput] = useState('');
   const [tags, setTags] = useState<string[]>([]);
@@ -32,10 +36,24 @@ export const NewClientModal: React.FC<NewClientModalProps> = ({ onClose, onSucce
     setTags(tags.filter(item => item !== t));
   };
 
+  const handlePhoneChange = (value: string) => {
+    setPhone(value);
+    // Once an error is showing, let it clear (or update) as the user fixes it.
+    if (phoneError) {
+      const issue = phoneIssue(value);
+      setPhoneError(issue ? t(`apiErrors.${issue}`) : '');
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim() || !phone.trim()) {
+    if (!name.trim()) {
       alert(t('newClientModal.pleaseFillInClientNameAndPhoneNumber'));
+      return;
+    }
+    const issue = phoneIssue(phone);
+    if (issue) {
+      setPhoneError(t(`apiErrors.${issue}`));
       return;
     }
     const duplicate = duplicateAttributeKey(customFields);
@@ -58,7 +76,9 @@ export const NewClientModal: React.FC<NewClientModalProps> = ({ onClose, onSucce
       onSuccess();
       onClose();
     } catch (err) {
-      alert(writeErrorMessage(err, t('newClientModal.failedToCreateClientProfile')));
+      const serverPhoneError = err instanceof ApiError ? translatedFieldErrors(err.body).phone : undefined;
+      if (serverPhoneError) setPhoneError(serverPhoneError);
+      else alert(writeErrorMessage(err, t('newClientModal.failedToCreateClientProfile')));
     } finally {
       setIsSubmitting(false);
     }
@@ -118,17 +138,7 @@ export const NewClientModal: React.FC<NewClientModalProps> = ({ onClose, onSucce
               />
             </div>
 
-            <div>
-              <label style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px', display: 'block' }}>{t('newClientModal.phoneNumberRequired')}</label>
-              <input
-                type="text"
-                required
-                className="input-field"
-                placeholder="+1 (555) 000-0000"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-              />
-            </div>
+            <PhoneInput id="new-client-phone" label={t('newClientModal.phoneNumberRequired')} value={phone} onChange={handlePhoneChange} error={phoneError} />
           </div>
 
           <div>
