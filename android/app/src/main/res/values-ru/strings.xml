@@ -374,6 +374,7 @@
     <string name="members_of">Участники организации %1$s</string>
     <string name="error_client_name_required">Укажите имя клиента.</string>
     <string name="error_phone_required">Укажите номер телефона.</string>
+    <string name="error_phone_invalid">Введите полный номер телефона, например +7 (999) 123-45-67.</string>
     <string name="error_duplicate_field">Поле «%1$s» добавлено несколько раз. Названия полей должны быть уникальными.</string>
     <string name="error_duration_min">Продолжительность должна быть не менее %1$d минут.</string>
     <string name="error_duration_step">Продолжительность должна быть кратна %1$d минутам (15, 30, 45, 60…).</string>

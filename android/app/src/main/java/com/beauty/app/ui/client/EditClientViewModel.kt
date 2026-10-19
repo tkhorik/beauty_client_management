@@ -66,6 +66,9 @@ class EditClientViewModel(
     var email by mutableStateOf("")
         private set
 
+    /** The stored number; an unchanged one is not re-validated, matching the server. */
+    private var originalPhone: String? = null
+
     val tags = mutableStateListOf<String>()
 
     /**
@@ -94,6 +97,7 @@ class EditClientViewModel(
             entity?.let { e ->
                 name = e.name
                 phone = e.phone
+                originalPhone = e.phone
                 email = e.email ?: ""
 
                 val parsedTags = runCatching {
@@ -135,15 +139,19 @@ class EditClientViewModel(
         if (!isNewClient && existingClientState !is ExistingClientState.Ready) return
         viewModelScope.launch {
             val trimmedName = name.trim()
-            val trimmedPhone = phone.trim()
+            // Clients saved before phone validation existed keep their number
+            // until someone changes it, exactly as the server allows.
+            val phoneChanged = phone.trim() != originalPhone?.trim()
+            val phoneIssue = if (phoneChanged) AuthValidation.phoneError(phone) else null
+            val trimmedPhone = if (phoneChanged && phoneIssue == null) AuthValidation.formatPhone(phone) else phone.trim()
             val normalizedEmail = email.trim().takeIf { it.isNotEmpty() }?.let(AuthValidation::normaliseEmail)
             when {
                 trimmedName.isEmpty() -> {
                     saveState = SaveState.Error("CLIENT_NAME_REQUIRED")
                     return@launch
                 }
-                trimmedPhone.isEmpty() -> {
-                    saveState = SaveState.Error("PHONE_REQUIRED")
+                phoneIssue != null -> {
+                    saveState = SaveState.Error(phoneIssue)
                     return@launch
                 }
                 normalizedEmail != null -> AuthValidation.emailError(normalizedEmail)?.let {

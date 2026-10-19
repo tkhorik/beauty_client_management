@@ -85,6 +85,7 @@ fun localizedMessage(raw: String): String {
         "INVALID_CREATE_LINK" -> R.string.error_invalid_create_link
         "CLIENT_NAME_REQUIRED" -> R.string.error_client_name_required
         "PHONE_REQUIRED" -> R.string.error_phone_required
+        "PHONE_INVALID" -> R.string.error_phone_invalid
         "DUPLICATE_FIELD" -> R.string.error_duplicate_field
         "DURATION_MIN" -> R.string.error_duration_min
         "DURATION_STEP" -> R.string.error_duration_step

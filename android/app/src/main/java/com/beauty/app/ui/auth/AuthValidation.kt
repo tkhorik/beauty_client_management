@@ -38,6 +38,42 @@ object AuthValidation {
         else -> null
     }
 
+    /**
+     * Mirrors the backend's `Validation.phoneIssue` / `formatPhone` (and the
+     * web's `phone.ts`): 11 digits with a +1 or +7 country code. A leading 8
+     * is read as +7; any other unknown first digit means +1 was left off.
+     */
+    private val PHONE_GROUPS = mapOf('1' to listOf(3, 3, 4), '7' to listOf(3, 3, 2, 2))
+
+    const val PHONE_DIGITS = 11
+
+    private fun phoneDigits(raw: String): String {
+        val digits = raw.filter { it in '0'..'9' }
+        return when {
+            digits.isEmpty() -> ""
+            digits[0] == '8' -> "7" + digits.drop(1)
+            digits[0] !in PHONE_GROUPS -> "1$digits"
+            else -> digits
+        }
+    }
+
+    fun phoneError(phone: String): String? {
+        val digits = phoneDigits(phone)
+        return when {
+            digits.isEmpty() -> "PHONE_REQUIRED"
+            digits.length != PHONE_DIGITS -> "PHONE_INVALID"
+            else -> null
+        }
+    }
+
+    /** `+1 (555) 000-0000` / `+7 (999) 123-45-67`. Call only after [phoneError] passed. */
+    fun formatPhone(phone: String): String {
+        val digits = phoneDigits(phone)
+        var rest = digits.drop(1)
+        val parts = PHONE_GROUPS.getValue(digits[0]).map { size -> rest.take(size).also { rest = rest.drop(size) } }
+        return "+${digits[0]} (${parts[0]}) ${parts[1]}-" + parts.drop(2).joinToString("-")
+    }
+
     fun fullNameError(fullName: String): String? =
         if (fullName.isBlank()) "NAME_REQUIRED" else null
 
