@@ -1,5 +1,6 @@
 import { useAppTranslation, useLocale } from '../i18n/LocaleProvider';
 import React, { useState } from 'react';
+import { useDismiss } from './useDismiss';
 import type { Client, Visit, Attachment } from '../types';
 import { X, Calendar, Clock, Plus, Trash2, Edit3, Edit2, Camera, FileText, Sliders, ImagePlus } from 'lucide-react';
 import { AttributeEditor } from './AttributeEditor';
@@ -32,6 +33,7 @@ export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
   onOpenPhotoCompare
 }) => {
   const { t } = useAppTranslation();
+  const dismiss = useDismiss(onClose);
   const { formatDate } = useLocale();
   // Null while viewing. The draft is seeded from the current record each time
   // editing starts, so Cancel discards it and a refreshed record is never
@@ -112,7 +114,7 @@ export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
       justifyContent: 'center',
       zIndex: 900,
       padding: '20px'
-    }}>
+    }} {...dismiss}>
       <div className="glass-panel-glow" style={{
         width: '950px',
         maxWidth: '95vw',

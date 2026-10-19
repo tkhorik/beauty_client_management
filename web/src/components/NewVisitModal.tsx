@@ -1,5 +1,6 @@
 import { useAppTranslation } from '../i18n/LocaleProvider';
 import React, { useState } from 'react';
+import { useDismiss } from './useDismiss';
 import type { Client, Visit } from '../types';
 import { api, writeErrorMessage } from '../services/api';
 import { localDateTimeInputValue } from '../utils/localDateTime';
@@ -21,6 +22,7 @@ export const NewVisitModal: React.FC<NewVisitModalProps> = ({
   onSuccess
 }) => {
   const { t } = useAppTranslation();
+  const dismiss = useDismiss(onClose);
   const [selectedClientId, setSelectedClientId] = useState(client?.id || (clientsList[0]?.id || ''));
   const [visitDateTime, setVisitDateTime] = useState(() => localDateTimeInputValue(new Date()));
   const [durationMinutes, setDurationMinutes] = useState(60);
@@ -93,7 +95,7 @@ export const NewVisitModal: React.FC<NewVisitModalProps> = ({
       justifyContent: 'center',
       zIndex: 1000,
       padding: '20px'
-    }}>
+    }} {...dismiss}>
       <div className="glass-panel-glow" style={{
         width: '750px',
         maxWidth: '95vw',

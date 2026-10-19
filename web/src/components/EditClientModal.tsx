@@ -1,5 +1,6 @@
 import { useAppTranslation } from '../i18n/LocaleProvider';
 import React, { useState } from 'react';
+import { useDismiss } from './useDismiss';
 import type { Client } from '../types';
 import { api, ApiError, writeErrorMessage } from '../services/api';
 import { translatedFieldErrors } from '../i18n/errors';
@@ -17,6 +18,7 @@ interface EditClientModalProps {
 
 export const EditClientModal: React.FC<EditClientModalProps> = ({ client, onClose, onSuccess }) => {
   const { t } = useAppTranslation();
+  const dismiss = useDismiss(onClose);
   const [name, setName] = useState(client.name);
   const [phone, setPhone] = useState(client.phone);
   const [phoneError, setPhoneError] = useState('');
@@ -102,7 +104,7 @@ export const EditClientModal: React.FC<EditClientModalProps> = ({ client, onClos
       justifyContent: 'center',
       zIndex: 1000,
       padding: '20px'
-    }}>
+    }} {...dismiss}>
       <div className="glass-panel-glow" style={{
         width: '650px',
         maxWidth: '95vw',

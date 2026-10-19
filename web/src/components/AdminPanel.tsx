@@ -1,5 +1,6 @@
 import { useAppTranslation, useLocale } from '../i18n/LocaleProvider';
 import React, { useCallback, useEffect, useState } from 'react';
+import { useDismiss } from './useDismiss';
 import { X, ShieldCheck, Users, Building2, Link2, Copy, Check, Trash2, Ban, RotateCcw, UserCog } from 'lucide-react';
 import type { AdminUser, AdminOrganization, OrganizationCreationLink } from '../types';
 import { api, writeErrorMessage } from '../services/api';
@@ -39,6 +40,7 @@ const bannerStyle = (kind: 'error' | 'success') =>
  */
 export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
   const { t } = useAppTranslation();
+  const dismiss = useDismiss(onClose);
   const { user } = useAuth();
   const { select, refresh: refreshOrganizations } = useOrg();
   const [tab, setTab] = useState<Tab>('users');
@@ -122,7 +124,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
         zIndex: 1000,
         padding: '20px',
       }}
-      onClick={onClose}
+      {...dismiss}
     >
       <div
         className="glass-panel-glow"
@@ -195,9 +197,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
         because a membership change moves the member counts this panel shows.
       */}
       {managingOrg && (
-        // The wrapper is not cosmetic: this panel's own backdrop closes it on
-        // any click that reaches it, and a click on the members modal's
-        // backdrop would otherwise bubble up and close both at once.
+        // Keeps the members modal's clicks from reaching this panel's
+        // backdrop handlers (they only act on a click aimed at the backdrop
+        // itself, so this is belt and braces).
         <div onClick={e => e.stopPropagation()}>
           <MembersModal
             orgId={managingOrg.id}

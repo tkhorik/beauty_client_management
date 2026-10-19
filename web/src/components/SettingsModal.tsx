@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useDismiss } from './useDismiss';
 import { useAuth } from '../auth/AuthContext';
 import { api, ApiError } from '../services/api';
 import { PASSWORD_MIN_LENGTH, validatePasswordLocally } from '../utils/passwordRules';
@@ -32,6 +33,7 @@ const bannerStyle = (kind: 'error' | 'success') =>
 export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
   const { user, updateUser, login, logout } = useAuth();
   const { t } = useAppTranslation();
+  const dismiss = useDismiss(onClose);
 
   // -- Profile (name) form --
   const [fullName, setFullName] = useState(user?.fullName ?? '');
@@ -137,7 +139,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
         zIndex: 1000,
         padding: '20px',
       }}
-      onClick={onClose}
+      {...dismiss}
     >
       <div
         className="glass-panel-glow"
