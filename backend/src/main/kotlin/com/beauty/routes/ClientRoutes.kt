@@ -9,6 +9,8 @@ import com.beauty.models.*
 import com.beauty.plugins.OrgContext
 import com.beauty.plugins.requireOrgAccess
 import com.beauty.storage.FileStorageService
+import com.beauty.validation.Validation
+import com.beauty.validation.ValidationIssue
 import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.request.*
@@ -139,6 +141,11 @@ fun Route.clientRoutes(storage: FileStorageService) {
             val organizationId = ctx.organizationId!!
 
             val req = call.receive<CreateClientRequest>()
+            Validation.phoneIssue(req.phone)?.let {
+                call.respond(HttpStatusCode.BadRequest, ValidationErrorResponse.from(mapOf("phone" to it)))
+                return@post
+            }
+            val phone = Validation.formatPhone(req.phone)
             val id = UUID.randomUUID().toString()
             val now = LocalDateTime.now()
 
@@ -151,7 +158,7 @@ fun Route.clientRoutes(storage: FileStorageService) {
                     it[ClientsTable.organizationId] = organizationId
                     it[createdBy] = ctx.userId
                     it[ClientsTable.name] = req.name
-                    it[ClientsTable.phone] = req.phone
+                    it[ClientsTable.phone] = phone
                     it[ClientsTable.email] = req.email
                     it[ClientsTable.tags] = tagsStr
                     it[ClientsTable.customFields] = req.customFields
@@ -163,7 +170,7 @@ fun Route.clientRoutes(storage: FileStorageService) {
             val created = ClientDto(
                 id = id,
                 name = req.name,
-                phone = req.phone,
+                phone = phone,
                 email = req.email,
                 tags = req.tags,
                 customFields = req.customFields,
@@ -183,10 +190,19 @@ fun Route.clientRoutes(storage: FileStorageService) {
             val updated = dbQuery {
                 val existing = ClientsTable
                     .select { (ClientsTable.id eq id) and ctx.clientScope() }
-                    .singleOrNull() ?: return@dbQuery null
+                    .singleOrNull() ?: return@dbQuery UpdateOutcome.NotFound
+
+                // Checked only when the number changes. Clients created before
+                // phone validation keep whatever was typed then, and every
+                // client re-sends the current number on unrelated edits (Android's
+                // attribute editor does), so validating an unchanged value would
+                // make those clients impossible to edit at all.
+                val currentPhone = existing[ClientsTable.phone]
+                val changedPhone = req.phone?.takeIf { it != currentPhone }
+                changedPhone?.let(Validation::phoneIssue)?.let { return@dbQuery UpdateOutcome.Invalid(it) }
 
                 val newName = req.name ?: existing[ClientsTable.name]
-                val newPhone = req.phone ?: existing[ClientsTable.phone]
+                val newPhone = changedPhone?.let(Validation::formatPhone) ?: currentPhone
                 val newEmail = req.email ?: existing[ClientsTable.email]
                 val newTagsStr = if (req.tags != null) req.tags.joinToString(",") else existing[ClientsTable.tags]
                 val newCustomFields = req.customFields ?: existing[ClientsTable.customFields]
@@ -206,7 +222,7 @@ fun Route.clientRoutes(storage: FileStorageService) {
                 val totalVisits = VisitsTable.select { VisitsTable.clientId eq id }.count().toInt()
                 val tagsList = newTagsStr.split(",").map { it.trim() }.filter { it.isNotEmpty() }
 
-                ClientDto(
+                UpdateOutcome.Updated(ClientDto(
                     id = id,
                     name = newName,
                     phone = newPhone,
@@ -216,13 +232,15 @@ fun Route.clientRoutes(storage: FileStorageService) {
                     totalVisits = totalVisits,
                     createdAt = existing[ClientsTable.createdAt].toString(),
                     updatedAt = now.toString()
-                )
+                ))
             }
 
-            if (updated != null) {
-                call.respond(updated)
-            } else {
-                call.respond(HttpStatusCode.NotFound, mapOf("error" to "Client not found", "code" to "CLIENT_NOT_FOUND"))
+            when (updated) {
+                is UpdateOutcome.Updated -> call.respond(updated.client)
+                is UpdateOutcome.Invalid ->
+                    call.respond(HttpStatusCode.BadRequest, ValidationErrorResponse.from(mapOf("phone" to updated.issue)))
+                UpdateOutcome.NotFound ->
+                    call.respond(HttpStatusCode.NotFound, mapOf("error" to "Client not found", "code" to "CLIENT_NOT_FOUND"))
             }
         }
 
@@ -260,3 +278,9 @@ fun Route.clientRoutes(storage: FileStorageService) {
 
 /** Escapes SQL LIKE metacharacters before putting user input in a pattern. */
 private fun String.escapeLike(): String = replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
+private sealed interface UpdateOutcome {
+    data class Updated(val client: ClientDto) : UpdateOutcome
+    data class Invalid(val issue: ValidationIssue) : UpdateOutcome
+    data object NotFound : UpdateOutcome
+}

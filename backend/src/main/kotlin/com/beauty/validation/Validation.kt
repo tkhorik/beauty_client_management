@@ -101,6 +101,51 @@ object Validation {
         else -> null
     }
 
+    /**
+     * The countries whose numbers the clients mask: country code -> the
+     * rest of the number's grouping. Every supported number is 11 digits
+     * including the country code, so length alone says when it is complete.
+     *
+     * The web client (`web/src/components/phone.ts`) and Android
+     * (`AuthValidation.kt`) mirror this; change all three together.
+     */
+    private val PHONE_GROUPS = mapOf('1' to listOf(3, 3, 4), '7' to listOf(3, 3, 2, 2))
+
+    const val PHONE_DIGITS = 11
+
+    /**
+     * Strips formatting, reads a leading 8 as Russia's domestic trunk prefix
+     * for +7, and assumes +1 for any other unrecognised first digit — the same
+     * reading the input mask applies to keystrokes.
+     */
+    fun phoneDigits(raw: String): String {
+        val digits = raw.filter { it in '0'..'9' }
+        return when {
+            digits.isEmpty() -> ""
+            digits[0] == '8' -> "7" + digits.drop(1)
+            digits[0] !in PHONE_GROUPS -> "1$digits"
+            else -> digits
+        }
+    }
+
+    fun phoneIssue(phone: String): ValidationIssue? {
+        val digits = phoneDigits(phone)
+        return when {
+            digits.isEmpty() -> ValidationIssue("PHONE_REQUIRED", "Phone number is required.")
+            digits.length != PHONE_DIGITS -> ValidationIssue("PHONE_INVALID", "Enter a complete phone number.")
+            else -> null
+        }
+    }
+
+    /** `+1 (555) 000-0000` / `+7 (999) 123-45-67`. Call only after [phoneIssue] passed. */
+    fun formatPhone(phone: String): String {
+        val digits = phoneDigits(phone)
+        val groups = PHONE_GROUPS.getValue(digits[0])
+        var rest = digits.drop(1)
+        val parts = groups.map { size -> rest.take(size).also { rest = rest.drop(size) } }
+        return "+${digits[0]} (${parts[0]}) ${parts[1]}-" + parts.drop(2).joinToString("-")
+    }
+
     const val ORG_NAME_MAX_LENGTH = 255
     const val ORG_SLUG_MAX_LENGTH = 100
     const val ORG_SLUG_MIN_LENGTH = 3

@@ -68,7 +68,7 @@ class AttachmentRouteSecurityTest {
             bearerAuth(token)
             header(ORG_HEADER, orgId)
             contentType(ContentType.Application.Json)
-            setBody("""{"name":"Attachment Client","phone":"+1 555 0100"}""")
+            setBody("""{"name":"Attachment Client","phone":"+1 555 000 0100"}""")
         }
         val clientId = Json.parseToJsonElement(clientResponse.bodyAsText()).jsonObject["id"]!!.jsonPrimitive.content
         val visitResponse = client.post("/api/visits") {

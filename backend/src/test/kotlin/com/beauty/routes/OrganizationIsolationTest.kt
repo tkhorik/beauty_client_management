@@ -122,7 +122,7 @@ class OrganizationIsolationTest {
             bearerAuth(token)
             header(ORG_HEADER, orgId)
             contentType(ContentType.Application.Json)
-            setBody("""{"name":"$name","phone":"+1 555 0100"}""")
+            setBody("""{"name":"$name","phone":"+1 555 000 0100"}""")
         }
         assertEquals(HttpStatusCode.Created, response.status, "createClient failed: ${response.bodyAsText()}")
         return Json.parseToJsonElement(response.bodyAsText())

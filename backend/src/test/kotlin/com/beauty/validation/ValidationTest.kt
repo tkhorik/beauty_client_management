@@ -123,4 +123,34 @@ class ValidationTest {
         )
         assertEquals(setOf("email", "password", "fullName"), errors.keys)
     }
+
+    // ── Phone ──────────────────────────────────────────────────────────────
+
+    @Test
+    fun `complete US and Russian numbers are accepted and formatted`() {
+        mapOf(
+            "+1 (555) 000-0000" to "+1 (555) 000-0000",
+            "15550000000" to "+1 (555) 000-0000",
+            "+7 999 123 45 67" to "+7 (999) 123-45-67",
+        ).forEach { (raw, formatted) ->
+            assertNull(Validation.phoneIssue(raw), "expected '$raw' to be accepted")
+            assertEquals(formatted, Validation.formatPhone(raw))
+        }
+    }
+
+    @Test
+    fun `the input mask's reading of the first digit is mirrored`() {
+        // 8 is Russia's domestic trunk prefix; any other unknown first digit
+        // means the user skipped the country code and gets +1.
+        assertEquals("+7 (999) 123-45-67", Validation.formatPhone("8 999 123 45 67"))
+        assertEquals("+1 (555) 000-0000", Validation.formatPhone("555 000 0000"))
+    }
+
+    @Test
+    fun `empty and incomplete numbers are rejected with distinct codes`() {
+        assertEquals("PHONE_REQUIRED", Validation.phoneIssue("  ")?.code)
+        assertEquals("PHONE_REQUIRED", Validation.phoneIssue("+()-")?.code)
+        listOf("+1 (555) 000-000", "+1 555 000 00000", "+7 999 123")
+            .forEach { assertEquals("PHONE_INVALID", Validation.phoneIssue(it)?.code, "expected '$it' to be rejected") }
+    }
 }
