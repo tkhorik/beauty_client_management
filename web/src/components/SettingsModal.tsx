@@ -173,11 +173,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
 
         <div style={{ padding: '24px', flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '28px' }}>
 
-          <div>
-            <h3 style={{ fontSize: '14px', color: 'var(--rose-gold-primary)', marginBottom: '8px' }}>{t('language.label')}</h3>
-            <p style={{ color: 'var(--text-muted)', fontSize: '12px', marginBottom: '10px' }}>{t('settings.languageDescription')}</p>
-            <LanguageSelector />
-          </div>
+          <LanguageSelector description={t('settings.languageDescription')} />
 
           {/* Email (read-only) */}
           <div>
