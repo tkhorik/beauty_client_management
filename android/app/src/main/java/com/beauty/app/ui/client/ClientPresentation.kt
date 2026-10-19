@@ -26,6 +26,17 @@ import java.util.Date
 fun decodeTags(tagsJson: String): List<String> =
     runCatching { Json.decodeFromString<List<String>>(tagsJson) }.getOrDefault(emptyList())
 
+/**
+ * Tags in use with how many clients carry each, most common first. Spellings
+ * differing only in case count as one tag, as the server's `/clients/tags`.
+ */
+fun tagCounts(tagLists: List<List<String>>): List<Pair<String, Int>> =
+    tagLists
+        .flatMap { tags -> tags.map(String::trim).filter(String::isNotEmpty).distinctBy(String::lowercase) }
+        .groupBy(String::lowercase)
+        .map { (_, spellings) -> spellings.first() to spellings.size }
+        .sortedWith(compareByDescending<Pair<String, Int>> { it.second }.thenBy { it.first.lowercase() })
+
 /** Key/value pairs for display, decoding JSON strings rather than quoting them. */
 fun decodeAttributes(customFieldsJson: String): List<Pair<String, String>> =
     runCatching { Json.parseToJsonElement(customFieldsJson).jsonObject }.getOrNull()

@@ -68,7 +68,7 @@ fun Route.clientRoutes(storage: FileStorageService) {
                     )
                 }
                 if (!tag.isNullOrEmpty()) {
-                    predicate = predicate and (ClientsTable.tags.lowerCase() like "%${tag.escapeLike()}%")
+                    predicate = predicate and (tagListExpression() like "%,${tag.withoutSpaces().escapeLike()},%")
                 }
 
                 val visitCount = VisitsTable.id.count()
@@ -97,6 +97,30 @@ fun Route.clientRoutes(storage: FileStorageService) {
             }
 
             call.respond(clients)
+        }
+
+        // Tags actually in use, for the directory's filter chips. Spellings
+        // differing only in case are one tag (the list filter ignores case
+        // too); the most recently edited client's spelling is shown.
+        get("/tags") {
+            val ctx = requireOrgAccess(memberships) ?: return@get
+
+            val tags = dbQuery {
+                ClientsTable
+                    .slice(ClientsTable.tags)
+                    .select { ctx.clientScope() }
+                    .orderBy(ClientsTable.updatedAt to SortOrder.DESC)
+                    .flatMap { row ->
+                        row[ClientsTable.tags].split(",").map { it.trim() }.filter { it.isNotEmpty() }
+                            .distinctBy { it.lowercase() }
+                    }
+            }
+
+            val counted = tags.groupBy { it.lowercase() }
+                .map { (_, spellings) -> ClientTagDto(name = spellings.first(), count = spellings.size) }
+                .sortedWith(compareByDescending<ClientTagDto> { it.count }.thenBy { it.name.lowercase() })
+
+            call.respond(counted)
         }
 
         get("/{id}") {
@@ -277,6 +301,19 @@ fun Route.clientRoutes(storage: FileStorageService) {
 }
 
 /** Escapes SQL LIKE metacharacters before putting user input in a pattern. */
+/**
+ * `tags` as `,tag1,tag2,`, lowercased and with whitespace removed, so a tag
+ * filter can match one whole tag: "VIP" must not select a client tagged
+ * "Non-VIP". Whitespace goes because older rows were stored untrimmed
+ * ("VIP, Diabetic"); the filter value gets the same treatment.
+ */
+private fun tagListExpression(): Expression<String> {
+    val compact = CustomStringFunction("REPLACE", ClientsTable.tags.lowerCase(), stringLiteral(" "), stringLiteral(""))
+    return Concat("", stringLiteral(","), compact, stringLiteral(","))
+}
+
+private fun String.withoutSpaces(): String = replace(" ", "")
+
 private fun String.escapeLike(): String = replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
 
 private sealed interface UpdateOutcome {

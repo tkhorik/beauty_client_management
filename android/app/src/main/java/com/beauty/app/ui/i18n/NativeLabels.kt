@@ -24,18 +24,6 @@ fun roleLabel(role: String): String = stringResource(when (role) {
     else -> R.string.role_member
 })
 
-/** Labels of predefined filter options only; user-entered tags remain untouched. */
-@Composable
-fun tagLabel(tag: String): String = when (tag) {
-    "" -> stringResource(R.string.all)
-    "VIP" -> stringResource(R.string.vip)
-    "Sensitive Skin" -> stringResource(R.string.sensitive_skin)
-    "Lash Extensions" -> stringResource(R.string.lash_extensions)
-    "Hair Coloring" -> stringResource(R.string.hair_coloring)
-    "Skin Treatment" -> stringResource(R.string.skin_treatment)
-    else -> tag
-}
-
 @Composable
 fun verificationMessage(code: String): String = stringResource(when (code) {
     "RESOURCE:ui2_still_unconfirmed_open_the_link_then_try_again" -> R.string.ui2_still_unconfirmed_open_the_link_then_try_again

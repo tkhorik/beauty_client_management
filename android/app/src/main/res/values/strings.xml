@@ -85,11 +85,6 @@
     <string name="sign_out" formatted="false">Sign out</string>
     <string name="log_visit" formatted="false">Log Visit</string>
     <string name="search_name_phone_email_or_tag" formatted="false">Search name, phone, email or tag</string>
-    <string name="vip" formatted="false">VIP</string>
-    <string name="sensitive_skin" formatted="false">Sensitive Skin</string>
-    <string name="lash_extensions" formatted="false">Lash Extensions</string>
-    <string name="hair_coloring" formatted="false">Hair Coloring</string>
-    <string name="skin_treatment" formatted="false">Skin Treatment</string>
     <string name="clear_filters" formatted="false">Clear filters</string>
     <string name="loading_saved_clients" formatted="false">Loading saved clients…</string>
     <string name="synced_with_web" formatted="false">Synced with web</string>

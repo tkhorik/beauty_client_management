@@ -25,6 +25,8 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -145,19 +147,24 @@ fun ClientDetailScreen(
                                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                                 verticalArrangement = Arrangement.spacedBy(6.dp)
                             ) { tags.forEach { TagBadge(it) } }
-                            Column(
-                                verticalArrangement = Arrangement.spacedBy(8.dp),
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                OutlinedButton(onClick = onEdit, modifier = Modifier.fillMaxWidth()) {
-                                    Text(stringResource(com.beauty.app.R.string.edit_client))
-                                }
-                                Button(onClick = openVisit, modifier = Modifier.fillMaxWidth()) {
-                                    Text(stringResource(com.beauty.app.R.string.log_new_visit))
-                                }
+                            // The main action first and full width; edit and delete
+                            // share a row beneath it, delete marked as destructive.
+                            Button(onClick = openVisit, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+                                Text(stringResource(com.beauty.app.R.string.log_new_visit), maxLines = 1, overflow = TextOverflow.Ellipsis)
                             }
-                            OutlinedButton(onClick = { confirmDelete = true }, enabled = !viewModel.deleting) {
-                                Text(stringResource(com.beauty.app.R.string.delete_client), color = MaterialTheme.colorScheme.error)
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                OutlinedButton(onClick = onEdit, modifier = Modifier.weight(1f)) {
+                                    Text(stringResource(com.beauty.app.R.string.edit_client), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                }
+                                OutlinedButton(
+                                    onClick = { confirmDelete = true },
+                                    enabled = !viewModel.deleting,
+                                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.5f)),
+                                    colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Text(stringResource(com.beauty.app.R.string.delete_client), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                }
                             }
                             viewModel.deleteError?.let { Text(localizedMessage(it), color = MaterialTheme.colorScheme.error) }
                         }

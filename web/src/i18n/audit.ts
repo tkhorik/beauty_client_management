@@ -1,10 +1,6 @@
 export const auditEn = {
   "header.all": "All",
   "header.demoOrganization": "Demo (offline)",
-  "header.sensitiveSkin": "Sensitive Skin",
-  "header.lashExtensions": "Lash Extensions",
-  "header.hairColoring": "Hair Coloring",
-  "header.skinTreatment": "Skin Treatment",
   "header.signedInAs": "Signed in as {{name}}",
   "clientDetailModal.confirmDelete": "Delete {{name}} and all their visit logs?",
   "clientDetailModal.attachment": "Attachment",
@@ -61,10 +57,6 @@ export const auditEn = {
 export const auditRu: { [K in keyof typeof auditEn]: string } = {
   "header.all": "Все",
   "header.demoOrganization": "Демо (офлайн)",
-  "header.sensitiveSkin": "Чувствительная кожа",
-  "header.lashExtensions": "Наращивание ресниц",
-  "header.hairColoring": "Окрашивание волос",
-  "header.skinTreatment": "Уход за кожей",
   "header.signedInAs": "Вы вошли как {{name}}",
   "clientDetailModal.confirmDelete": "Удалить клиента {{name}} и все записи о процедурах?",
   "clientDetailModal.attachment": "Вложение",

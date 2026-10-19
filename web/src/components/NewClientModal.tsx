@@ -1,5 +1,6 @@
 import { useAppTranslation } from '../i18n/LocaleProvider';
-import React, { useEffect, useId, useRef, useState } from 'react';
+import React, { useId, useRef, useState } from 'react';
+import { useDismiss } from './useDismiss';
 import { api, ApiError, writeErrorMessage } from '../services/api';
 import { translatedFieldErrors } from '../i18n/errors';
 import { X, UserPlus } from 'lucide-react';
@@ -21,6 +22,7 @@ const errorStyle: React.CSSProperties = { color: '#e87c8a', fontSize: '12px', ma
 
 export const NewClientModal: React.FC<NewClientModalProps> = ({ onClose, onSuccess }) => {
   const { t } = useAppTranslation();
+  const dismiss = useDismiss(onClose);
   const id = useId();
   const nameRef = useRef<HTMLInputElement>(null);
   const emailRef = useRef<HTMLInputElement>(null);
@@ -35,11 +37,6 @@ export const NewClientModal: React.FC<NewClientModalProps> = ({ onClose, onSucce
   const [customFields, setCustomFields] = useState<AttributeRow[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [onClose]);
 
   const nameIssue = (value: string) => (value.trim() ? '' : t('newClientModal.nameRequired'));
   const emailIssue = (value: string) => (!value.trim() || EMAIL_PATTERN.test(value.trim()) ? '' : t('newClientModal.emailInvalid'));
@@ -129,7 +126,7 @@ export const NewClientModal: React.FC<NewClientModalProps> = ({ onClose, onSucce
       justifyContent: 'center',
       zIndex: 1000,
       padding: '20px'
-    }}>
+    }} {...dismiss}>
       <div
         role="dialog"
         aria-modal="true"

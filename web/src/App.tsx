@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import type { Client, Visit, Attachment, Organization } from './types';
+import type { Client, Visit, Attachment, Organization, ClientTag } from './types';
 import { api } from './services/api';
 import { useAuth } from './auth/AuthContext';
 import { useOrg } from './auth/OrgContext';
@@ -168,6 +168,7 @@ function AuthenticatedApp({
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTag, setSelectedTag] = useState('');
+  const [tags, setTags] = useState<ClientTag[]>([]);
 
   // Modals state
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
@@ -210,6 +211,16 @@ function AuthenticatedApp({
     });
     return () => { active = false; };
   }, [searchQuery, selectedTag, refreshGeneration]);
+
+  // Not narrowed by the search or the selected tag: the chips offer every
+  // tag in the organization, refreshed whenever a client may have changed.
+  useEffect(() => {
+    let active = true;
+    void api.getClientTags().then(data => {
+      if (active) setTags(data);
+    }).catch(err => console.error('Error loading client tags:', err));
+    return () => { active = false; };
+  }, [refreshGeneration]);
 
   const selectedClientId = selectedClient?.id;
   useEffect(() => {
@@ -260,6 +271,7 @@ function AuthenticatedApp({
         onSearchChange={setSearchQuery}
         selectedTag={selectedTag}
         onTagSelect={setSelectedTag}
+        tags={tags}
         onOpenNewClient={() => setIsNewClientOpen(true)}
         onOpenNewVisit={() => handleOpenNewVisit(undefined)}
         onOpenSettings={() => setIsSettingsOpen(true)}

@@ -230,6 +230,13 @@ data class FieldError(
     val args: Map<String, Int> = emptyMap()
 )
 
+/** One tag in use in an organization, with how many clients carry it. */
+@Serializable
+data class ClientTagDto(
+    val name: String,
+    val count: Int
+)
+
 /**
  * Collections and counters carry `@EncodeDefault` for the reason given on
  * [UserDto.emailVerified]: without it a client with no tags, no custom fields

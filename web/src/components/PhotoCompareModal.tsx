@@ -1,5 +1,6 @@
 import { useAppTranslation } from '../i18n/LocaleProvider';
 import React, { useState } from 'react';
+import { useDismiss } from './useDismiss';
 import type { Attachment } from '../types';
 import { X, Sliders, Columns } from 'lucide-react';
 
@@ -10,6 +11,7 @@ interface PhotoCompareModalProps {
 
 export const PhotoCompareModal: React.FC<PhotoCompareModalProps> = ({ attachments, onClose }) => {
   const { t } = useAppTranslation();
+  const dismiss = useDismiss(onClose);
   const beforePhoto = attachments.find(a => a.tag === 'BEFORE') || attachments[0];
   const afterPhoto = attachments.find(a => a.tag === 'AFTER') || attachments[1] || attachments[0];
 
@@ -27,7 +29,7 @@ export const PhotoCompareModal: React.FC<PhotoCompareModalProps> = ({ attachment
       justifyContent: 'center',
       zIndex: 1000,
       padding: '20px'
-    }}>
+    }} {...dismiss}>
       <div className="glass-panel-glow" style={{
         width: '900px',
         maxWidth: '95vw',

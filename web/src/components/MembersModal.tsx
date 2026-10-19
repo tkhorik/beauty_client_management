@@ -1,5 +1,6 @@
 import { useAppTranslation } from '../i18n/LocaleProvider';
 import React, { useCallback, useEffect, useState } from 'react';
+import { useDismiss } from './useDismiss';
 import { X, Users, UserPlus, Check, Trash2, Shield, Link2, History, Ban, RotateCcw } from 'lucide-react';
 import type { InviteLink, OrgMember, OrgRole } from '../types';
 import { OrgActivity } from './OrgActivity';
@@ -51,6 +52,7 @@ const bannerStyle = (kind: 'error' | 'success') =>
  */
 export const MembersModal: React.FC<MembersModalProps> = ({ orgId, orgName, onClose }) => {
   const { t } = useAppTranslation();
+  const dismiss = useDismiss(onClose);
   const { user } = useAuth();
   const { organizations, refresh: refreshOrgs } = useOrg();
 
@@ -223,7 +225,7 @@ export const MembersModal: React.FC<MembersModalProps> = ({ orgId, orgName, onCl
         zIndex: 1000,
         padding: '20px',
       }}
-      onClick={onClose}
+      {...dismiss}
     >
       <div
         className="glass-panel-glow"
