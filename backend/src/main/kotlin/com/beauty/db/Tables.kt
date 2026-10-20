@@ -316,7 +316,9 @@ object OrganizationCreationTokensTable : Table("organization_creation_tokens") {
  * approval: the admin's decision to issue the link *is* the approval, the
  * same reasoning that lets an `INVITED` row activate when its invitee
  * accepts. That is why a link is single-use and always expires — a link
- * that kept working would admit anyone it was forwarded to.
+ * that kept working would admit anyone it was forwarded to — and why it
+ * stops working once `created_by` is no longer an admin who could approve
+ * (see `OrgInviteLinkService.issuerAuthority`).
  *
  * Only the SHA-256 hash is stored, as for every bearer-token table.
  * Hand-written migration: `backend/migrations/010_organization_invite_links.sql`.

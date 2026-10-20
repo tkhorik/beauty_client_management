@@ -4,6 +4,7 @@ import com.beauty.auth.OrgCreationTokenService
 import com.beauty.auth.OrgInviteLinkService
 import com.beauty.db.DatabaseFactory.dbQuery
 import com.beauty.db.UserOrganizationsTable
+import com.beauty.db.UsersTable
 import com.beauty.module
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
@@ -19,6 +20,7 @@ import kotlinx.serialization.json.jsonPrimitive
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.select
+import org.jetbrains.exposed.sql.update
 import java.time.LocalDateTime
 import java.util.UUID
 import kotlin.test.Test
@@ -242,6 +244,85 @@ class InviteLinkFlowTest {
         assertEquals(HttpStatusCode.OK, accept(declined, issueLink(admin, orgId)).status)
         assertEquals("ACTIVE", membershipStatus(userId(pending), orgId))
         assertEquals("ACTIVE", membershipStatus(userId(declined), orgId))
+    }
+
+    /** Org with admin A, plus member B promoted to admin. Returns (A token, A id, B token, org id). */
+    private suspend fun ApplicationTestBuilder.twoAdmins(): List<String> {
+        val a = register("a@example.com")
+        val orgId = createOrg(a, "salon-a")
+        val b = register("b@example.com")
+        assertEquals(HttpStatusCode.OK, accept(b, issueLink(a, orgId)).status)
+        val promoted = client.patch("/api/organizations/$orgId/members/${userId(b)}") {
+            bearerAuth(a)
+            header("X-Org-Id", orgId)
+            contentType(ContentType.Application.Json)
+            setBody("""{"role":"ORG_ADMIN"}""")
+        }
+        assertEquals(HttpStatusCode.OK, promoted.status, promoted.bodyAsText())
+        return listOf(a, userId(a), b, orgId)
+    }
+
+    private suspend fun assertInvalid(response: HttpResponse) {
+        assertEquals(HttpStatusCode.NotFound, response.status, response.bodyAsText())
+        assertEquals("INVITE_LINK_INVALID", json(response.bodyAsText()).jsonObject["code"]!!.jsonPrimitive.content)
+    }
+
+    @Test
+    fun `a removed admin cannot let themselves back in with a link they issued`() = testApplication {
+        startApp()
+        val (a, aId, b, orgId) = twoAdmins()
+        val kept = issueLink(a, orgId)
+        val removed = client.delete("/api/organizations/$orgId/members/$aId") {
+            bearerAuth(b)
+            header("X-Org-Id", orgId)
+        }
+        assertEquals(HttpStatusCode.OK, removed.status, removed.bodyAsText())
+
+        assertInvalid(accept(a, kept))
+        assertEquals(null, membershipStatus(aId, orgId))
+        assertTrue(listLinks(b, orgId).isEmpty(), "a removed admin's links are no longer outstanding")
+    }
+
+    @Test
+    fun `a demoted or revoked admin's links admit nobody`() = testApplication {
+        startApp()
+        val (a, aId, b, orgId) = twoAdmins()
+        val beforeDemotion = issueLink(a, orgId)
+        val demoted = client.patch("/api/organizations/$orgId/members/$aId") {
+            bearerAuth(b)
+            header("X-Org-Id", orgId)
+            contentType(ContentType.Application.Json)
+            setBody("""{"role":"ORG_USER"}""")
+        }
+        assertEquals(HttpStatusCode.OK, demoted.status, demoted.bodyAsText())
+        val accomplice = register("accomplice@example.com")
+        assertInvalid(accept(accomplice, beforeDemotion))
+
+        val c = register("c@example.com")
+        assertEquals(HttpStatusCode.OK, accept(c, issueLink(b, orgId)).status)
+        val cId = userId(c)
+        assertEquals(HttpStatusCode.OK, client.patch("/api/organizations/$orgId/members/$cId") {
+            bearerAuth(b)
+            header("X-Org-Id", orgId)
+            contentType(ContentType.Application.Json)
+            setBody("""{"role":"ORG_ADMIN"}""")
+        }.status)
+        val beforeRevoke = issueLink(c, orgId)
+        assertEquals(HttpStatusCode.OK, adminPost(b, orgId, "members/$cId/revoke").status)
+        assertInvalid(accept(accomplice, beforeRevoke))
+        assertEquals(null, membershipStatus(userId(accomplice), orgId))
+    }
+
+    @Test
+    fun `a suspended account's links admit nobody`() = testApplication {
+        startApp()
+        val (a, aId, _, orgId) = twoAdmins()
+        val kept = issueLink(a, orgId)
+        dbQuery { UsersTable.update({ UsersTable.id eq aId }) { it[suspendedAt] = LocalDateTime.now() } }
+
+        val accomplice = register("accomplice@example.com")
+        assertInvalid(accept(accomplice, kept))
+        assertEquals(null, membershipStatus(userId(accomplice), orgId))
     }
 
     @Test
