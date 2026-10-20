@@ -496,7 +496,9 @@ const TabButton: React.FC<{ active: boolean; onClick: () => void; children: Reac
   </button>
 );
 
-const MemberRow: React.FC<{ member: OrgMember; children: React.ReactNode }> = ({ member, children }) => (
+const MemberRow: React.FC<{ member: OrgMember; children: React.ReactNode }> = ({ member, children }) => {
+  const { t } = useAppTranslation();
+  return (
   <div
     style={{
       display: 'flex',
@@ -514,11 +516,17 @@ const MemberRow: React.FC<{ member: OrgMember; children: React.ReactNode }> = ({
         {member.role === 'ORG_ADMIN' && <Shield size={13} color="var(--rose-gold-primary)" />}
         {member.fullName}
       </div>
-      <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{member.email}</div>
+      <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+        {member.email}
+        {!member.emailVerified && (
+          <span style={{ marginLeft: '6px', color: 'var(--rose-gold-primary)' }}>· {t('membersModal.emailNotConfirmed')}</span>
+        )}
+      </div>
     </div>
     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>{children}</div>
   </div>
-);
+  );
+};
 
 const IconButton: React.FC<{ title: string; onClick: () => void; children: React.ReactNode }> = ({
   title,

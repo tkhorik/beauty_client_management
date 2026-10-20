@@ -136,6 +136,8 @@ export interface OrgMember {
   role: OrgRole;
   status: MembershipStatus;
   joinedAt: string;
+  /** An unconfirmed account cannot be approved or accept an invitation. */
+  emailVerified: boolean;
 }
 
 // ---------------------------------------------------------------------------
