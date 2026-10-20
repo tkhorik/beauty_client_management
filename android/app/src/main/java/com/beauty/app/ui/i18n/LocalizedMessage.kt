@@ -39,6 +39,7 @@ fun localizedMessage(raw: String): String {
         "ACCOUNT_NOT_FOUND" -> R.string.error_account_not_found
         "MEMBERSHIP_SUSPENDED" -> R.string.error_membership_suspended
         "MEMBER_SUSPENDED" -> R.string.error_member_suspended
+        "TARGET_EMAIL_NOT_VERIFIED" -> R.string.error_target_email_not_verified
         "VALIDATION_FAILED" -> R.string.error_validation_failed
         "INVALID_LANGUAGE" -> R.string.error_invalid_language
         "SESSION_EXPIRED" -> R.string.error_session_expired

@@ -418,6 +418,14 @@ To back out: unset the variable and restart. That restores unrestricted access
 immediately. The cleared timestamps cannot be restored — take a `pg_dump` before
 step 1 if that matters.
 
+Independently of this variable, an organization seat always needs a confirmed
+address: an admin cannot approve or invite-activate an unconfirmed account
+(`409 TARGET_EMAIL_NOT_VERIFIED`), and an invitee cannot accept until they
+confirm (`403 EMAIL_NOT_VERIFIED`). Otherwise whoever registers a staff
+member's address first would be let in by an admin who only sees the address.
+Unsetting the variable lifts the read restriction, not this. Invite links are
+unaffected — they are bearer tokens an admin hands to a specific person.
+
 After `002`, existing users belong to no organization and see the onboarding
 screen. They create one or ask to join by handle; there is no automatic
 migration of who belongs where. Set `SUPER_ADMIN_EMAILS` in `.env` only if you

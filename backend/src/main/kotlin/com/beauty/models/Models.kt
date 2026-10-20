@@ -412,7 +412,9 @@ data class MemberDto(
     val fullName: String,
     val role: String,
     val status: String,
-    val joinedAt: String
+    val joinedAt: String,
+    /** Whether the account has confirmed its address; an unconfirmed one cannot be approved or accept an invitation. */
+    val emailVerified: Boolean
 )
 
 /** One entry of `GET /api/organizations/{id}/audit`. */

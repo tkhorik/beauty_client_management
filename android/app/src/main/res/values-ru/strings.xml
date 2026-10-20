@@ -315,6 +315,8 @@
     <string name="suspend">Заблокировать</string>
     <string name="unsuspend">Разблокировать</string>
     <string name="approve">Одобрить</string>
+    <string name="email_not_confirmed">почта не подтверждена</string>
+    <string name="error_target_email_not_verified">Пользователь ещё не подтвердил адрес электронной почты. Попросите его сделать это.</string>
     <string name="decline">Отклонить</string>
     <string name="promote">Назначить администратором</string>
     <string name="demote">Снять права администратора</string>

@@ -77,6 +77,8 @@ class OrganizationIsolationTest {
             )
         }
         assertEquals(HttpStatusCode.Created, response.status, "registration failed: ${response.bodyAsText()}")
+        // Confirmed, because an unconfirmed account cannot be approved or accept an invitation.
+        transaction { UsersTable.update({ UsersTable.email eq email }) { it[emailVerifiedAt] = LocalDateTime.now() } }
         return Json.parseToJsonElement(response.bodyAsText())
             .jsonObject["token"]!!.jsonPrimitive.content
     }

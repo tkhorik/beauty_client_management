@@ -54,7 +54,8 @@ internal fun MemberRow(
         Column(modifier = Modifier.weight(1f)) {
             Text(member.fullName, fontSize = 14.sp)
             Text(
-                "${member.email} · ${com.beauty.app.ui.i18n.roleLabel(member.role)} · ${com.beauty.app.ui.i18n.statusLabel(member.status)}",
+                "${member.email} · ${com.beauty.app.ui.i18n.roleLabel(member.role)} · ${com.beauty.app.ui.i18n.statusLabel(member.status)}" +
+                    if (member.emailVerified) "" else " · ${stringResource(com.beauty.app.R.string.email_not_confirmed)}",
                 color = TextMuted,
                 fontSize = 12.sp,
                 maxLines = 2,

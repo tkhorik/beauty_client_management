@@ -391,7 +391,9 @@ data class MemberDto(
     val fullName: String,
     val role: String,
     val status: String,
-    val joinedAt: String
+    val joinedAt: String,
+    /** An unconfirmed account cannot be approved or accept an invitation. Defaults true for a backend that predates the field. */
+    val emailVerified: Boolean = true
 )
 
 /** One entry of an organization's membership history, newest first. */
