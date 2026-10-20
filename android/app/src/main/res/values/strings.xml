@@ -315,6 +315,8 @@
     <string name="suspend">Suspend</string>
     <string name="unsuspend">Unsuspend</string>
     <string name="approve">Approve</string>
+    <string name="email_not_confirmed">email not confirmed</string>
+    <string name="error_target_email_not_verified">That person has not confirmed their email address yet. Ask them to confirm it first.</string>
     <string name="decline">Decline</string>
     <string name="promote">Promote</string>
     <string name="demote">Demote</string>
