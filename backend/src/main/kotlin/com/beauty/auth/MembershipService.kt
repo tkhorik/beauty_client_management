@@ -67,6 +67,13 @@ sealed interface JoinResult {
     data class Activated(val org: OrgRef, val role: OrgRole) : JoinResult
     data class AlreadyMember(val org: OrgRef) : JoinResult
     data class Suspended(val org: OrgRef) : JoinResult
+    /**
+     * Invited, but the address has not been confirmed. The invitation was made
+     * to an email address, so it is only accepted by someone who proved they
+     * own it — otherwise whoever registered the address first takes the seat.
+     * The row stays `INVITED` until they confirm and ask again.
+     */
+    data class EmailNotVerified(val org: OrgRef) : JoinResult
     /** Declined too recently to ask again. */
     data class Declined(val org: OrgRef, val retryAfter: LocalDateTime) : JoinResult
     /** No such handle, or the organization is archived. */
@@ -80,7 +87,8 @@ data class MembershipWithUser(
     val fullName: String,
     val role: OrgRole,
     val status: MembershipStatus,
-    val joinedAt: String
+    val joinedAt: String,
+    val emailVerified: Boolean
 )
 
 /** An account's system-wide privilege and standing, read together — see [MembershipService.accountStatus]. */
@@ -318,7 +326,8 @@ class MembershipService {
                     role = OrgRole.parse(it[UserOrganizationsTable.role]),
                     status = MembershipStatus.parse(it[UserOrganizationsTable.status])
                         ?: MembershipStatus.PENDING,
-                    joinedAt = it[UserOrganizationsTable.createdAt].toString()
+                    joinedAt = it[UserOrganizationsTable.createdAt].toString(),
+                    emailVerified = it[UsersTable.emailVerifiedAt] != null
                 )
             }
     }
@@ -475,6 +484,9 @@ class MembershipService {
         return when (existing?.status) {
             MembershipStatus.ACTIVE -> JoinResult.AlreadyMember(org)
             MembershipStatus.INVITED -> {
+                // Checked even with verification enforcement switched off:
+                // that switch lifts the read restriction, not this.
+                if (!accountStatus(userId).emailVerified) return JoinResult.EmailNotVerified(org)
                 activate(userId, org.id)
                 JoinResult.Activated(org, existing.role)
             }

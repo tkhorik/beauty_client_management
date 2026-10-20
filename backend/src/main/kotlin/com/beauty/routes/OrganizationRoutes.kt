@@ -315,6 +315,15 @@ fun Route.organizationRoutes() {
                     HttpStatusCode.Conflict,
                     RequestDeclinedResponse(retryAfter = result.retryAfter.toString())
                 )
+                // Same code as the verification gate, so both clients already
+                // show their "confirm your email" prompt for it.
+                is JoinResult.EmailNotVerified -> call.respond(
+                    HttpStatusCode.Forbidden,
+                    mapOf(
+                        "error" to "Confirm your email address to accept this invitation.",
+                        "code" to "EMAIL_NOT_VERIFIED"
+                    )
+                )
                 is JoinResult.Filed -> {
                     notifier.requestFiled(result.org, userId)
                     call.respond(HttpStatusCode.OK, result.org.toDto(OrgRole.ORG_USER, MembershipStatus.PENDING))
@@ -411,7 +420,8 @@ fun Route.organizationRoutes() {
                             fullName = it.fullName,
                             role = it.role.name,
                             status = it.status.name,
-                            joinedAt = it.joinedAt
+                            joinedAt = it.joinedAt,
+                            emailVerified = it.emailVerified
                         )
                     }
                 )
@@ -429,6 +439,7 @@ fun Route.organizationRoutes() {
                     call.respond(HttpStatusCode.NotFound, mapOf("error" to "No pending request from that user.", "code" to "REQUEST_NOT_FOUND"))
                     return@post
                 }
+                if (!memberships.accountStatus(targetUserId).emailVerified) return@post call.respondTargetEmailNotVerified()
 
                 memberships.activate(targetUserId, orgId, OrgRole.ORG_USER, decidedBy = ctx.userId)
                 audit.record(orgId, ctx.userId, OrgAuditService.Action.APPROVED, targetUserId = targetUserId)
@@ -555,6 +566,7 @@ fun Route.organizationRoutes() {
                     // They asked, the admin is now asking back: both sides agree,
                     // so this is an approval rather than a second invitation.
                     MembershipStatus.PENDING -> {
+                        if (target[UsersTable.emailVerifiedAt] == null) return@post call.respondTargetEmailNotVerified()
                         memberships.activate(targetUserId, orgId, role, decidedBy = ctx.userId)
                         audit.record(orgId, ctx.userId, OrgAuditService.Action.APPROVED, targetUserId = targetUserId, detail = role.name)
                         call.respond(HttpStatusCode.OK, MessageResponse("Request approved."))
@@ -774,6 +786,20 @@ private suspend fun ApplicationCall.respondOrgMismatch() = respond(
     mapOf(
         "error" to "The $ORG_HEADER header does not match the organization in the path.",
         "code" to "ORGANIZATION_MISMATCH"
+    )
+)
+
+/**
+ * An admin tried to let in an account that has not confirmed its address.
+ * The admin is deciding about an email address, so until its owner proves
+ * control of it the account could belong to anyone who registered it first.
+ * Applies whether or not verification enforcement is switched on.
+ */
+private suspend fun ApplicationCall.respondTargetEmailNotVerified() = respond(
+    HttpStatusCode.Conflict,
+    mapOf(
+        "error" to "That account has not confirmed its email address yet. Ask them to confirm it first.",
+        "code" to "TARGET_EMAIL_NOT_VERIFIED"
     )
 )
 

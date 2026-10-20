@@ -15,6 +15,7 @@ import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.int
 import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.boolean
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
@@ -60,9 +61,11 @@ class JoinRequestFlowTest {
             setBody("""{"email":"$email","password":"a-long-enough-password","fullName":"Test User"$slugField}""")
         }
 
+    /** Registers and confirms the address: an unconfirmed account cannot be approved or accept an invitation. */
     private suspend fun ApplicationTestBuilder.register(email: String, organizationSlug: String? = null): String {
         val response = registerRaw(email, organizationSlug)
         assertEquals(HttpStatusCode.Created, response.status, "registration failed: ${response.bodyAsText()}")
+        dbQuery { UsersTable.update({ UsersTable.email eq email }) { it[emailVerifiedAt] = LocalDateTime.now() } }
         return json(response.bodyAsText()).jsonObject["token"]!!.jsonPrimitive.content
     }
 
@@ -333,5 +336,81 @@ class JoinRequestFlowTest {
         assertEquals(HttpStatusCode.OK, again.status)
         assertEquals("PENDING", json(again.bodyAsText()).jsonObject["status"]!!.jsonPrimitive.content)
         assertEquals(1, auditActions(admin, orgId).count { it == "JOIN_REQUESTED" })
+    }
+
+    // --- An unconfirmed address cannot take a seat, even with enforcement off ---
+    // startApp() leaves EMAIL_VERIFICATION_ENFORCED_FROM unset, so these pass
+    // only because membership grants check the address themselves.
+
+    /** Registers without confirming the address, as someone squatting it would. */
+    private suspend fun ApplicationTestBuilder.registerUnverified(email: String, organizationSlug: String? = null): String {
+        val response = registerRaw(email, organizationSlug)
+        assertEquals(HttpStatusCode.Created, response.status, response.bodyAsText())
+        return json(response.bodyAsText()).jsonObject["token"]!!.jsonPrimitive.content
+    }
+
+    private suspend fun ApplicationTestBuilder.invite(adminToken: String, orgId: String, email: String, role: String = "ORG_USER") =
+        client.post("/api/organizations/$orgId/members/invitations") {
+            bearerAuth(adminToken)
+            header("X-Org-Id", orgId)
+            contentType(ContentType.Application.Json)
+            setBody("""{"email":"$email","role":"$role"}""")
+        }
+
+    private suspend fun assertCode(response: HttpResponse, status: HttpStatusCode, code: String) {
+        assertEquals(status, response.status, response.bodyAsText())
+        assertEquals(code, json(response.bodyAsText()).jsonObject["code"]!!.jsonPrimitive.content)
+    }
+
+    @Test
+    fun `an unconfirmed request cannot be approved or invited in`() = testApplication {
+        startApp()
+        val admin = register("admin@example.com")
+        val orgId = createOrg(admin, "salon-a")
+        val squatter = registerUnverified("staff@example.com", organizationSlug = "salon-a")
+        val squatterId = userId(squatter)
+
+        assertCode(adminPost(admin, orgId, "$squatterId/approval"), HttpStatusCode.Conflict, "TARGET_EMAIL_NOT_VERIFIED")
+        assertCode(invite(admin, orgId, "staff@example.com", role = "ORG_ADMIN"), HttpStatusCode.Conflict, "TARGET_EMAIL_NOT_VERIFIED")
+        assertEquals("PENDING", membershipStatus(squatterId, orgId))
+        assertEquals(HttpStatusCode.Forbidden, client.get("/api/clients") {
+            bearerAuth(squatter)
+            header("X-Org-Id", orgId)
+        }.status)
+    }
+
+    @Test
+    fun `an invitation is accepted only once the address is confirmed`() = testApplication {
+        startApp()
+        val admin = register("admin@example.com")
+        val orgId = createOrg(admin, "salon-a")
+        val invitee = registerUnverified("staff@example.com")
+        val inviteeId = userId(invitee)
+        assertEquals(HttpStatusCode.OK, invite(admin, orgId, "staff@example.com").status)
+
+        assertCode(join(invitee, "salon-a"), HttpStatusCode.Forbidden, "EMAIL_NOT_VERIFIED")
+        assertEquals("INVITED", membershipStatus(inviteeId, orgId))
+
+        dbQuery { UsersTable.update({ UsersTable.id eq inviteeId }) { it[emailVerifiedAt] = LocalDateTime.now() } }
+        val accepted = join(invitee, "salon-a")
+        assertEquals(HttpStatusCode.OK, accepted.status, accepted.bodyAsText())
+        assertEquals("ACTIVE", membershipStatus(inviteeId, orgId))
+    }
+
+    @Test
+    fun `the member list says whose address is confirmed`() = testApplication {
+        startApp()
+        val admin = register("admin@example.com")
+        val orgId = createOrg(admin, "salon-a")
+        registerUnverified("staff@example.com", organizationSlug = "salon-a")
+
+        val members = json(client.get("/api/organizations/$orgId/members") {
+            bearerAuth(admin)
+            header("X-Org-Id", orgId)
+        }.bodyAsText()) as JsonArray
+        val verified = members.associate {
+            it.jsonObject["email"]!!.jsonPrimitive.content to it.jsonObject["emailVerified"]!!.jsonPrimitive.boolean
+        }
+        assertEquals(mapOf("admin@example.com" to true, "staff@example.com" to false), verified)
     }
 }
