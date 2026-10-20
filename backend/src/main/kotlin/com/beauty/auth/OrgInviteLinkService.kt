@@ -14,6 +14,7 @@ import org.jetbrains.exposed.sql.SqlExpressionBuilder.greater
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.isNull
 import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.insert
+import org.jetbrains.exposed.sql.or
 import org.jetbrains.exposed.sql.select
 import org.jetbrains.exposed.sql.update
 import java.security.MessageDigest
@@ -82,8 +83,7 @@ class OrgInviteLinkService {
         val digest = hash(rawToken)
         val now = LocalDateTime.now()
         return dbQuery {
-            OrganizationInviteLinksTable
-                .join(OrganizationsTable, JoinType.INNER, OrganizationInviteLinksTable.organizationId, OrganizationsTable.id)
+            withIssuer()
                 .select { (OrganizationInviteLinksTable.tokenHash eq digest) and redeemable(now) }
                 .singleOrNull()
                 ?.toOrgRef()
@@ -109,8 +109,7 @@ class OrgInviteLinkService {
         val digest = hash(rawToken)
 
         return dbQuery {
-            val link = OrganizationInviteLinksTable
-                .join(OrganizationsTable, JoinType.INNER, OrganizationInviteLinksTable.organizationId, OrganizationsTable.id)
+            val link = withIssuer()
                 .select { (OrganizationInviteLinksTable.tokenHash eq digest) and redeemable(now) }
                 .singleOrNull()
                 ?: return@dbQuery InviteLinkResult.Invalid
@@ -162,13 +161,11 @@ class OrgInviteLinkService {
     suspend fun listActive(organizationId: String): List<OrganizationInviteLink> {
         val now = LocalDateTime.now()
         return dbQuery {
-            OrganizationInviteLinksTable
-                .join(UsersTable, JoinType.INNER, OrganizationInviteLinksTable.createdBy, UsersTable.id)
+            withIssuer()
                 .select {
                     (OrganizationInviteLinksTable.organizationId eq organizationId) and
-                        OrganizationInviteLinksTable.usedAt.isNull() and
-                        OrganizationInviteLinksTable.revokedAt.isNull() and
-                        (OrganizationInviteLinksTable.expiresAt greater now)
+                        unspent(now) and
+                        issuerAuthority()
                 }
                 .orderBy(OrganizationInviteLinksTable.createdAt to SortOrder.DESC)
                 .map { it.toLink() }
@@ -206,9 +203,36 @@ class OrgInviteLinkService {
             OrganizationInviteLinksTable.revokedAt.isNull() and
             (OrganizationInviteLinksTable.expiresAt greater now)
 
-    /** [unspent], and its organization is not archived. Needs the join to `organizations`. */
+    /** [unspent], its organization is not archived, and its issuer still has [issuerAuthority]. Needs [withIssuer]. */
     private fun redeemable(now: LocalDateTime): Op<Boolean> =
-        unspent(now) and OrganizationsTable.archivedAt.isNull()
+        unspent(now) and OrganizationsTable.archivedAt.isNull() and issuerAuthority()
+
+    /**
+     * Links joined to their organization, their issuer's account, and the
+     * issuer's membership there (left join: a removed issuer has none).
+     */
+    private fun withIssuer() = OrganizationInviteLinksTable
+        .join(OrganizationsTable, JoinType.INNER, OrganizationInviteLinksTable.organizationId, OrganizationsTable.id)
+        .join(UsersTable, JoinType.INNER, OrganizationInviteLinksTable.createdBy, UsersTable.id)
+        .join(UserOrganizationsTable, JoinType.LEFT, additionalConstraint = {
+            (UserOrganizationsTable.userId eq OrganizationInviteLinksTable.createdBy) and
+                (UserOrganizationsTable.organizationId eq OrganizationInviteLinksTable.organizationId)
+        })
+
+    /**
+     * The issuer can still admit people: an unsuspended account that is an
+     * `ACTIVE` `ORG_ADMIN` here, or a `SUPER_ADMIN`. A link is the issuer's
+     * approval in advance, so it must not outlive that authority — otherwise a
+     * removed admin keeps a way back in, and a demoted, revoked or suspended
+     * one keeps a way to admit others. Checked on redemption rather than by
+     * revoking links on each of those paths, so a new path cannot forget it.
+     */
+    private fun issuerAuthority(): Op<Boolean> =
+        UsersTable.suspendedAt.isNull() and (
+            ((UserOrganizationsTable.status eq MembershipStatus.ACTIVE.name) and
+                (UserOrganizationsTable.role eq OrgRole.ORG_ADMIN.name)) or
+                (UsersTable.globalRole eq GlobalRole.SUPER_ADMIN.name)
+            )
 
     private fun ResultRow.toOrgRef() =
         OrgRef(this[OrganizationsTable.id], this[OrganizationsTable.name], this[OrganizationsTable.slug])
