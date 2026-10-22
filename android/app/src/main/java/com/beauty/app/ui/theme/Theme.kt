@@ -21,6 +21,7 @@ val WhiteCard = Color(0xFFFFFEF9)
 val Border = Color(0xFFD8DCD0)
 val Success = Color(0xFF3D653D)
 val Danger = Color(0xFFA33E46)
+val Clay = Color(0xFF845438)
 
 // Compatibility for screens whose call sites predate the shared design tokens.
 val DarkObsidian = Paper
@@ -63,7 +64,7 @@ private val AuraColors = lightColorScheme(
     primaryContainer = Sage, onPrimaryContainer = Forest,
     secondary = Forest, onSecondary = WhiteCard,
     secondaryContainer = Sage, onSecondaryContainer = Forest,
-    tertiary = Color(0xFF845438), onTertiary = WhiteCard,
+    tertiary = Clay, onTertiary = WhiteCard,
     tertiaryContainer = Peach, onTertiaryContainer = Forest,
     background = Paper, onBackground = Forest,
     surface = WhiteCard, onSurface = Forest,

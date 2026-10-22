@@ -224,7 +224,7 @@ fun UpdateDialog(
                 Column(
                     modifier = Modifier.fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
-                    horizontalAlignment = Alignment.End
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     when (state) {
                         is UpdateState.Downloading -> {
@@ -236,9 +236,6 @@ fun UpdateDialog(
                             }
                         }
                         is UpdateState.ReadyToInstall -> {
-                            TextButton(onClick = onDismiss) {
-                                Text(stringResource(com.beauty.app.R.string.later), color = Muted)
-                            }
                             Button(
                                 modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
                                 onClick = {
@@ -253,12 +250,11 @@ fun UpdateDialog(
                                     fontWeight = FontWeight.Bold
                                 )
                             }
-                        }
-                        else -> {
                             TextButton(onClick = onDismiss) {
                                 Text(stringResource(com.beauty.app.R.string.later), color = Muted)
                             }
-
+                        }
+                        else -> {
                             if (distributionMode == UpdateDistributionMode.PLAY_STORE) {
                                 Button(
                                     modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
@@ -277,6 +273,9 @@ fun UpdateDialog(
                                 ) {
                                     Text(stringResource(com.beauty.app.R.string.download_install), color = WhiteCard, fontWeight = FontWeight.Bold)
                                 }
+                            }
+                            TextButton(onClick = onDismiss) {
+                                Text(stringResource(com.beauty.app.R.string.later), color = Muted)
                             }
                         }
                     }

@@ -65,6 +65,14 @@ fun visitsLabel(count: Int): String = if (count == 1) "1 Visit" else "$count Vis
 fun formatUpdatedDate(epochMillis: Long): String =
     DateFormat.getDateInstance(DateFormat.MEDIUM).format(Date(epochMillis))
 
+private val Whitespace = Regex("\\s+")
+
+/** Up to two initials for an avatar, taking whole code points so emoji are not split. */
+fun initials(name: String): String =
+    name.trim().split(Whitespace).filter { it.isNotEmpty() }.take(2).joinToString("") { word ->
+        String(Character.toChars(word.codePointAt(0)))
+    }.uppercase()
+
 @Composable
 fun TagBadge(tag: String) {
     val (background, foreground) = when (tagTone(tag)) {
@@ -91,7 +99,7 @@ fun TagBadge(tag: String) {
 fun VisitStatusBadge(status: String) {
     val color = when (status) {
         "COMPLETED" -> Success
-        "SCHEDULED" -> Forest
+        "SCHEDULED" -> Clay
         else -> Danger
     }
     Surface(

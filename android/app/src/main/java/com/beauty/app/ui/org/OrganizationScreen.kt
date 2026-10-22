@@ -2,7 +2,9 @@ package com.beauty.app.ui.org
 
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.shape.RoundedCornerShape
 import com.beauty.app.ui.theme.*
 import androidx.compose.ui.res.stringResource
@@ -446,13 +448,13 @@ private fun OrganizationRow(org: OrganizationDto, selected: Boolean, onSelect: (
         color = if (selected) Sage else WhiteCard,
         shape = RoundedCornerShape(20.dp),
         border = BorderStroke(1.dp, if (selected) Forest else Border),
-        modifier = Modifier.fillMaxWidth().clickable(onClick = onSelect)
+        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).selectable(selected = selected, role = Role.RadioButton, onClick = onSelect)
     ) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier.fillMaxWidth().padding(12.dp)
     ) {
-        RadioButton(selected = selected, onClick = onSelect)
+        RadioButton(selected = selected, onClick = null)
         Column(modifier = Modifier.weight(1f)) {
             Text(org.name, fontWeight = FontWeight.SemiBold)
             Text(

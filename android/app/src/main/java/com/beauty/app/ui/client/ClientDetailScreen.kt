@@ -135,7 +135,7 @@ fun ClientDetailScreen(
                     AuraCard {
                         Row(horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.Top) {
                             Box(Modifier.size(56.dp).background(Sage, CircleShape), contentAlignment = Alignment.Center) {
-                                Text(client.name.trim().split(Regex("\\s+")).take(2).mapNotNull { it.firstOrNull() }.joinToString(""),
+                                Text(remember(client.name) { initials(client.name) },
                                     style = MaterialTheme.typography.titleLarge, color = Forest)
                             }
                             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -523,7 +523,7 @@ private fun VisitForm(
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     PhotoSlot("BEFORE", RoseGoldPrimary, before, !saving, Modifier.fillMaxWidth(),
                         source = beforeSource, onRemove = { before = null })
-                    PhotoSlot("AFTER", EmeraldStatus, after, !saving, Modifier.fillMaxWidth(),
+                    PhotoSlot("AFTER", Clay, after, !saving, Modifier.fillMaxWidth(),
                         source = afterSource, onRemove = { after = null })
                 }
             }

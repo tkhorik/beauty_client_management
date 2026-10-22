@@ -105,7 +105,7 @@ private fun rememberAttachmentImage(
 
 private fun tagColor(tag: String): Color = when (tag) {
     "BEFORE" -> RoseGoldPrimary
-    "AFTER" -> EmeraldStatus
+    "AFTER" -> Clay
     else -> Forest
 }
 

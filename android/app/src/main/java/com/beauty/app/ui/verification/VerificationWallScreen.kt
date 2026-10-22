@@ -82,18 +82,16 @@ fun VerificationWallScreen(
             textAlign = TextAlign.Start
         )
 
-        Spacer(Modifier.height(16.dp))
-
-        Text(stringResource(com.beauty.app.R.string.ui2_we_sent_a_confirmation_link_to), color = Muted, fontSize = 13.sp)
-        Text(
-            email ?: stringResource(com.beauty.app.R.string.your_address),
-            color = Forest,
-            fontWeight = FontWeight.Bold,
-            fontSize = 16.sp,
-            textAlign = TextAlign.Start
-        )
-
-        Spacer(Modifier.height(12.dp))
+        Column {
+            Text(stringResource(com.beauty.app.R.string.ui2_we_sent_a_confirmation_link_to), color = Muted, fontSize = 13.sp)
+            Text(
+                email ?: stringResource(com.beauty.app.R.string.your_address),
+                color = Forest,
+                fontWeight = FontWeight.Bold,
+                fontSize = 16.sp,
+                textAlign = TextAlign.Start
+            )
+        }
 
         // The single most useful sentence on the screen: spam is where
         // confirmation mail goes, and it is the one cause the user can fix
@@ -106,11 +104,8 @@ fun VerificationWallScreen(
         )
 
         status?.let {
-            Spacer(Modifier.height(12.dp))
             Text(com.beauty.app.ui.i18n.verificationMessage(it), color = Forest, fontSize = 13.sp, textAlign = TextAlign.Start)
         }
-
-        Spacer(Modifier.height(20.dp))
 
         // The re-check is the primary action, not the resend. Most people
         // reaching this screen have already had the mail and are coming
@@ -131,8 +126,6 @@ fun VerificationWallScreen(
         ) {
             Text(if (checking) stringResource(com.beauty.app.R.string.checking) else stringResource(com.beauty.app.R.string.ui2_i_ve_confirmed_my_email))
         }
-
-        Spacer(Modifier.height(10.dp))
 
         OutlinedButton(
             onClick = {

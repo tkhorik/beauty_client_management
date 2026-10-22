@@ -189,7 +189,7 @@ fun ClientDirectoryScreen(
                 }
                 item {
                     Row(
-                        Modifier.horizontalScroll(rememberScrollState()),
+                        Modifier.bleed(20.dp).horizontalScroll(rememberScrollState()).padding(horizontal = 20.dp),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         FilterChip(selected = viewModel.tag.isEmpty(), onClick = { viewModel.updateTag("") }, label = { Text(stringResource(com.beauty.app.R.string.all)) })
@@ -272,7 +272,7 @@ private fun ClientCard(client: ClientEntity, logVisitEnabled: Boolean, onClick: 
         Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Box(Modifier.size(48.dp).background(Sage, CircleShape), contentAlignment = Alignment.Center) {
-                    Text(client.name.trim().split(Regex("\\s+")).take(2).mapNotNull { it.firstOrNull() }.joinToString(""),
+                    Text(remember(client.name) { initials(client.name) },
                         color = Forest, style = MaterialTheme.typography.titleMedium)
                 }
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
@@ -313,4 +313,16 @@ private fun ClientCard(client: ClientEntity, logVisitEnabled: Boolean, onClick: 
             }
         }
     }
+}
+
+/**
+ * Widens a horizontally scrolling row by [horizontal] on each side, under the
+ * list's own content padding, so chips scroll out to the screen edge instead
+ * of being cut off short of it.
+ */
+private fun Modifier.bleed(horizontal: Dp) = layout { measurable, constraints ->
+    val extra = horizontal.roundToPx()
+    val width = constraints.maxWidth + extra * 2
+    val placeable = measurable.measure(constraints.copy(minWidth = width, maxWidth = width))
+    layout(constraints.maxWidth, placeable.height) { placeable.place(-extra, 0) }
 }
