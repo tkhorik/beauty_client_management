@@ -304,9 +304,10 @@ internal fun AppNavHost(links: AppLinkViewModel) {
         }
 
         composable("verify-email") {
-            Column(Modifier.fillMaxSize().padding(32.dp), verticalArrangement = Arrangement.Center) {
+            AuraAuthLayout(title = stringResource(R.string.redesign_verification_title)) {
+                if (links.verifying) LinearProgressIndicator(Modifier.fillMaxWidth())
                 Text(if (links.verifying) stringResource(com.beauty.app.R.string.ui2_confirming_your_email) else links.verificationMessage?.let { com.beauty.app.ui.i18n.localizedMessage(it) } ?: stringResource(com.beauty.app.R.string.ui2_reopen_your_verification_link_to_continue))
-                Button(onClick = { openHome() }, enabled = !links.verifying) { Text(stringResource(R.string.continue_action)) }
+                Button(onClick = { openHome() }, enabled = !links.verifying, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) { Text(stringResource(R.string.continue_action)) }
             }
         }
 

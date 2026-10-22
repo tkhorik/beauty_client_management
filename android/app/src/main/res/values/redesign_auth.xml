@@ -1,0 +1,8 @@
+<resources>
+    <string name="redesign_login_title">A little more care.\nA little less admin.</string>
+    <string name="redesign_login_intro">Your clients, visits and everyday details, thoughtfully together.</string>
+    <string name="redesign_register_intro">Make space for your work. Start with a few details.</string>
+    <string name="redesign_auth_footer">Made for the people behind the beauty.</string>
+    <string name="redesign_settings_intro">The details that make this workspace yours.</string>
+    <string name="redesign_about_intro">A calmer space for your everyday work.</string>
+</resources>

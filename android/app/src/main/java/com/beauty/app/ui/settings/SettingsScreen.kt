@@ -12,7 +12,6 @@ import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
@@ -21,11 +20,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.res.stringResource
 import com.beauty.app.ui.auth.AuthValidation
 import com.beauty.app.ui.i18n.LanguageSelector
-import com.beauty.app.ui.theme.CardSurface
-import com.beauty.app.ui.theme.EmeraldStatus
-import com.beauty.app.ui.theme.RoseGoldPrimary
-import com.beauty.app.ui.theme.TextLight
-import com.beauty.app.ui.theme.TextMuted
+import com.beauty.app.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -54,14 +49,14 @@ fun SettingsScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Text(stringResource(com.beauty.app.R.string.account_settings_2), color = RoseGoldPrimary, fontWeight = FontWeight.Bold, fontSize = 20.sp)
+                    Text("aura", style = MaterialTheme.typography.titleLarge)
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = stringResource(com.beauty.app.R.string.back), tint = TextLight)
+                        Icon(Icons.Default.ArrowBack, contentDescription = stringResource(com.beauty.app.R.string.back), tint = Forest)
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = CardSurface)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Paper)
             )
         }
     ) { paddingValues ->
@@ -72,150 +67,140 @@ fun SettingsScreen(
                 .verticalScroll(rememberScrollState())
                 .imePadding()
                 .navigationBarsPadding()
-                .padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(20.dp)
+                .padding(horizontal = 20.dp, vertical = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
 
-            Card(
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = CardSurface)
-            ) {
-                Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text(stringResource(com.beauty.app.R.string.language), color = RoseGoldPrimary, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                    LanguageSelector(accountId = accountId, modifier = Modifier.fillMaxWidth(), onSelected = onLanguageSelected)
-                    when (languageManager.notice) {
-                        com.beauty.app.i18n.LanguagePreferenceManager.SyncResult.Conflict ->
-                            Text(stringResource(com.beauty.app.R.string.language_conflict), color = TextMuted)
-                        com.beauty.app.i18n.LanguagePreferenceManager.SyncResult.PendingOffline ->
-                            Text(stringResource(com.beauty.app.R.string.language_saved_offline), color = TextMuted)
-                        else -> Unit
-                    }
+            AuraPageHeader(
+                stringResource(com.beauty.app.R.string.account_settings_2),
+                stringResource(com.beauty.app.R.string.redesign_settings_intro)
+            )
+
+            AuraCard {
+                Text(stringResource(com.beauty.app.R.string.language), color = Forest, fontWeight = FontWeight.SemiBold, fontSize = 20.sp)
+                LanguageSelector(accountId = accountId, modifier = Modifier.fillMaxWidth(), onSelected = onLanguageSelected)
+                when (languageManager.notice) {
+                    com.beauty.app.i18n.LanguagePreferenceManager.SyncResult.Conflict ->
+                        Text(stringResource(com.beauty.app.R.string.language_conflict), color = Muted)
+                    com.beauty.app.i18n.LanguagePreferenceManager.SyncResult.PendingOffline ->
+                        Text(stringResource(com.beauty.app.R.string.language_saved_offline), color = Muted)
+                    else -> Unit
                 }
             }
 
             // Profile card
-            Card(
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = CardSurface)
-            ) {
-                Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text(stringResource(com.beauty.app.R.string.profile), color = RoseGoldPrimary, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+            AuraCard {
+                Text(stringResource(com.beauty.app.R.string.profile), color = Forest, fontWeight = FontWeight.SemiBold, fontSize = 20.sp)
 
-                    SettingsTextField(
-                        value = viewModel.email,
-                        onValueChange = {},
-                        label = stringResource(com.beauty.app.R.string.email),
-                        enabled = false,
-                        helper = stringResource(com.beauty.app.R.string.your_sign_in_identifier_can_t_be_changed_here_yet)
-                    )
+                SettingsTextField(
+                    value = viewModel.email,
+                    onValueChange = {},
+                    label = stringResource(com.beauty.app.R.string.email),
+                    enabled = false,
+                    helper = stringResource(com.beauty.app.R.string.your_sign_in_identifier_can_t_be_changed_here_yet)
+                )
 
-                    SettingsTextField(
-                        value = viewModel.fullName,
-                        onValueChange = {
-                            viewModel.updateFullName(it)
-                            viewModel.resetProfileState()
-                        },
-                        enabled = !isProfileLoading,
-                        label = stringResource(com.beauty.app.R.string.full_name),
-                        error = profileFieldErrors["fullName"]
-                    )
+                SettingsTextField(
+                    value = viewModel.fullName,
+                    onValueChange = {
+                        viewModel.updateFullName(it)
+                        viewModel.resetProfileState()
+                    },
+                    enabled = !isProfileLoading,
+                    label = stringResource(com.beauty.app.R.string.full_name),
+                    error = profileFieldErrors["fullName"]
+                )
 
-                    profileError?.message?.let {
-                        Text(localizedMessage(it), color = MaterialTheme.colorScheme.error, fontSize = 13.sp)
-                    }
-                    if (profileState is SettingsViewModel.ProfileState.Success) {
-                        Text(stringResource(com.beauty.app.R.string.profile_updated), color = EmeraldStatus, fontSize = 13.sp)
-                    }
+                profileError?.message?.let {
+                    Text(localizedMessage(it), color = MaterialTheme.colorScheme.error, fontSize = 13.sp)
+                }
+                if (profileState is SettingsViewModel.ProfileState.Success) {
+                    Text(stringResource(com.beauty.app.R.string.profile_updated), color = Success, fontSize = 13.sp)
+                }
 
-                    Button(
-                        onClick = viewModel::saveProfile,
-                        enabled = !isProfileLoading,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(46.dp),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = RoseGoldPrimary)
-                    ) {
-                        if (isProfileLoading) {
-                            CircularProgressIndicator(modifier = Modifier.size(18.dp), color = Color.Black, strokeWidth = 2.dp)
-                        } else {
-                            Text(stringResource(com.beauty.app.R.string.save_name), color = Color.Black, fontWeight = FontWeight.Bold)
-                        }
+                Button(
+                    onClick = viewModel::saveProfile,
+                    enabled = !isProfileLoading,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 56.dp),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Forest)
+                ) {
+                    if (isProfileLoading) {
+                        CircularProgressIndicator(modifier = Modifier.size(18.dp), color = WhiteCard, strokeWidth = 2.dp)
+                    } else {
+                        Text(stringResource(com.beauty.app.R.string.save_name), color = WhiteCard, fontWeight = FontWeight.Bold)
                     }
                 }
             }
 
             // Password card
-            Card(
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = CardSurface)
-            ) {
-                Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text(stringResource(com.beauty.app.R.string.change_password), color = RoseGoldPrimary, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+            AuraCard {
+                Text(stringResource(com.beauty.app.R.string.change_password), color = Forest, fontWeight = FontWeight.SemiBold, fontSize = 20.sp)
 
-                    SettingsTextField(
-                        value = currentPassword,
-                        onValueChange = { currentPassword = it; viewModel.resetPasswordState() },
-                        label = stringResource(com.beauty.app.R.string.current_password),
-                        error = passwordFieldErrors["currentPassword"],
-                        enabled = !isPasswordLoading,
-                        isPassword = true,
-                        showPassword = showPassword,
-                        onToggleShowPassword = { showPassword = !showPassword }
+                SettingsTextField(
+                    value = currentPassword,
+                    onValueChange = { currentPassword = it; viewModel.resetPasswordState() },
+                    label = stringResource(com.beauty.app.R.string.current_password),
+                    error = passwordFieldErrors["currentPassword"],
+                    enabled = !isPasswordLoading,
+                    isPassword = true,
+                    showPassword = showPassword,
+                    onToggleShowPassword = { showPassword = !showPassword }
+                )
+
+                SettingsTextField(
+                    value = newPassword,
+                    onValueChange = { newPassword = it; viewModel.resetPasswordState() },
+                    label = stringResource(com.beauty.app.R.string.new_password_2),
+                    error = passwordFieldErrors["newPassword"],
+                    helper = if (passwordFieldErrors["newPassword"] == null) {
+                        stringResource(com.beauty.app.R.string.password_minimum, AuthValidation.PASSWORD_MIN_LENGTH)
+                    } else {
+                        null
+                    },
+                    enabled = !isPasswordLoading,
+                    isPassword = true,
+                    showPassword = showPassword,
+                    onToggleShowPassword = { showPassword = !showPassword }
+                )
+
+                SettingsTextField(
+                    value = confirmNewPassword,
+                    onValueChange = { confirmNewPassword = it; viewModel.resetPasswordState() },
+                    label = stringResource(com.beauty.app.R.string.confirm_new_password_2),
+                    error = passwordFieldErrors["confirmNewPassword"],
+                    enabled = !isPasswordLoading,
+                    isPassword = true,
+                    showPassword = showPassword,
+                    onToggleShowPassword = { showPassword = !showPassword }
+                )
+
+                passwordError?.message?.let {
+                    Text(localizedMessage(it), color = MaterialTheme.colorScheme.error, fontSize = 13.sp)
+                }
+                if (passwordState is SettingsViewModel.PasswordState.Success) {
+                    Text(
+                        stringResource(com.beauty.app.R.string.ui2_password_changed_you_ve_been_signed_out_of_every_other_device),
+                        color = Success,
+                        fontSize = 13.sp
                     )
+                }
 
-                    SettingsTextField(
-                        value = newPassword,
-                        onValueChange = { newPassword = it; viewModel.resetPasswordState() },
-                        label = stringResource(com.beauty.app.R.string.new_password_2),
-                        error = passwordFieldErrors["newPassword"],
-                        helper = if (passwordFieldErrors["newPassword"] == null) {
-                            stringResource(com.beauty.app.R.string.password_minimum, AuthValidation.PASSWORD_MIN_LENGTH)
-                        } else {
-                            null
-                        },
-                        enabled = !isPasswordLoading,
-                        isPassword = true,
-                        showPassword = showPassword,
-                        onToggleShowPassword = { showPassword = !showPassword }
-                    )
-
-                    SettingsTextField(
-                        value = confirmNewPassword,
-                        onValueChange = { confirmNewPassword = it; viewModel.resetPasswordState() },
-                        label = stringResource(com.beauty.app.R.string.confirm_new_password_2),
-                        error = passwordFieldErrors["confirmNewPassword"],
-                        enabled = !isPasswordLoading,
-                        isPassword = true,
-                        showPassword = showPassword,
-                        onToggleShowPassword = { showPassword = !showPassword }
-                    )
-
-                    passwordError?.message?.let {
-                        Text(localizedMessage(it), color = MaterialTheme.colorScheme.error, fontSize = 13.sp)
-                    }
-                    if (passwordState is SettingsViewModel.PasswordState.Success) {
-                        Text(
-                            stringResource(com.beauty.app.R.string.ui2_password_changed_you_ve_been_signed_out_of_every_other_device),
-                            color = EmeraldStatus,
-                            fontSize = 13.sp
-                        )
-                    }
-
-                    Button(
-                        onClick = { viewModel.changePassword(currentPassword, newPassword, confirmNewPassword) },
-                        enabled = !isPasswordLoading,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(46.dp),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = RoseGoldPrimary)
-                    ) {
-                        if (isPasswordLoading) {
-                            CircularProgressIndicator(modifier = Modifier.size(18.dp), color = Color.Black, strokeWidth = 2.dp)
-                        } else {
-                            Text(stringResource(com.beauty.app.R.string.change_password), color = Color.Black, fontWeight = FontWeight.Bold)
-                        }
+                Button(
+                    onClick = { viewModel.changePassword(currentPassword, newPassword, confirmNewPassword) },
+                    enabled = !isPasswordLoading,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 56.dp),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Forest)
+                ) {
+                    if (isPasswordLoading) {
+                        CircularProgressIndicator(modifier = Modifier.size(18.dp), color = WhiteCard, strokeWidth = 2.dp)
+                    } else {
+                        Text(stringResource(com.beauty.app.R.string.change_password), color = WhiteCard, fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -245,7 +230,7 @@ private fun SettingsTextField(
         OutlinedTextField(
             value = value,
             onValueChange = onValueChange,
-            label = { Text(label, color = TextMuted) },
+            label = { Text(label, color = Muted) },
             isError = error != null,
             enabled = enabled,
             visualTransformation = if (isPassword && !showPassword) {
@@ -259,7 +244,7 @@ private fun SettingsTextField(
                         Icon(
                             imageVector = if (showPassword) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
                             contentDescription = if (showPassword) stringResource(com.beauty.app.R.string.hide_password) else stringResource(com.beauty.app.R.string.show_password),
-                            tint = TextMuted
+                            tint = Muted
                         )
                     }
                 }
@@ -269,12 +254,12 @@ private fun SettingsTextField(
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
             colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = RoseGoldPrimary,
-                unfocusedBorderColor = Color(0x33E5B899),
-                focusedTextColor = TextLight,
-                unfocusedTextColor = TextLight,
-                disabledTextColor = TextMuted,
-                disabledBorderColor = Color(0x22E5B899)
+                focusedBorderColor = Forest,
+                unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                focusedTextColor = Forest,
+                unfocusedTextColor = Forest,
+                disabledTextColor = Muted,
+                disabledBorderColor = Border
             )
         )
 
@@ -282,13 +267,13 @@ private fun SettingsTextField(
             error != null -> Text(
                 text = localizedMessage(error),
                 color = MaterialTheme.colorScheme.error,
-                fontSize = 12.sp,
+                fontSize = 13.sp,
                 modifier = Modifier.padding(start = 4.dp, top = 4.dp)
             )
             helper != null -> Text(
                 text = helper,
-                color = TextMuted,
-                fontSize = 12.sp,
+                color = Muted,
+                fontSize = 13.sp,
                 modifier = Modifier.padding(start = 4.dp, top = 4.dp)
             )
         }

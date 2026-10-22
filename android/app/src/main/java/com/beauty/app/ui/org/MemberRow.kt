@@ -9,6 +9,8 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.text.font.FontWeight
+import com.beauty.app.ui.theme.*
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -32,6 +34,7 @@ import com.beauty.app.ui.theme.TextMuted
  * press these buttons; the caller supplies the actions and the server refuses
  * the ones it should.
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 internal fun MemberRow(
     member: MemberDto,
@@ -47,21 +50,17 @@ internal fun MemberRow(
         mutableStateOf<MemberDestructiveAction?>(null)
     }
 
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
-    ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(member.fullName, fontSize = 14.sp)
+    AuraCard {
+        Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text(member.fullName, style = MaterialTheme.typography.titleMedium)
             Text(
                 "${member.email} · ${com.beauty.app.ui.i18n.roleLabel(member.role)} · ${com.beauty.app.ui.i18n.statusLabel(member.status)}" +
                     if (member.emailVerified) "" else " · ${stringResource(com.beauty.app.R.string.email_not_confirmed)}",
                 color = TextMuted,
-                fontSize = 12.sp,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis
+                style = MaterialTheme.typography.bodyMedium
             )
         }
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
         // A join request is answered, not "removed": Decline sits next to
         // Approve, mirroring the web roster. Declining keeps a record so the
         // requester is told; removal deletes the row.
@@ -78,7 +77,7 @@ internal fun MemberRow(
                     Text(
                         if (member.role == "ORG_ADMIN") stringResource(com.beauty.app.R.string.demote) else stringResource(com.beauty.app.R.string.promote),
                         color = RoseGoldPrimary,
-                        fontSize = 12.sp
+                        fontSize = 14.sp
                     )
                 }
                 if (onRevoke != null) {
@@ -89,7 +88,7 @@ internal fun MemberRow(
             }
             if (member.status == "SUSPENDED" && onRestore != null) {
                 TextButton(onClick = onRestore) {
-                    Text(stringResource(com.beauty.app.R.string.member_restore_access), color = RoseGoldPrimary, fontSize = 12.sp)
+                    Text(stringResource(com.beauty.app.R.string.member_restore_access), color = RoseGoldPrimary, fontSize = 14.sp)
                 }
             }
             IconButton(
@@ -108,6 +107,8 @@ internal fun MemberRow(
                 )
             }
         }
+    }
+
     }
 
     pendingAction?.let { action ->

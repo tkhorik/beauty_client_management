@@ -18,7 +18,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
@@ -26,11 +25,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.beauty.app.BuildConfig
-import com.beauty.app.ui.theme.CardSurface
-import com.beauty.app.ui.theme.EmeraldStatus
-import com.beauty.app.ui.theme.RoseGoldPrimary
-import com.beauty.app.ui.theme.TextLight
-import com.beauty.app.ui.theme.TextMuted
+import com.beauty.app.ui.theme.*
 import com.beauty.app.updater.UpdateDistributionMode
 import com.beauty.app.updater.UpdateManager
 import com.beauty.app.updater.UpdateState
@@ -70,13 +65,13 @@ fun AboutScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(com.beauty.app.R.string.about), color = RoseGoldPrimary, fontWeight = FontWeight.Bold, fontSize = 20.sp) },
+                title = { Text("aura", style = MaterialTheme.typography.titleLarge) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = stringResource(com.beauty.app.R.string.back), tint = TextLight)
+                        Icon(Icons.Default.ArrowBack, contentDescription = stringResource(com.beauty.app.R.string.back), tint = Forest)
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = CardSurface)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Paper)
             )
         }
     ) { padding ->
@@ -85,32 +80,36 @@ fun AboutScreen(
                 .fillMaxSize()
                 .padding(padding)
                 .verticalScroll(rememberScrollState())
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+                .padding(horizontal = 20.dp, vertical = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
+            AuraPageHeader(
+                stringResource(com.beauty.app.R.string.about),
+                stringResource(com.beauty.app.R.string.redesign_about_intro)
+            )
             AboutCard {
-                Text(stringResource(com.beauty.app.R.string.aura_beauty_log), color = TextLight, fontWeight = FontWeight.Bold, fontSize = 20.sp)
+                Text(stringResource(com.beauty.app.R.string.aura_beauty_log), color = Forest, fontWeight = FontWeight.Bold, fontSize = 20.sp)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Text(versionLabel, color = TextMuted, fontSize = 13.sp, modifier = Modifier.weight(1f))
+                    Text(versionLabel, color = Muted, fontSize = 13.sp, modifier = Modifier.weight(1f))
                     // Support asks for the exact build first; make it one tap to paste.
                     val versionCopied = stringResource(com.beauty.app.R.string.version_copied)
                     IconButton(onClick = {
                         clipboard.setText(AnnotatedString("Aura Beauty Log $versionLabel"))
                         scope.launch { snackbarHostState.showSnackbar(versionCopied) }
                     }) {
-                        Icon(Icons.Default.ContentCopy, contentDescription = stringResource(com.beauty.app.R.string.copy_version), tint = TextMuted)
+                        Icon(Icons.Default.ContentCopy, contentDescription = stringResource(com.beauty.app.R.string.copy_version), tint = Muted)
                     }
                 }
             }
 
             AboutCard {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Icon(Icons.Default.SystemUpdate, contentDescription = null, tint = RoseGoldPrimary, modifier = Modifier.size(20.dp))
-                    Text(stringResource(com.beauty.app.R.string.updates), color = RoseGoldPrimary, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    Icon(Icons.Default.SystemUpdate, contentDescription = null, tint = Forest, modifier = Modifier.size(20.dp))
+                    Text(stringResource(com.beauty.app.R.string.updates), color = Forest, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                 }
 
                 UpdateStatus(updateState)
@@ -119,13 +118,13 @@ fun AboutScreen(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Text(stringResource(com.beauty.app.R.string.source), color = TextMuted, fontSize = 13.sp)
+                    Text(stringResource(com.beauty.app.R.string.source), color = Muted, fontSize = 13.sp)
                     Text(
                         when (updateManager.getDistributionMode()) {
                             UpdateDistributionMode.PLAY_STORE -> stringResource(com.beauty.app.R.string.google_play)
                             else -> stringResource(com.beauty.app.R.string.github_releases)
                         },
-                        color = TextLight,
+                        color = Forest,
                         fontSize = 13.sp
                     )
                 }
@@ -162,36 +161,36 @@ fun AboutScreen(
 @Composable
 private fun UpdateStatus(state: UpdateState) {
     when (state) {
-        UpdateState.Idle -> Text(stringResource(com.beauty.app.R.string.not_checked_yet), color = TextMuted, fontSize = 13.sp)
+        UpdateState.Idle -> Text(stringResource(com.beauty.app.R.string.not_checked_yet), color = Muted, fontSize = 13.sp)
         UpdateState.Checking -> Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            CircularProgressIndicator(modifier = Modifier.size(16.dp), color = RoseGoldPrimary, strokeWidth = 2.dp)
-            Text(stringResource(com.beauty.app.R.string.checking_for_updates), color = TextMuted, fontSize = 13.sp)
+            CircularProgressIndicator(modifier = Modifier.size(16.dp), color = Forest, strokeWidth = 2.dp)
+            Text(stringResource(com.beauty.app.R.string.checking_for_updates), color = Muted, fontSize = 13.sp)
         }
         is UpdateState.UpToDate -> Column {
-            Text(stringResource(com.beauty.app.R.string.you_re_on_the_latest_version), color = EmeraldStatus, fontSize = 13.sp)
-            Text(stringResource(com.beauty.app.R.string.checked_time, relativeTime(state.checkedAt)), color = TextMuted, fontSize = 12.sp)
+            Text(stringResource(com.beauty.app.R.string.you_re_on_the_latest_version), color = Success, fontSize = 13.sp)
+            Text(stringResource(com.beauty.app.R.string.checked_time, relativeTime(state.checkedAt)), color = Muted, fontSize = 13.sp)
         }
         is UpdateState.Available -> Text(
             stringResource(com.beauty.app.R.string.update_available, state.release.versionName),
-            color = RoseGoldPrimary,
+            color = Forest,
             fontWeight = FontWeight.SemiBold,
             fontSize = 13.sp
         )
         is UpdateState.Downloading -> Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text(stringResource(com.beauty.app.R.string.update_downloading, state.release.versionName, (state.progress * 100).toInt()), color = TextLight, fontSize = 13.sp)
+            Text(stringResource(com.beauty.app.R.string.update_downloading, state.release.versionName, (state.progress * 100).toInt()), color = Forest, fontSize = 13.sp)
             LinearProgressIndicator(
                 progress = { state.progress },
                 modifier = Modifier.fillMaxWidth(),
-                color = RoseGoldPrimary,
-                trackColor = Color(0x33E5B899)
+                color = Forest,
+                trackColor = Border
             )
         }
         is UpdateState.ReadyToInstall -> Text(
             stringResource(com.beauty.app.R.string.update_ready, state.release.versionName),
-            color = EmeraldStatus,
+            color = Success,
             fontSize = 13.sp
         )
         is UpdateState.Error -> Text(localizedMessage(state.message), color = MaterialTheme.colorScheme.error, fontSize = 13.sp)
@@ -205,14 +204,14 @@ private fun UpdateAction(
     onCheckForUpdates: () -> Unit,
     onOpenUpdateDialog: () -> Unit
 ) {
-    val modifier = Modifier.fillMaxWidth().height(44.dp)
-    val shape = RoundedCornerShape(12.dp)
+    val modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
+    val shape = RoundedCornerShape(14.dp)
     when (state) {
         is UpdateState.Available, is UpdateState.Downloading, is UpdateState.ReadyToInstall -> {
             val (label, color) = when (state) {
-                is UpdateState.ReadyToInstall -> stringResource(com.beauty.app.R.string.install_update) to EmeraldStatus
-                is UpdateState.Downloading -> stringResource(com.beauty.app.R.string.view_download) to RoseGoldPrimary
-                else -> stringResource(com.beauty.app.R.string.update_now) to RoseGoldPrimary
+                is UpdateState.ReadyToInstall -> stringResource(com.beauty.app.R.string.install_update) to Success
+                is UpdateState.Downloading -> stringResource(com.beauty.app.R.string.view_download) to Forest
+                else -> stringResource(com.beauty.app.R.string.update_now) to Forest
             }
             Button(
                 onClick = onOpenUpdateDialog,
@@ -220,7 +219,7 @@ private fun UpdateAction(
                 shape = shape,
                 colors = ButtonDefaults.buttonColors(containerColor = color)
             ) {
-                Text(label, color = Color.Black, fontWeight = FontWeight.Bold)
+                Text(label, color = WhiteCard, fontWeight = FontWeight.Bold)
             }
         }
         else -> OutlinedButton(
@@ -228,7 +227,7 @@ private fun UpdateAction(
             enabled = state !is UpdateState.Checking,
             modifier = modifier,
             shape = shape,
-            colors = ButtonDefaults.outlinedButtonColors(contentColor = RoseGoldPrimary)
+            colors = ButtonDefaults.outlinedButtonColors(contentColor = Forest)
         ) {
             Text(if (state is UpdateState.Error) stringResource(com.beauty.app.R.string.try_again) else stringResource(com.beauty.app.R.string.check_for_updates), fontWeight = FontWeight.SemiBold)
         }
@@ -237,19 +236,14 @@ private fun UpdateAction(
 
 @Composable
 private fun AboutCard(content: @Composable ColumnScope.() -> Unit) {
-    Card(
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = CardSurface)
-    ) {
-        Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp), content = content)
-    }
+    AuraCard(content = content)
 }
 
 @Composable
 private fun LinkRow(label: String, onClick: () -> Unit) {
     TextButton(onClick = onClick, contentPadding = PaddingValues(0.dp), modifier = Modifier.fillMaxWidth()) {
-        Text(label, color = TextLight, fontSize = 14.sp, modifier = Modifier.weight(1f))
-        Icon(Icons.Default.OpenInNew, contentDescription = null, tint = TextMuted, modifier = Modifier.size(18.dp))
+        Text(label, color = Forest, fontSize = 14.sp, modifier = Modifier.weight(1f))
+        Icon(Icons.Default.OpenInNew, contentDescription = null, tint = Muted, modifier = Modifier.size(18.dp))
     }
 }
 

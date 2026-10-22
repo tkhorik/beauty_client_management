@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="workspace_clients">Клиенты</string>
+    <string name="workspace_clients_subtitle">Забота, которую помнят.</string>
+    <string name="workspace_client_details">Детали клиента</string>
+    <string name="workspace_phone_example">+7 (999) 000-00-00</string>
+    <string name="workspace_optional">Необязательно</string>
+</resources>

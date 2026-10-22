@@ -18,10 +18,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.beauty.app.data.BeautyRepository
-import com.beauty.app.ui.theme.CardSurface
-import com.beauty.app.ui.theme.RoseGoldPrimary
-import com.beauty.app.ui.theme.TextLight
-import com.beauty.app.ui.theme.TextMuted
+import com.beauty.app.ui.theme.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -54,6 +51,7 @@ private const val RESEND_COOLDOWN_MS = 60_000L
  * know anything about the signed-in user. Keeping the fetch local means the
  * banner can be dropped onto another screen without threading state through it.
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun VerificationBanner(
     repository: BeautyRepository,
@@ -102,21 +100,21 @@ fun VerificationBanner(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .background(CardSurface)
-            .padding(14.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .background(Sage)
+            .padding(16.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(
                 Icons.Default.Email,
                 contentDescription = null,
-                tint = RoseGoldPrimary,
+                tint = Forest,
                 modifier = Modifier.size(20.dp)
             )
             Spacer(Modifier.width(10.dp))
             Text(
                 text = pluralStringResource(com.beauty.app.R.plurals.confirm_email_days, daysLeft.toInt(), daysLeft.toInt()),
-                color = TextLight,
+                color = Forest,
                 fontWeight = FontWeight.Bold,
                 fontSize = 14.sp
             )
@@ -126,16 +124,16 @@ fun VerificationBanner(
 
         Text(
             text = stringResource(com.beauty.app.R.string.verification_banner_help, email ?: stringResource(com.beauty.app.R.string.your_address)),
-            color = TextMuted,
-            fontSize = 12.sp
+            color = Muted,
+            fontSize = 13.sp
         )
 
         status?.let {
             Spacer(Modifier.height(4.dp))
-            Text(com.beauty.app.ui.i18n.verificationMessage(it), color = RoseGoldPrimary, fontSize = 12.sp)
+            Text(com.beauty.app.ui.i18n.verificationMessage(it), color = Forest, fontSize = 13.sp)
         }
 
-        Row {
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             TextButton(
                 enabled = !coolingDown,
                 onClick = {
@@ -153,7 +151,7 @@ fun VerificationBanner(
             ) {
                 Text(
                     if (coolingDown) stringResource(com.beauty.app.R.string.link_sent) else stringResource(com.beauty.app.R.string.resend_link),
-                    color = if (coolingDown) TextMuted else RoseGoldPrimary,
+                    color = if (coolingDown) Muted else Forest,
                     fontSize = 13.sp
                 )
             }
@@ -174,7 +172,7 @@ fun VerificationBanner(
             ) {
                 Text(
                     if (checking) stringResource(com.beauty.app.R.string.checking) else stringResource(com.beauty.app.R.string.i_ve_confirmed),
-                    color = RoseGoldPrimary,
+                    color = Forest,
                     fontSize = 13.sp
                 )
             }

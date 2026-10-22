@@ -4,29 +4,21 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import com.beauty.app.ui.i18n.localizedMessage
 import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.beauty.app.ui.theme.CardSurface
-import com.beauty.app.ui.theme.RoseGoldPrimary
-import com.beauty.app.ui.theme.TextLight
-import com.beauty.app.ui.theme.TextMuted
-import com.beauty.app.ui.i18n.LanguageSelector
+import com.beauty.app.ui.theme.*
 
 @Composable
 fun RegisterScreen(
@@ -64,144 +56,106 @@ fun RegisterScreen(
         onDispose { viewModel.resetState() }
     }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .imePadding()
-            .navigationBarsPadding()
-            .padding(24.dp),
-        contentAlignment = Alignment.Center
+    AuraAuthLayout(
+        title = stringResource(com.beauty.app.R.string.create_your_account),
+        subtitle = stringResource(com.beauty.app.R.string.redesign_register_intro)
     ) {
-        Card(
+        AuthTextField(
+            value = fullName,
+            onValueChange = { fullName = it },
+            label = stringResource(com.beauty.app.R.string.full_name),
+            error = fieldErrors["fullName"],
+            keyboardType = KeyboardType.Text,
+            autofillField = AutofillField.FullName
+        )
+
+        AuthTextField(
+            value = email,
+            onValueChange = { email = it },
+            label = stringResource(com.beauty.app.R.string.email),
+            error = fieldErrors["email"],
+            keyboardType = KeyboardType.Email,
+            autofillField = AutofillField.Email
+        )
+
+        AuthTextField(
+            value = password,
+            onValueChange = { password = it },
+            label = stringResource(com.beauty.app.R.string.password),
+            error = fieldErrors["password"],
+            // Guidance shown up front, so the rule is not discovered
+            // only by having the form rejected.
+            helper = stringResource(com.beauty.app.R.string.password_minimum, AuthValidation.PASSWORD_MIN_LENGTH),
+            keyboardType = KeyboardType.Password,
+            autofillField = AutofillField.NewPassword,
+            isPassword = true,
+            showPassword = showPassword,
+            onToggleShowPassword = { showPassword = !showPassword }
+        )
+
+        AuthTextField(
+            value = confirmPassword,
+            onValueChange = { confirmPassword = it },
+            label = stringResource(com.beauty.app.R.string.confirm_password),
+            error = fieldErrors["confirmPassword"],
+            keyboardType = KeyboardType.Password,
+            autofillField = AutofillField.NewPassword,
+            isPassword = true,
+            showPassword = showPassword,
+            onToggleShowPassword = { showPassword = !showPassword }
+        )
+
+        if (offerOrganizationField) {
+            AuthTextField(
+                value = organizationSlug,
+                onValueChange = { organizationSlug = it },
+                label = stringResource(com.beauty.app.R.string.register_organization_handle),
+                error = fieldErrors["organizationSlug"],
+                helper = stringResource(com.beauty.app.R.string.register_organization_handle_hint),
+                keyboardType = KeyboardType.Ascii
+            )
+        }
+
+        // Failures that belong to no single field.
+        errorState?.message?.let { message ->
+            Text(
+                text = localizedMessage(message),
+                color = MaterialTheme.colorScheme.error,
+                fontSize = 13.sp
+            )
+        }
+
+        Button(
+            onClick = { viewModel.register(email, password, confirmPassword, fullName, includeOrganization = offerOrganizationField) },
+            enabled = !isLoading,
             modifier = Modifier
                 .fillMaxWidth()
-                .wrapContentHeight(),
-            shape = RoundedCornerShape(20.dp),
-            colors = CardDefaults.cardColors(containerColor = CardSurface),
-            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                .heightIn(min = 56.dp),
+            shape = RoundedCornerShape(14.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = Forest)
         ) {
-            Column(
-                modifier = Modifier
-                    .padding(32.dp)
-                    .fillMaxWidth(),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(14.dp)
-            ) {
+            if (isLoading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(20.dp),
+                    color = WhiteCard,
+                    strokeWidth = 2.dp
+                )
+            } else {
                 Text(
-                    text = stringResource(com.beauty.app.R.string.aura_beauty_log),
-                    color = RoseGoldPrimary,
+                    text = stringResource(com.beauty.app.R.string.create_account),
+                    color = WhiteCard,
                     fontWeight = FontWeight.Bold,
-                    fontSize = 24.sp
+                    fontSize = 15.sp
                 )
-                Text(
-                    text = stringResource(com.beauty.app.R.string.create_your_account),
-                    color = TextMuted,
-                    fontSize = 14.sp
-                )
-
-                LanguageSelector(accountId = null, modifier = Modifier.fillMaxWidth())
-
-                Spacer(modifier = Modifier.height(4.dp))
-
-                AuthTextField(
-                    value = fullName,
-                    onValueChange = { fullName = it },
-                    label = stringResource(com.beauty.app.R.string.full_name),
-                    error = fieldErrors["fullName"],
-                    keyboardType = KeyboardType.Text,
-                    autofillField = AutofillField.FullName
-                )
-
-                AuthTextField(
-                    value = email,
-                    onValueChange = { email = it },
-                    label = stringResource(com.beauty.app.R.string.email),
-                    error = fieldErrors["email"],
-                    keyboardType = KeyboardType.Email,
-                    autofillField = AutofillField.Email
-                )
-
-                AuthTextField(
-                    value = password,
-                    onValueChange = { password = it },
-                    label = stringResource(com.beauty.app.R.string.password),
-                    error = fieldErrors["password"],
-                    // Guidance shown up front, so the rule is not discovered
-                    // only by having the form rejected.
-                    helper = stringResource(com.beauty.app.R.string.password_minimum, AuthValidation.PASSWORD_MIN_LENGTH),
-                    keyboardType = KeyboardType.Password,
-                    autofillField = AutofillField.NewPassword,
-                    isPassword = true,
-                    showPassword = showPassword,
-                    onToggleShowPassword = { showPassword = !showPassword }
-                )
-
-                AuthTextField(
-                    value = confirmPassword,
-                    onValueChange = { confirmPassword = it },
-                    label = stringResource(com.beauty.app.R.string.confirm_password),
-                    error = fieldErrors["confirmPassword"],
-                    keyboardType = KeyboardType.Password,
-                    autofillField = AutofillField.NewPassword,
-                    isPassword = true,
-                    showPassword = showPassword,
-                    onToggleShowPassword = { showPassword = !showPassword }
-                )
-
-                if (offerOrganizationField) {
-                    AuthTextField(
-                        value = organizationSlug,
-                        onValueChange = { organizationSlug = it },
-                        label = stringResource(com.beauty.app.R.string.register_organization_handle),
-                        error = fieldErrors["organizationSlug"],
-                        helper = stringResource(com.beauty.app.R.string.register_organization_handle_hint),
-                        keyboardType = KeyboardType.Ascii
-                    )
-                }
-
-                // Failures that belong to no single field.
-                errorState?.message?.let { message ->
-                    Text(
-                        text = localizedMessage(message),
-                        color = MaterialTheme.colorScheme.error,
-                        fontSize = 13.sp
-                    )
-                }
-
-                Button(
-                    onClick = { viewModel.register(email, password, confirmPassword, fullName, includeOrganization = offerOrganizationField) },
-                    enabled = !isLoading,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(50.dp),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = RoseGoldPrimary)
-                ) {
-                    if (isLoading) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(20.dp),
-                            color = Color.Black,
-                            strokeWidth = 2.dp
-                        )
-                    } else {
-                        Text(
-                            text = stringResource(com.beauty.app.R.string.create_account),
-                            color = Color.Black,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 15.sp
-                        )
-                    }
-                }
-
-                TextButton(onClick = onNavigateToLogin, enabled = !isLoading) {
-                    Text(
-                        text = stringResource(com.beauty.app.R.string.already_have_an_account_sign_in),
-                        color = RoseGoldPrimary,
-                        fontSize = 13.sp
-                    )
-                }
             }
+        }
+
+        TextButton(onClick = onNavigateToLogin, enabled = !isLoading) {
+            Text(
+                text = stringResource(com.beauty.app.R.string.already_have_an_account_sign_in),
+                color = Forest,
+                fontSize = 13.sp
+            )
         }
     }
 }
@@ -228,7 +182,7 @@ private fun AuthTextField(
         OutlinedTextField(
             value = value,
             onValueChange = onValueChange,
-            label = { Text(label, color = TextMuted) },
+            label = { Text(label, color = Muted) },
             isError = error != null,
             visualTransformation = if (isPassword && !showPassword) {
                 PasswordVisualTransformation()
@@ -241,7 +195,7 @@ private fun AuthTextField(
                         Icon(
                             imageVector = if (showPassword) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
                             contentDescription = if (showPassword) stringResource(com.beauty.app.R.string.hide_password) else stringResource(com.beauty.app.R.string.show_password),
-                            tint = TextMuted
+                            tint = Muted
                         )
                     }
                 }
@@ -256,10 +210,10 @@ private fun AuthTextField(
                     autofillField?.let { Modifier.autofill(it, onFill = onValueChange) } ?: Modifier
                 ),
             colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = RoseGoldPrimary,
-                unfocusedBorderColor = Color(0x33E5B899),
-                focusedTextColor = TextLight,
-                unfocusedTextColor = TextLight
+                focusedBorderColor = Forest,
+                unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                focusedTextColor = Forest,
+                unfocusedTextColor = Forest
             )
         )
 
@@ -267,13 +221,13 @@ private fun AuthTextField(
             error != null -> Text(
                 text = localizedMessage(error),
                 color = MaterialTheme.colorScheme.error,
-                fontSize = 12.sp,
+                fontSize = 13.sp,
                 modifier = Modifier.padding(start = 4.dp, top = 4.dp)
             )
             helper != null -> Text(
                 text = helper,
-                color = TextMuted,
-                fontSize = 12.sp,
+                color = Muted,
+                fontSize = 13.sp,
                 modifier = Modifier.padding(start = 4.dp, top = 4.dp)
             )
         }

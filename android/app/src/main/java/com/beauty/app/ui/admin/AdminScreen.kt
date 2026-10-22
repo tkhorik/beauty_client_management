@@ -2,6 +2,9 @@ package com.beauty.app.ui.admin
 
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.BorderStroke
+import com.beauty.app.ui.theme.*
 import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -60,8 +63,7 @@ fun AdminScreen(
                 title = {
                     Text(
                         managingOrg?.name ?: stringResource(com.beauty.app.R.string.admin_panel),
-                        color = RoseGoldPrimary,
-                        fontWeight = FontWeight.Bold
+                        style = MaterialTheme.typography.titleMedium
                     )
                 },
                 navigationIcon = {
@@ -77,15 +79,16 @@ fun AdminScreen(
             )
         }
     ) { padding ->
-        Column(modifier = Modifier.padding(padding).fillMaxSize()) {
+        Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.TopCenter) {
+        Column(modifier = Modifier.widthIn(max = 760.dp).fillMaxSize().imePadding()) {
 
             if (managingOrg == null) {
-                TabRow(selectedTabIndex = tab.ordinal, containerColor = CardSurface) {
+                ScrollableTabRow(selectedTabIndex = tab.ordinal, containerColor = Paper, edgePadding = 12.dp) {
                     AdminTab.entries.forEach { entry ->
                         Tab(
                             selected = tab == entry,
                             onClick = { tab = entry; viewModel.clearMessages() },
-                            text = { Text(stringResource(entry.label), fontSize = 13.sp) }
+                            text = { Text(stringResource(entry.label), fontSize = 14.sp) }
                         )
                     }
                 }
@@ -108,6 +111,8 @@ fun AdminScreen(
     }
 }
 
+}
+
 @Composable
 private fun Banner(message: String, isError: Boolean) {
     Surface(
@@ -117,7 +122,7 @@ private fun Banner(message: String, isError: Boolean) {
         Text(
             com.beauty.app.ui.i18n.localizedMessage(message),
             modifier = Modifier.padding(12.dp),
-            fontSize = 13.sp,
+            fontSize = 14.sp,
             color = if (isError) MaterialTheme.colorScheme.onErrorContainer else TextMuted
         )
     }
@@ -130,7 +135,8 @@ private fun Banner(message: String, isError: Boolean) {
 @Composable
 private fun UsersTab(viewModel: AdminViewModel) {
     LazyColumn(
-        modifier = Modifier.fillMaxSize().padding(16.dp),
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 24.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         items(viewModel.users, key = { it.id }) { user ->
@@ -145,16 +151,15 @@ private fun UsersTab(viewModel: AdminViewModel) {
 
 @Composable
 private fun UserRow(user: AdminUserDto, isSelf: Boolean, onToggleSuspended: () -> Unit) {
-    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.weight(1f)) {
+    AuraCard {
+        Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(
                 buildString {
                     append(user.fullName)
                     if (user.isSuperAdmin) append("  · " + stringResource(com.beauty.app.R.string.role_super_admin))
                     if (user.isSuspended) append("  · " + stringResource(com.beauty.app.R.string.status_suspended))
                 },
-                fontSize = 14.sp,
-                fontWeight = if (user.isSuperAdmin) FontWeight.SemiBold else FontWeight.Normal
+                style = MaterialTheme.typography.titleMedium
             )
             Text(
                 buildString {
@@ -164,19 +169,19 @@ private fun UserRow(user: AdminUserDto, isSelf: Boolean, onToggleSuspended: () -
                     if (!user.emailVerified) append(" · " + stringResource(com.beauty.app.R.string.unverified))
                 },
                 color = TextMuted,
-                fontSize = 12.sp
+                fontSize = 14.sp
             )
         }
         // The server refuses a self-suspend with a 409 anyway; not drawing the
         // button is how the operator finds that out without pressing it.
         if (isSelf) {
-            Text(stringResource(com.beauty.app.R.string.you), color = TextMuted, fontSize = 12.sp)
+            Text(stringResource(com.beauty.app.R.string.you), color = TextMuted, fontSize = 14.sp)
         } else {
             TextButton(onClick = onToggleSuspended) {
                 Text(
                     if (user.isSuspended) stringResource(com.beauty.app.R.string.unsuspend) else stringResource(com.beauty.app.R.string.suspend),
                     color = if (user.isSuspended) RoseGoldPrimary else MaterialTheme.colorScheme.error,
-                    fontSize = 12.sp
+                    fontSize = 14.sp
                 )
             }
         }
@@ -229,53 +234,54 @@ private fun OrganizationsTab(
     }
 
     LazyColumn(
-        modifier = Modifier.fillMaxSize().padding(16.dp),
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 24.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         items(viewModel.organizations, key = { it.id }) { org ->
-            Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Column {
-                    Text(org.name, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+            AuraCard {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(org.name, style = MaterialTheme.typography.titleLarge)
                     Text(
                         stringResource(com.beauty.app.R.string.organization_created_by, org.slug, org.createdByEmail ?: stringResource(com.beauty.app.R.string.unknown)) +
                             " · " + pluralStringResource(com.beauty.app.R.plurals.members_count, org.memberCount, org.memberCount) +
                             if (org.isArchived) " · " + stringResource(com.beauty.app.R.string.archived) else "",
                         color = TextMuted,
-                        fontSize = 12.sp
+                        fontSize = 14.sp
                     )
                 }
                 // SUPER_ADMIN receives every active organization from the
                 // organization list and can reopen any one repeatedly.
-                Row(
+                Column(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     TextButton(
                         enabled = !org.isArchived,
                         onClick = { onOpenOrganization(org) },
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text(stringResource(com.beauty.app.R.string.open_organization), color = RoseGoldPrimary, fontSize = 12.sp)
+                        Text(stringResource(com.beauty.app.R.string.open_organization), color = RoseGoldPrimary, fontSize = 14.sp)
                     }
                     TextButton(
                         enabled = !org.isArchived,
                         onClick = { viewModel.manageMembers(org) },
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text(stringResource(com.beauty.app.R.string.members), color = RoseGoldPrimary, fontSize = 12.sp)
+                        Text(stringResource(com.beauty.app.R.string.members), color = RoseGoldPrimary, fontSize = 14.sp)
                     }
                     TextButton(
                         enabled = !org.isArchived,
                         onClick = { confirming = org; confirmationSlug = "" },
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text(stringResource(com.beauty.app.R.string.archive), color = MaterialTheme.colorScheme.error, fontSize = 12.sp)
+                        Text(stringResource(com.beauty.app.R.string.archive), color = MaterialTheme.colorScheme.error, fontSize = 14.sp)
                     }
                 }
             }
         }
         if (viewModel.organizations.isEmpty()) {
-            item { Text(stringResource(com.beauty.app.R.string.no_organizations_yet), color = TextMuted, fontSize = 13.sp) }
+            item { Text(stringResource(com.beauty.app.R.string.no_organizations_yet), color = TextMuted, fontSize = 14.sp) }
         }
     }
 }
@@ -283,7 +289,8 @@ private fun OrganizationsTab(
 @Composable
 private fun MembersTab(viewModel: AdminViewModel, org: AdminOrganizationDto) {
     LazyColumn(
-        modifier = Modifier.fillMaxSize().padding(16.dp),
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 24.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
         items(viewModel.members, key = { it.userId }) { member ->
@@ -308,7 +315,7 @@ private fun MembersTab(viewModel: AdminViewModel, org: AdminOrganizationDto) {
                 Text(
                     stringResource(com.beauty.app.R.string.no_members_yet),
                     color = TextMuted,
-                    fontSize = 13.sp
+                    fontSize = 14.sp
                 )
             }
         }
@@ -316,7 +323,7 @@ private fun MembersTab(viewModel: AdminViewModel, org: AdminOrganizationDto) {
             Text(
                 stringResource(com.beauty.app.R.string.admin_members_help),
                 color = TextMuted,
-                fontSize = 12.sp
+                fontSize = 14.sp
             )
         }
     }
@@ -326,6 +333,7 @@ private fun MembersTab(viewModel: AdminViewModel, org: AdminOrganizationDto) {
 // Creation links
 // ---------------------------------------------------------------------------
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun LinksTab(viewModel: AdminViewModel) {
     val clipboard = LocalClipboardManager.current
@@ -334,21 +342,22 @@ private fun LinksTab(viewModel: AdminViewModel) {
     var expiresInHours by rememberSaveable { mutableStateOf("168") }
 
     LazyColumn(
-        modifier = Modifier.fillMaxSize().padding(16.dp),
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 24.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         // The freshly issued token first, and impossible to miss: this is the
         // only moment it exists in readable form anywhere.
         viewModel.freshLink?.let { link ->
             item {
-                Surface(color = CardSurface, modifier = Modifier.fillMaxWidth()) {
+                Surface(color = Sage, shape = RoundedCornerShape(24.dp), modifier = Modifier.fillMaxWidth()) {
                     Column(
                         modifier = Modifier.padding(12.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Text(stringResource(com.beauty.app.R.string.new_link_copy_it_now), color = RoseGoldPrimary, fontSize = 13.sp)
-                        Text(link, fontSize = 12.sp)
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(stringResource(com.beauty.app.R.string.new_link_copy_it_now), color = RoseGoldPrimary, fontSize = 14.sp)
+                        Text(link, fontSize = 14.sp)
+                        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Button(
                                 onClick = { clipboard.setText(AnnotatedString(link)) },
                                 colors = ButtonDefaults.buttonColors(containerColor = RoseGoldPrimary)
@@ -365,8 +374,8 @@ private fun LinksTab(viewModel: AdminViewModel) {
         items(viewModel.links, key = { it.id }) { link -> LinkRow(link, viewModel) }
 
         item {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(stringResource(com.beauty.app.R.string.issue_a_link), color = RoseGoldPrimary, fontSize = 13.sp)
+            AuraCard {
+                Text(stringResource(com.beauty.app.R.string.issue_a_link), style = MaterialTheme.typography.titleLarge)
                 OutlinedTextField(
                     value = label,
                     onValueChange = { label = it },
@@ -374,20 +383,20 @@ private fun LinksTab(viewModel: AdminViewModel) {
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     OutlinedTextField(
                         value = maxUses,
                         onValueChange = { maxUses = it.filter(Char::isDigit) },
                         label = { Text(stringResource(com.beauty.app.R.string.max_uses)) },
                         singleLine = true,
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.fillMaxWidth()
                     )
                     OutlinedTextField(
                         value = expiresInHours,
                         onValueChange = { expiresInHours = it.filter(Char::isDigit) },
                         label = { Text(stringResource(com.beauty.app.R.string.expires_in_h)) },
                         singleLine = true,
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.fillMaxWidth()
                     )
                 }
                 // Both bounds are required by the server — a link with no cap
@@ -408,9 +417,10 @@ private fun LinksTab(viewModel: AdminViewModel) {
 
 @Composable
 private fun LinkRow(link: OrganizationCreationTokenDto, viewModel: AdminViewModel) {
+    AuraCard {
     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(link.label ?: stringResource(com.beauty.app.R.string.untitled_link), fontSize = 14.sp)
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(link.label ?: stringResource(com.beauty.app.R.string.untitled_link), style = MaterialTheme.typography.titleMedium)
             Text(
                 buildString {
                     append(stringResource(com.beauty.app.R.string.link_usage, link.usesCount, link.maxUses, com.beauty.app.ui.i18n.localizedIsoDate(link.expiresAt)))
@@ -418,7 +428,7 @@ private fun LinkRow(link: OrganizationCreationTokenDto, viewModel: AdminViewMode
                     else if (link.isExhausted) append(" · " + stringResource(com.beauty.app.R.string.exhausted))
                 },
                 color = TextMuted,
-                fontSize = 12.sp
+                fontSize = 14.sp
             )
         }
         if (!link.isRevoked) {
@@ -427,4 +437,5 @@ private fun LinkRow(link: OrganizationCreationTokenDto, viewModel: AdminViewMode
             }
         }
     }
+}
 }

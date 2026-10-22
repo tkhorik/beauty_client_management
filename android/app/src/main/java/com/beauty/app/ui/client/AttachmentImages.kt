@@ -38,6 +38,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.beauty.app.data.BeautyRepository
 import com.beauty.app.data.api.VisitAttachmentDto
+import com.beauty.app.ui.theme.*
 import com.beauty.app.ui.theme.CardSurface
 import com.beauty.app.ui.theme.EmeraldStatus
 import com.beauty.app.ui.theme.RoseGoldPrimary
@@ -105,7 +106,7 @@ private fun rememberAttachmentImage(
 private fun tagColor(tag: String): Color = when (tag) {
     "BEFORE" -> RoseGoldPrimary
     "AFTER" -> EmeraldStatus
-    else -> Color.White
+    else -> Forest
 }
 
 /** The 100×100 tile the web client's visit timeline shows for each attachment. */
@@ -121,8 +122,8 @@ fun AttachmentThumbnail(
         Modifier
             .size(96.dp)
             .clip(RoundedCornerShape(10.dp))
-            .border(1.dp, Color(0x33E5B899), RoundedCornerShape(10.dp))
-            .background(Color(0xFF0F0E13))
+            .border(1.dp, Border, RoundedCornerShape(10.dp))
+            .background(Paper)
             .clickable(onClick = onClick)
     ) {
         when (load) {
@@ -137,7 +138,7 @@ fun AttachmentThumbnail(
                 strokeWidth = 2.dp,
                 color = RoseGoldPrimary
             )
-            ImageLoad.Failed -> Text(stringResource(com.beauty.app.R.string.unavailable), fontSize = 10.sp, color = TextMuted, modifier = Modifier.align(Alignment.Center))
+            ImageLoad.Failed -> Text(stringResource(com.beauty.app.R.string.unavailable), fontSize = 14.sp, color = TextMuted, modifier = Modifier.align(Alignment.Center))
         }
         PhotoLabel(if (attachment.tag == "BEFORE") stringResource(com.beauty.app.R.string.photo_before) else stringResource(com.beauty.app.R.string.photo_after), modifier = Modifier.align(Alignment.BottomStart).padding(4.dp), small = true, tag = attachment.tag)
     }
@@ -145,11 +146,11 @@ fun AttachmentThumbnail(
 
 @Composable
 private fun PhotoLabel(text: String, modifier: Modifier = Modifier, small: Boolean = false, tag: String = text) {
-    Surface(color = Color(0xCC000000), shape = RoundedCornerShape(if (small) 6.dp else 10.dp), modifier = modifier) {
+    Surface(color = WhiteCard.copy(alpha = 0.96f), shape = RoundedCornerShape(if (small) 6.dp else 10.dp), modifier = modifier) {
         Text(
             text,
             color = tagColor(tag),
-            fontSize = if (small) 9.sp else 11.sp,
+            fontSize = if (small) 12.sp else 14.sp,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(horizontal = if (small) 6.dp else 10.dp, vertical = 2.dp)
         )
@@ -166,6 +167,7 @@ internal fun pickComparePair(attachments: List<VisitAttachmentDto>): Pair<VisitA
     return before to after
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun PhotoCompareDialog(
     repository: BeautyRepository,
@@ -182,7 +184,7 @@ fun PhotoCompareDialog(
         Surface(
             color = CardSurface,
             shape = RoundedCornerShape(20.dp),
-            modifier = Modifier.fillMaxWidth(0.95f)
+            modifier = Modifier.widthIn(max = 760.dp).fillMaxWidth(0.95f).heightIn(max = 760.dp)
         ) {
             Column(
                 Modifier.padding(16.dp).verticalScroll(rememberScrollState()),
@@ -191,11 +193,11 @@ fun PhotoCompareDialog(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
                         Text(stringResource(com.beauty.app.R.string.before_after_comparison), color = RoseGoldPrimary, fontWeight = FontWeight.Bold, fontSize = 18.sp)
-                        Text(stringResource(com.beauty.app.R.string.side_by_side_slider_inspection), color = TextMuted, fontSize = 12.sp)
+                        Text(stringResource(com.beauty.app.R.string.side_by_side_slider_inspection), color = TextMuted, fontSize = 14.sp)
                     }
                     IconButton(onClick = onDismiss) { Icon(Icons.Default.Close, stringResource(com.beauty.app.R.string.close), tint = TextMuted) }
                 }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     FilterChip(selected = !sideBySide, onClick = { sideBySide = false }, label = { Text(stringResource(com.beauty.app.R.string.slider_split)) })
                     FilterChip(selected = sideBySide, onClick = { sideBySide = true }, label = { Text(stringResource(com.beauty.app.R.string.side_by_side)) })
                 }
@@ -209,9 +211,18 @@ fun PhotoCompareDialog(
                         }
                     beforeImage == null || afterImage == null ->
                         Text(stringResource(com.beauty.app.R.string.could_not_load_these_photos_check_your_connection_and_t), color = MaterialTheme.colorScheme.error)
-                    sideBySide -> Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        SidePhoto(beforeImage, "BEFORE", before?.caption ?: stringResource(com.beauty.app.R.string.before_procedure_baseline_photo), Modifier.weight(1f))
-                        SidePhoto(afterImage, "AFTER", after?.caption ?: stringResource(com.beauty.app.R.string.post_procedure_finished_result), Modifier.weight(1f))
+                    sideBySide -> BoxWithConstraints(Modifier.fillMaxWidth()) {
+                        if (maxWidth < 440.dp) {
+                            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                                SidePhoto(beforeImage, "BEFORE", before?.caption ?: stringResource(com.beauty.app.R.string.before_procedure_baseline_photo), Modifier.fillMaxWidth())
+                                SidePhoto(afterImage, "AFTER", after?.caption ?: stringResource(com.beauty.app.R.string.post_procedure_finished_result), Modifier.fillMaxWidth())
+                            }
+                        } else {
+                            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                SidePhoto(beforeImage, "BEFORE", before?.caption ?: stringResource(com.beauty.app.R.string.before_procedure_baseline_photo), Modifier.weight(1f))
+                                SidePhoto(afterImage, "AFTER", after?.caption ?: stringResource(com.beauty.app.R.string.post_procedure_finished_result), Modifier.weight(1f))
+                            }
+                        }
                     }
                     else -> SliderCompare(beforeImage, afterImage)
                 }
@@ -227,7 +238,7 @@ private fun SidePhoto(image: ImageBitmap, tag: String, caption: String, modifier
             Image(image, contentDescription = caption, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
             PhotoLabel(if (tag == "BEFORE") stringResource(com.beauty.app.R.string.photo_before) else stringResource(com.beauty.app.R.string.photo_after), modifier = Modifier.align(Alignment.TopStart).padding(8.dp), tag = tag)
         }
-        Text(caption, fontSize = 12.sp)
+        Text(caption, fontSize = 14.sp)
     }
 }
 
@@ -284,13 +295,13 @@ private fun SliderCompare(before: ImageBitmap, after: ImageBitmap) {
                     .clip(CircleShape)
                     .background(RoseGoldPrimary),
                 contentAlignment = Alignment.Center
-            ) { Text("↔", color = Color.Black, fontWeight = FontWeight.Bold) }
+            ) { Text("↔", color = WhiteCard, fontWeight = FontWeight.Bold) }
         }
         Slider(value = split, onValueChange = { split = it }, modifier = Modifier.fillMaxWidth())
         Text(
             stringResource(com.beauty.app.R.string.drag_across_the_photo_to_split_before_after_results),
             color = TextMuted,
-            fontSize = 12.sp,
+            fontSize = 14.sp,
             modifier = Modifier.align(Alignment.CenterHorizontally)
         )
     }

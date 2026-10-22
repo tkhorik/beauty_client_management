@@ -7,6 +7,8 @@ import android.app.DatePickerDialog
 import android.app.TimePickerDialog
 import android.net.Uri
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import com.beauty.app.ui.theme.*
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -112,7 +114,7 @@ fun ClientDetailScreen(
     val savedOnDevice = stringResource(com.beauty.app.R.string.saved_on_this_device)
     Scaffold(topBar = {
         TopAppBar(
-            title = { Text(client?.name ?: stringResource(com.beauty.app.R.string.client_details)) },
+            title = { Text(stringResource(com.beauty.app.R.string.client_details), style = MaterialTheme.typography.titleMedium) },
             navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, stringResource(com.beauty.app.R.string.back)) } },
             actions = {
                 IconButton(onClick = { viewModel.refresh(); SyncWorker.enqueue(context) }, enabled = !viewModel.loading) {
@@ -121,53 +123,48 @@ fun ClientDetailScreen(
             }
         )
     }) { padding ->
+        Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.TopCenter) {
         LazyColumn(
-            modifier = Modifier.fillMaxSize().padding(padding),
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            modifier = Modifier.widthIn(max = 760.dp).fillMaxSize().imePadding(),
+            contentPadding = PaddingValues(horizontal = 20.dp, vertical = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
             if (viewModel.loading) item { LinearProgressIndicator(Modifier.fillMaxWidth()) }
             if (client != null) {
                 item {
-                    Card(Modifier.fillMaxWidth()) {
-                        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(client.name, style = MaterialTheme.typography.headlineSmall, modifier = Modifier.weight(1f))
-                                Text(
-                                    pluralStringResource(com.beauty.app.R.plurals.total_visits, client.totalVisits, client.totalVisits),
-                                    color = RoseGoldPrimary,
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.SemiBold
-                                )
+                    AuraCard {
+                        Row(horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.Top) {
+                            Box(Modifier.size(56.dp).background(Sage, CircleShape), contentAlignment = Alignment.Center) {
+                                Text(client.name.trim().split(Regex("\\s+")).take(2).mapNotNull { it.firstOrNull() }.joinToString(""),
+                                    style = MaterialTheme.typography.titleLarge, color = Forest)
                             }
-                            Text(stringResource(com.beauty.app.R.string.phone_value, client.phone))
-                            client.email?.takeIf { it.isNotBlank() }?.let { Text(stringResource(com.beauty.app.R.string.email_value, it)) }
-                            val tags = remember(client.tagsJson) { decodeTags(client.tagsJson) }
-                            if (tags.isNotEmpty()) FlowRow(
-                                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                verticalArrangement = Arrangement.spacedBy(6.dp)
-                            ) { tags.forEach { TagBadge(it) } }
-                            // The main action first and full width; edit and delete
-                            // share a row beneath it, delete marked as destructive.
-                            Button(onClick = openVisit, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
-                                Text(stringResource(com.beauty.app.R.string.log_new_visit), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Text(client.name, style = MaterialTheme.typography.headlineMedium)
+                                Text(pluralStringResource(com.beauty.app.R.plurals.total_visits, client.totalVisits, client.totalVisits),
+                                    color = Muted, style = MaterialTheme.typography.bodyMedium)
                             }
-                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                OutlinedButton(onClick = onEdit, modifier = Modifier.weight(1f)) {
-                                    Text(stringResource(com.beauty.app.R.string.edit_client), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                }
-                                OutlinedButton(
-                                    onClick = { confirmDelete = true },
-                                    enabled = !viewModel.deleting,
-                                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.5f)),
-                                    colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
-                                    modifier = Modifier.weight(1f)
-                                ) {
-                                    Text(stringResource(com.beauty.app.R.string.delete_client), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                }
-                            }
-                            viewModel.deleteError?.let { Text(localizedMessage(it), color = MaterialTheme.colorScheme.error) }
                         }
+                        Text(stringResource(com.beauty.app.R.string.phone_value, client.phone), style = MaterialTheme.typography.bodyLarge)
+                        client.email?.takeIf { it.isNotBlank() }?.let {
+                            Text(stringResource(com.beauty.app.R.string.email_value, it), color = Muted, style = MaterialTheme.typography.bodyMedium)
+                        }
+                        val tags = remember(client.tagsJson) { decodeTags(client.tagsJson) }
+                        if (tags.isNotEmpty()) {
+                            FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                tags.forEach { TagBadge(it) }
+                            }
+                        }
+                        Button(onClick = openVisit, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) {
+                            Text(stringResource(com.beauty.app.R.string.log_new_visit))
+                        }
+                        OutlinedButton(onClick = onEdit, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+                            Text(stringResource(com.beauty.app.R.string.edit_client))
+                        }
+                        TextButton(onClick = { confirmDelete = true }, enabled = !viewModel.deleting,
+                            colors = ButtonDefaults.textButtonColors(contentColor = Danger), modifier = Modifier.align(Alignment.CenterHorizontally).heightIn(min = 48.dp)) {
+                            Text(stringResource(com.beauty.app.R.string.delete_client))
+                        }
+                        viewModel.deleteError?.let { Text(localizedMessage(it), color = MaterialTheme.colorScheme.error) }
                     }
                 }
                 item {
@@ -184,7 +181,7 @@ fun ClientDetailScreen(
                     )
                 }
             } else if (!viewModel.loading) item { Text(stringResource(com.beauty.app.R.string.ui2_this_client_is_no_longer_available_return_to_the_directory_and_re)) }
-            item { Text(stringResource(com.beauty.app.R.string.visit_history_procedure_timeline), style = MaterialTheme.typography.titleLarge) }
+            item { AuraPageHeader(stringResource(com.beauty.app.R.string.visit_history_procedure_timeline)) }
             if (savedMessage) item {
                 Text(stringResource(com.beauty.app.R.string.ui2_visit_saved_on_this_device_it_will_upload_when_connected), color = MaterialTheme.colorScheme.primary)
             }
@@ -204,7 +201,7 @@ fun ClientDetailScreen(
                     } else savedOnDevice, emptyList(), remoteVisitId = it.remoteId, localVisitId = it.id)
             }
             if (rows.isEmpty() && !viewModel.loading && viewModel.error == null) item {
-                Card(Modifier.fillMaxWidth()) {
+                Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(24.dp), colors = CardDefaults.cardColors(containerColor = WhiteCard), border = BorderStroke(1.dp, Border)) {
                     Column(
                         Modifier.fillMaxWidth().padding(24.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
@@ -216,17 +213,20 @@ fun ClientDetailScreen(
                 }
             }
             items(rows.sortedByDescending { it.dateTime }, key = { it.key }) { row ->
-                Card(Modifier.fillMaxWidth()) {
-                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Text(formatVisitDate(row.dateTime), fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f, fill = false))
+                Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(24.dp), colors = CardDefaults.cardColors(containerColor = WhiteCard), border = BorderStroke(1.dp, Border)) {
+                    Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        FlowRow(verticalArrangement = Arrangement.spacedBy(8.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            Text(formatVisitDate(row.dateTime), style = MaterialTheme.typography.titleMedium)
                             VisitStatusBadge(row.status)
                         }
-                        Text(pluralStringResource(com.beauty.app.R.plurals.visit_duration, row.duration, row.duration), color = TextMuted, fontSize = 12.sp)
-                        Text(row.notes)
+                        Text(pluralStringResource(com.beauty.app.R.plurals.visit_duration, row.duration, row.duration), color = TextMuted, fontSize = 14.sp)
+                        if (row.notes.isNotBlank()) {
+                            HorizontalDivider(color = Border)
+                            Text(row.notes, style = MaterialTheme.typography.bodyLarge)
+                        }
                         row.syncLabel?.let { Text(it, color = MaterialTheme.colorScheme.primary) }
                         if (row.attachments.isNotEmpty()) {
-                            Text(pluralStringResource(com.beauty.app.R.plurals.attachments_count, row.attachments.size, row.attachments.size), color = TextMuted, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                            Text(pluralStringResource(com.beauty.app.R.plurals.attachments_count, row.attachments.size, row.attachments.size), color = TextMuted, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
                             FlowRow(
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -243,7 +243,7 @@ fun ClientDetailScreen(
                         }
                         if (viewModel.addingPhotoTo == row.key) {
                             LinearProgressIndicator(Modifier.fillMaxWidth())
-                            Text(stringResource(com.beauty.app.R.string.uploading_photo), color = TextMuted, fontSize = 12.sp)
+                            Text(stringResource(com.beauty.app.R.string.uploading_photo), color = TextMuted, fontSize = 14.sp)
                         } else {
                             OutlinedButton(
                                 enabled = viewModel.addingPhotoTo == null,
@@ -258,13 +258,14 @@ fun ClientDetailScreen(
                             Text(
                                 localizedMessage(code),
                                 color = if (code == "PHOTO_SAVED_UPLOAD_PENDING") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
-                                fontSize = 12.sp
+                                fontSize = 14.sp
                             )
                         }
                     }
                 }
             }
         }
+    }
     }
     if (showVisitForm) {
         VisitForm(
@@ -316,6 +317,7 @@ fun ClientDetailScreen(
  * written elsewhere is not silently turned into a string by an unrelated edit.
  * New and edited values are strings, as on the web.
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun AttributesCard(
     customFieldsJson: String,
@@ -332,10 +334,10 @@ private fun AttributesCard(
     val editing = editor.rows != null
     val draft = editor.rows.orEmpty()
 
-    Card(Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(stringResource(com.beauty.app.R.string.custom_client_attributes), fontWeight = FontWeight.Bold, color = RoseGoldPrimary, modifier = Modifier.weight(1f))
+    Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(24.dp), colors = CardDefaults.cardColors(containerColor = WhiteCard), border = BorderStroke(1.dp, Border)) {
+        Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(stringResource(com.beauty.app.R.string.workspace_client_details), style = MaterialTheme.typography.titleLarge)
                 if (!editing) {
                     TextButton(onClick = onStartEditing) { Text(stringResource(com.beauty.app.R.string.edit_attributes)) }
                 }
@@ -357,7 +359,7 @@ private fun AttributesCard(
                     Text(stringResource(com.beauty.app.R.string.add_attribute))
                 }
                 (editor.error ?: error)?.let { Text(localizedMessage(it), color = MaterialTheme.colorScheme.error, fontSize = 13.sp) }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(enabled = !saving, onClick = {
                         val named = draft.filter { it.key.isNotBlank() }
                         val duplicate = named.groupingBy { it.key.trim() }.eachCount().entries.firstOrNull { it.value > 1 }?.key
@@ -378,10 +380,10 @@ private fun AttributesCard(
                     Column(
                         Modifier
                             .fillMaxWidth()
-                            .border(1.dp, Color(0x33E5B899), RoundedCornerShape(10.dp))
+                            .border(1.dp, Border, RoundedCornerShape(10.dp))
                             .padding(horizontal = 14.dp, vertical = 10.dp)
                     ) {
-                        Text(key.uppercase(), color = TextMuted, fontSize = 11.sp)
+                        Text(key, color = Muted, style = MaterialTheme.typography.bodySmall)
                         Text(displayValue(value), fontWeight = FontWeight.SemiBold)
                     }
                 }
@@ -417,7 +419,7 @@ private fun AddVisitPhotoDialog(
         title = { Text(stringResource(com.beauty.app.R.string.add_photo_to_visit)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text(stringResource(com.beauty.app.R.string.photo_type), color = TextMuted, fontSize = 12.sp)
+                Text(stringResource(com.beauty.app.R.string.photo_type), color = TextMuted, fontSize = 14.sp)
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     listOf(
                         "BEFORE" to com.beauty.app.R.string.photo_tag_before,
@@ -470,8 +472,8 @@ private fun VisitForm(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(com.beauty.app.R.string.log_procedure_visit_entry)) },
         text = {
-            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text(stringResource(com.beauty.app.R.string.date_time), color = TextMuted, fontSize = 12.sp)
+            Column(Modifier.imePadding().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Text(stringResource(com.beauty.app.R.string.date_time), color = TextMuted, fontSize = 14.sp)
                 Text(SimpleDateFormat("d MMM yyyy, HH:mm", Locale.getDefault()).format(Date(timestamp)), fontWeight = FontWeight.SemiBold)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -505,11 +507,11 @@ private fun VisitForm(
                     label = { Text(stringResource(com.beauty.app.R.string.duration_mins)) }, singleLine = true,
                     supportingText = { Text(stringResource(com.beauty.app.R.string.in_15_minute_steps)) },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
-                Text(stringResource(com.beauty.app.R.string.visit_status), color = TextMuted, fontSize = 12.sp)
+                Text(stringResource(com.beauty.app.R.string.visit_status), color = TextMuted, fontSize = 14.sp)
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     listOf("COMPLETED", "SCHEDULED", "CANCELLED").forEach { option ->
                         FilterChip(selected = status == option, onClick = { status = option }, enabled = !saving,
-                            label = { Text(com.beauty.app.ui.i18n.statusLabel(option), fontSize = 12.sp) })
+                            label = { Text(com.beauty.app.ui.i18n.statusLabel(option), fontSize = 14.sp) })
                     }
                 }
                 OutlinedTextField(value = notes, onValueChange = { notes = it }, enabled = !saving,
@@ -518,10 +520,10 @@ private fun VisitForm(
                     minLines = 3)
                 error?.let { Text(localizedMessage(it), color = MaterialTheme.colorScheme.error) }
                 Text(stringResource(com.beauty.app.R.string.attach_procedure_media_compressed_before_upload), fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    PhotoSlot("BEFORE", RoseGoldPrimary, before, !saving, Modifier.weight(1f),
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    PhotoSlot("BEFORE", RoseGoldPrimary, before, !saving, Modifier.fillMaxWidth(),
                         source = beforeSource, onRemove = { before = null })
-                    PhotoSlot("AFTER", EmeraldStatus, after, !saving, Modifier.weight(1f),
+                    PhotoSlot("AFTER", EmeraldStatus, after, !saving, Modifier.fillMaxWidth(),
                         source = afterSource, onRemove = { after = null })
                 }
             }
@@ -559,37 +561,37 @@ private fun PhotoSlot(
     }
     Column(
         modifier
-            .border(1.dp, Color(0x33E5B899), RoundedCornerShape(12.dp))
+            .border(1.dp, Border, RoundedCornerShape(12.dp))
             .padding(8.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
-        Text(stringResource(com.beauty.app.R.string.photo_before) .let { if (tag == "BEFORE") it else stringResource(com.beauty.app.R.string.photo_after) }, color = color, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+        Text(stringResource(com.beauty.app.R.string.photo_before) .let { if (tag == "BEFORE") it else stringResource(com.beauty.app.R.string.photo_after) }, color = color, fontSize = 13.sp, fontWeight = FontWeight.Bold)
         if (uri == null) {
             Column(
-                Modifier.fillMaxWidth().height(96.dp),
+                Modifier.fillMaxWidth().heightIn(min = 112.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
                 if (source.cameraAvailable) TextButton(onClick = source::takePhoto, enabled = enabled) {
                     Icon(Icons.Default.PhotoCamera, null, Modifier.size(18.dp), tint = color)
                     Spacer(Modifier.width(6.dp))
-                    Text(stringResource(com.beauty.app.R.string.photo_source_camera), fontSize = 12.sp)
+                    Text(stringResource(com.beauty.app.R.string.photo_source_camera), fontSize = 14.sp)
                 }
                 TextButton(onClick = source::pickFromGallery, enabled = enabled) {
                     Icon(Icons.Default.PhotoLibrary, null, Modifier.size(18.dp), tint = color)
                     Spacer(Modifier.width(6.dp))
-                    Text(stringResource(com.beauty.app.R.string.photo_source_gallery), fontSize = 12.sp)
+                    Text(stringResource(com.beauty.app.R.string.photo_source_gallery), fontSize = 14.sp)
                 }
             }
         } else {
-            Box(Modifier.fillMaxWidth().height(96.dp).clip(RoundedCornerShape(8.dp))) {
+            Box(Modifier.fillMaxWidth().heightIn(min = 112.dp).clip(RoundedCornerShape(8.dp))) {
                 preview?.let { Image(it, if (tag == "BEFORE") stringResource(com.beauty.app.R.string.preview_before_photo) else stringResource(com.beauty.app.R.string.preview_after_photo), Modifier.fillMaxSize(), contentScale = ContentScale.Crop) }
-                    ?: Text(stringResource(com.beauty.app.R.string.selected), fontSize = 11.sp, color = TextMuted, modifier = Modifier.align(Alignment.Center))
+                    ?: Text(stringResource(com.beauty.app.R.string.selected), fontSize = 13.sp, color = TextMuted, modifier = Modifier.align(Alignment.Center))
                 IconButton(
                     onClick = onRemove,
                     enabled = enabled,
-                    modifier = Modifier.align(Alignment.TopEnd).padding(4.dp).size(26.dp).clip(CircleShape)
+                    modifier = Modifier.align(Alignment.TopEnd).padding(4.dp).size(48.dp).clip(CircleShape)
                 ) {
                     Surface(color = Color(0xB3000000), shape = CircleShape) {
                         Icon(Icons.Default.Close, if (tag == "BEFORE") stringResource(com.beauty.app.R.string.remove_before_photo) else stringResource(com.beauty.app.R.string.remove_after_photo), tint = Color.White, modifier = Modifier.padding(4.dp).size(14.dp))
