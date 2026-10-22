@@ -1,6 +1,12 @@
 package com.beauty.app.ui.org
 
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.Role
+import androidx.compose.foundation.shape.RoundedCornerShape
+import com.beauty.app.ui.theme.*
 import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -48,7 +54,7 @@ import androidx.lifecycle.LifecycleEventObserver
  *   get on with their work. Absent when this screen *is* the app's current
  *   state because no organization exists yet.
  */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun OrganizationScreen(
     viewModel: OrganizationViewModel,
@@ -116,7 +122,7 @@ fun OrganizationScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(com.beauty.app.R.string.organizations), color = RoseGoldPrimary, fontWeight = FontWeight.Bold) },
+                title = { Text(stringResource(com.beauty.app.R.string.organizations), style = MaterialTheme.typography.titleMedium) },
                 navigationIcon = {
                     if (onDone != null) {
                         IconButton(onClick = onDone) {
@@ -141,10 +147,12 @@ fun OrganizationScreen(
             )
         }
     ) { padding ->
+        Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.TopCenter) {
         LazyColumn(
             state = listState,
-            modifier = Modifier.fillMaxSize().padding(padding).padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            modifier = Modifier.widthIn(max = 760.dp).fillMaxSize().imePadding(),
+            contentPadding = PaddingValues(horizontal = 20.dp, vertical = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             viewModel.error?.let { message ->
                 item { Banner(message, isError = true) }
@@ -179,7 +187,7 @@ fun OrganizationScreen(
                     Text(
                         "${org.name} — ${com.beauty.app.ui.i18n.statusLabel(org.status)}",
                         color = TextMuted,
-                        fontSize = 13.sp,
+                        fontSize = 14.sp,
                         modifier = Modifier.padding(vertical = 4.dp)
                     )
                 }
@@ -195,7 +203,7 @@ fun OrganizationScreen(
             // -- Join -------------------------------------------------------
             item { SectionTitle(stringResource(com.beauty.app.R.string.join_an_organization)) }
             item {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                AuraCard {
                     OutlinedTextField(
                         value = joinSlug,
                         onValueChange = { joinSlug = it },
@@ -217,14 +225,14 @@ fun OrganizationScreen(
             // onboarding. Verified links open this form; manual paste remains a fallback.
             item { SectionTitle(stringResource(com.beauty.app.R.string.create_an_organization)) }
             item {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                AuraCard {
                     when (viewModel.creationLinkStatus) {
                         OrganizationViewModel.CreationLinkStatus.NONE,
                         OrganizationViewModel.CreationLinkStatus.INVALID -> {
                             Text(
                                 stringResource(com.beauty.app.R.string.creation_link_help),
                                 color = TextMuted,
-                                fontSize = 13.sp
+                                fontSize = 14.sp
                             )
                             val invalid = viewModel.creationLinkStatus ==
                                 OrganizationViewModel.CreationLinkStatus.INVALID
@@ -257,7 +265,7 @@ fun OrganizationScreen(
                             ) { Text(stringResource(com.beauty.app.R.string.continue_action)) }
                         }
                         OrganizationViewModel.CreationLinkStatus.CHECKING ->
-                            Text(stringResource(com.beauty.app.R.string.checking_your_link), color = TextMuted, fontSize = 13.sp)
+                            Text(stringResource(com.beauty.app.R.string.checking_your_link), color = TextMuted, fontSize = 14.sp)
                         OrganizationViewModel.CreationLinkStatus.VALID -> {
                             val fieldErrors = viewModel.createFieldErrors
                             OutlinedTextField(
@@ -286,7 +294,7 @@ fun OrganizationScreen(
                                 },
                                 modifier = Modifier.fillMaxWidth()
                             )
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                 Button(
                                     onClick = {
                                         viewModel.createOrganization(newOrgName, newOrgSlug) {
@@ -343,11 +351,11 @@ fun OrganizationScreen(
                     Text(
                         stringResource(com.beauty.app.R.string.members_removal_help),
                         color = TextMuted,
-                        fontSize = 12.sp
+                        fontSize = 14.sp
                     )
                 }
                 item {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    AuraCard {
                         OutlinedTextField(
                             value = inviteEmail,
                             onValueChange = { inviteEmail = it },
@@ -398,7 +406,7 @@ fun OrganizationScreen(
             }
 
             item {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     TextButton(onClick = onLogout) { Text(stringResource(com.beauty.app.R.string.sign_out), color = TextMuted) }
                     if (viewModel.isSuperAdmin && onOpenAdmin != null) {
                         TextButton(onClick = onOpenAdmin) { Text(stringResource(com.beauty.app.R.string.admin_panel), color = RoseGoldPrimary) }
@@ -409,15 +417,13 @@ fun OrganizationScreen(
     }
 }
 
+}
+
 @Composable
 private fun SectionTitle(text: String) {
-    Text(
-        text,
-        color = RoseGoldPrimary,
-        fontWeight = FontWeight.Bold,
-        fontSize = 14.sp,
-        modifier = Modifier.padding(top = 12.dp)
-    )
+    Column(Modifier.padding(top = 16.dp, bottom = 4.dp)) {
+        Text(text, style = MaterialTheme.typography.headlineSmall, color = Forest)
+    }
 }
 
 @Composable
@@ -430,7 +436,7 @@ private fun Banner(message: String, isError: Boolean, localize: Boolean = true) 
         Text(
             if (localize) com.beauty.app.ui.i18n.localizedMessage(message) else message,
             modifier = Modifier.padding(12.dp),
-            fontSize = 13.sp,
+            fontSize = 14.sp,
             color = if (isError) MaterialTheme.colorScheme.onErrorContainer else TextMuted
         )
     }
@@ -438,17 +444,23 @@ private fun Banner(message: String, isError: Boolean, localize: Boolean = true) 
 
 @Composable
 private fun OrganizationRow(org: OrganizationDto, selected: Boolean, onSelect: () -> Unit) {
+    Surface(
+        color = if (selected) Sage else WhiteCard,
+        shape = RoundedCornerShape(20.dp),
+        border = BorderStroke(1.dp, if (selected) Forest else Border),
+        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).selectable(selected = selected, role = Role.RadioButton, onClick = onSelect)
+    ) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier.fillMaxWidth().padding(12.dp)
     ) {
-        RadioButton(selected = selected, onClick = onSelect)
+        RadioButton(selected = selected, onClick = null)
         Column(modifier = Modifier.weight(1f)) {
             Text(org.name, fontWeight = FontWeight.SemiBold)
             Text(
                 if (org.isAdmin) "${org.slug} · ${com.beauty.app.ui.i18n.roleLabel(org.role)}" else org.slug,
                 color = TextMuted,
-                fontSize = 12.sp
+                fontSize = 14.sp
             )
         }
         val pending = org.pendingRequestCount ?: 0
@@ -458,10 +470,12 @@ private fun OrganizationRow(org: OrganizationDto, selected: Boolean, onSelect: (
                 containerColor = RoseGoldPrimary,
                 modifier = Modifier.clearAndSetSemantics { contentDescription = description }
             ) {
-                Text(if (pending > 99) "99+" else pending.toString(), color = Color.Black)
+                Text(if (pending > 99) "99+" else pending.toString(), color = MaterialTheme.colorScheme.onPrimary)
             }
         }
     }
+}
+
 }
 
 /** "Declined — you may ask again after …", with the date in the device's locale. */
@@ -479,20 +493,21 @@ private fun declinedMessage(org: OrganizationDto): String {
  * The handle as a shareable link. Signing up through it files an access
  * request for an admin to approve; the link by itself grants nothing.
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun JoinLinkCard(slug: String) {
     val clipboard = LocalClipboardManager.current
     val link = remember(slug) { "${BuildConfig.APP_WEB_BASE_URL.trimEnd('/')}/?join=${Uri.encode(slug)}" }
     var copied by remember(slug) { mutableStateOf(false) }
-    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text(link, color = TextMuted, fontSize = 12.sp)
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+    AuraCard {
+        Text(link, color = TextMuted, fontSize = 14.sp)
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             OutlinedButton(onClick = { clipboard.setText(AnnotatedString(link)); copied = true }) {
                 Text(stringResource(com.beauty.app.R.string.org_copy_join_link))
             }
-            if (copied) Text(stringResource(com.beauty.app.R.string.org_join_link_copied), color = RoseGoldPrimary, fontSize = 12.sp)
+            if (copied) Text(stringResource(com.beauty.app.R.string.org_join_link_copied), color = RoseGoldPrimary, fontSize = 14.sp)
         }
-        Text(stringResource(com.beauty.app.R.string.org_join_link_hint), color = TextMuted, fontSize = 12.sp)
+        Text(stringResource(com.beauty.app.R.string.org_join_link_hint), color = TextMuted, fontSize = 14.sp)
     }
 }
 
@@ -520,8 +535,8 @@ private fun AuditRow(event: AuditEventDto) {
     }
     val time = localizedIsoDateTime(event.createdAt)
     Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
-        Text(text, fontSize = 13.sp)
-        Text(time, color = TextMuted, fontSize = 12.sp)
+        Text(text, fontSize = 14.sp)
+        Text(time, color = TextMuted, fontSize = 14.sp)
     }
 }
 
@@ -577,6 +592,7 @@ private fun InviteOfferDialog(
 }
 
 /** Generates single-use invite links and lists the unused ones for revoking. */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun InviteLinksCard(
     issuedUrl: String?,
@@ -587,14 +603,14 @@ private fun InviteLinksCard(
     val clipboard = LocalClipboardManager.current
     val context = androidx.compose.ui.platform.LocalContext.current
     var copied by remember(issuedUrl) { mutableStateOf(false) }
-    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text(stringResource(com.beauty.app.R.string.invite_links_hint), color = TextMuted, fontSize = 12.sp)
+    AuraCard {
+        Text(stringResource(com.beauty.app.R.string.invite_links_hint), color = TextMuted, fontSize = 14.sp)
         Button(onClick = onGenerate, colors = ButtonDefaults.buttonColors(containerColor = RoseGoldPrimary)) {
             Text(stringResource(com.beauty.app.R.string.invite_links_generate))
         }
         if (issuedUrl != null) {
-            Text(issuedUrl, color = TextMuted, fontSize = 12.sp)
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(issuedUrl, color = TextMuted, fontSize = 14.sp)
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedButton(onClick = { clipboard.setText(AnnotatedString(issuedUrl)); copied = true }) {
                     Text(stringResource(com.beauty.app.R.string.org_copy_join_link))
                 }
@@ -605,16 +621,16 @@ private fun InviteLinksCard(
                         .putExtra(android.content.Intent.EXTRA_TEXT, issuedUrl)
                     context.startActivity(android.content.Intent.createChooser(send, shareTitle))
                 }) { Text(shareTitle) }
-                if (copied) Text(stringResource(com.beauty.app.R.string.org_join_link_copied), color = RoseGoldPrimary, fontSize = 12.sp)
+                if (copied) Text(stringResource(com.beauty.app.R.string.org_join_link_copied), color = RoseGoldPrimary, fontSize = 14.sp)
             }
-            Text(stringResource(com.beauty.app.R.string.invite_links_shown_once), color = TextMuted, fontSize = 12.sp)
+            Text(stringResource(com.beauty.app.R.string.invite_links_shown_once), color = TextMuted, fontSize = 14.sp)
         }
         links.forEach { link ->
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                 Text(
                     stringResource(com.beauty.app.R.string.invite_links_expires, link.createdByName, localizedIsoDateTime(link.expiresAt)),
                     color = TextMuted,
-                    fontSize = 12.sp,
+                    fontSize = 14.sp,
                     modifier = Modifier.weight(1f)
                 )
                 TextButton(onClick = { onRevoke(link.id) }) {

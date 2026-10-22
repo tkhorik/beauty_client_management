@@ -1,0 +1,8 @@
+<resources>
+    <string name="redesign_login_title">Больше заботы.\nМеньше рутины.</string>
+    <string name="redesign_login_intro">Клиенты, визиты и важные детали — бережно собраны в одном месте.</string>
+    <string name="redesign_register_intro">Создайте пространство для своей работы. Начнём с нескольких деталей.</string>
+    <string name="redesign_auth_footer">Для тех, кто каждый день создаёт красоту.</string>
+    <string name="redesign_settings_intro">Детали, с которыми это пространство становится вашим.</string>
+    <string name="redesign_about_intro">Спокойное пространство для ежедневной работы.</string>
+</resources>

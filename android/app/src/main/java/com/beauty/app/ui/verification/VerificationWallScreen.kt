@@ -1,33 +1,20 @@
 package com.beauty.app.ui.verification
 
 import androidx.compose.ui.res.stringResource
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Email
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.beauty.app.data.BeautyRepository
-import com.beauty.app.ui.theme.DarkObsidian
-import com.beauty.app.ui.theme.CardSurface
-import com.beauty.app.ui.theme.RoseGoldPrimary
-import com.beauty.app.ui.theme.TextLight
-import com.beauty.app.ui.theme.TextMuted
+import com.beauty.app.ui.theme.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -83,134 +70,93 @@ fun VerificationWallScreen(
         }
     }
 
-    Box(
+    AuraAuthLayout(
+        title = stringResource(com.beauty.app.R.string.confirm_your_email),
+        accountId = com.beauty.app.AppContainer.tokenStore(androidx.compose.ui.platform.LocalContext.current).getAccountId(),
         modifier = modifier
-            .fillMaxSize()
-            .background(DarkObsidian),
-        contentAlignment = Alignment.Center
     ) {
-        Column(
-            modifier = Modifier
-                .verticalScroll(rememberScrollState())
-                .padding(24.dp)
-                .clip(RoundedCornerShape(16.dp))
-                .background(CardSurface)
-                .padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            com.beauty.app.ui.i18n.LanguageSelector(
-                accountId = com.beauty.app.AppContainer.tokenStore(androidx.compose.ui.platform.LocalContext.current).getAccountId(),
-                modifier = Modifier.fillMaxWidth()
-            )
-            Spacer(Modifier.height(16.dp))
-            Icon(
-                Icons.Default.Email,
-                contentDescription = null,
-                tint = RoseGoldPrimary,
-                modifier = Modifier.size(40.dp)
-            )
+        Text(
+            stringResource(com.beauty.app.R.string.ui2_your_account_is_ready_it_just_needs_a_confirmed_email_address_bef),
+            color = Muted,
+            fontSize = 13.sp,
+            textAlign = TextAlign.Start
+        )
 
-            Spacer(Modifier.height(16.dp))
-
-            Text(
-                stringResource(com.beauty.app.R.string.confirm_your_email),
-                color = TextLight,
-                fontWeight = FontWeight.Bold,
-                fontSize = 20.sp,
-                textAlign = TextAlign.Center
-            )
-
-            Spacer(Modifier.height(8.dp))
-
-            Text(
-                stringResource(com.beauty.app.R.string.ui2_your_account_is_ready_it_just_needs_a_confirmed_email_address_bef),
-                color = TextMuted,
-                fontSize = 13.sp,
-                textAlign = TextAlign.Center
-            )
-
-            Spacer(Modifier.height(16.dp))
-
-            Text(stringResource(com.beauty.app.R.string.ui2_we_sent_a_confirmation_link_to), color = TextMuted, fontSize = 13.sp)
+        Column {
+            Text(stringResource(com.beauty.app.R.string.ui2_we_sent_a_confirmation_link_to), color = Muted, fontSize = 13.sp)
             Text(
                 email ?: stringResource(com.beauty.app.R.string.your_address),
-                color = TextLight,
+                color = Forest,
                 fontWeight = FontWeight.Bold,
-                fontSize = 14.sp,
-                textAlign = TextAlign.Center
+                fontSize = 16.sp,
+                textAlign = TextAlign.Start
             )
+        }
 
-            Spacer(Modifier.height(12.dp))
+        // The single most useful sentence on the screen: spam is where
+        // confirmation mail goes, and it is the one cause the user can fix
+        // without contacting anyone.
+        Text(
+            stringResource(com.beauty.app.R.string.verification_wall_help),
+            color = Muted,
+            fontSize = 13.sp,
+            textAlign = TextAlign.Start
+        )
 
-            // The single most useful sentence on the screen: spam is where
-            // confirmation mail goes, and it is the one cause the user can fix
-            // without contacting anyone.
+        status?.let {
+            Text(com.beauty.app.ui.i18n.verificationMessage(it), color = Forest, fontSize = 13.sp, textAlign = TextAlign.Start)
+        }
+
+        // The re-check is the primary action, not the resend. Most people
+        // reaching this screen have already had the mail and are coming
+        // back after clicking it; offering "send another" first would spend
+        // a rate-limit slot on a problem they no longer have.
+        Button(
+            onClick = {
+                scope.launch {
+                    checking = true
+                    onRecheck()
+                    checking = false
+                    status = "RESOURCE:ui2_still_unconfirmed_open_the_link_then_try_again"
+                }
+            },
+            enabled = !checking,
+            colors = ButtonDefaults.buttonColors(containerColor = Forest),
+            modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)
+        ) {
+            Text(if (checking) stringResource(com.beauty.app.R.string.checking) else stringResource(com.beauty.app.R.string.ui2_i_ve_confirmed_my_email))
+        }
+
+        OutlinedButton(
+            onClick = {
+                scope.launch {
+                    onResend()
+                        .onSuccess {
+                            status = "RESOURCE:ui2_new_link_sent_it_can_take_a_minute_to_arrive"
+                            cooldownUntil = System.currentTimeMillis() + RESEND_COOLDOWN_MS
+                        }
+                        .onFailure {
+                            status = "RESOURCE:ui2_couldn_t_send_the_link_check_your_connection"
+                        }
+                }
+            },
+            enabled = !coolingDown,
+            modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)
+        ) {
             Text(
-                stringResource(com.beauty.app.R.string.verification_wall_help),
-                color = TextMuted,
-                fontSize = 13.sp,
-                textAlign = TextAlign.Center
+                if (coolingDown) stringResource(com.beauty.app.R.string.link_sent) else stringResource(com.beauty.app.R.string.send_the_link_again),
+                color = if (coolingDown) Muted else Forest
             )
+        }
 
-            status?.let {
-                Spacer(Modifier.height(12.dp))
-                Text(com.beauty.app.ui.i18n.verificationMessage(it), color = RoseGoldPrimary, fontSize = 13.sp, textAlign = TextAlign.Center)
-            }
-
-            Spacer(Modifier.height(20.dp))
-
-            // The re-check is the primary action, not the resend. Most people
-            // reaching this screen have already had the mail and are coming
-            // back after clicking it; offering "send another" first would spend
-            // a rate-limit slot on a problem they no longer have.
-            Button(
-                onClick = {
-                    scope.launch {
-                        checking = true
-                        onRecheck()
-                        checking = false
-                        status = "RESOURCE:ui2_still_unconfirmed_open_the_link_then_try_again"
-                    }
-                },
-                enabled = !checking,
-                colors = ButtonDefaults.buttonColors(containerColor = RoseGoldPrimary),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(if (checking) stringResource(com.beauty.app.R.string.checking) else stringResource(com.beauty.app.R.string.ui2_i_ve_confirmed_my_email))
-            }
-
-            Spacer(Modifier.height(10.dp))
-
-            OutlinedButton(
-                onClick = {
-                    scope.launch {
-                        onResend()
-                            .onSuccess {
-                                status = "RESOURCE:ui2_new_link_sent_it_can_take_a_minute_to_arrive"
-                                cooldownUntil = System.currentTimeMillis() + RESEND_COOLDOWN_MS
-                            }
-                            .onFailure {
-                                status = "RESOURCE:ui2_couldn_t_send_the_link_check_your_connection"
-                            }
-                    }
-                },
-                enabled = !coolingDown,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(
-                    if (coolingDown) stringResource(com.beauty.app.R.string.link_sent) else stringResource(com.beauty.app.R.string.send_the_link_again),
-                    color = if (coolingDown) TextMuted else RoseGoldPrimary
-                )
-            }
-
-            // The way out for someone who registered with a typo. Without it
-            // the only remedy is reinstalling the app, and the address shown
-            // above is exactly what tells them they need one.
-            TextButton(onClick = onLogout) {
-                Text(stringResource(com.beauty.app.R.string.wrong_address_sign_out), color = TextMuted, fontSize = 13.sp)
-            }
+        // The way out for someone who registered with a typo. Without it
+        // the only remedy is reinstalling the app, and the address shown
+        // above is exactly what tells them they need one.
+        TextButton(onClick = onLogout) {
+            Text(stringResource(com.beauty.app.R.string.wrong_address_sign_out), color = Muted, fontSize = 13.sp)
         }
     }
+
 }
 
 /**

@@ -4,6 +4,7 @@ import androidx.compose.ui.res.pluralStringResource
 import com.beauty.app.ui.i18n.localizedMessage
 import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -12,6 +13,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
+import com.beauty.app.ui.theme.*
 import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronRight
@@ -28,6 +31,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -46,7 +50,7 @@ import com.beauty.app.ui.theme.RoseGoldPrimary
 import com.beauty.app.ui.theme.TextMuted
 import com.beauty.app.ui.verification.VerificationBanner
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterialApi::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterialApi::class, ExperimentalLayoutApi::class)
 @Composable
 fun ClientDirectoryScreen(
     viewModel: ClientDirectoryViewModel,
@@ -87,8 +91,8 @@ fun ClientDirectoryScreen(
     Scaffold(topBar = {
         TopAppBar(title = {
             Column {
-                Text(stringResource(com.beauty.app.R.string.aura_beauty_log), style = MaterialTheme.typography.titleLarge)
-                Text(organizationName, style = MaterialTheme.typography.labelMedium)
+                Text(stringResource(com.beauty.app.R.string.aura_beauty_log), style = MaterialTheme.typography.titleMedium)
+                Text(organizationName, style = MaterialTheme.typography.bodySmall, color = TextMuted)
             }
         }, actions = {
             IconButton(onClick = refresh, enabled = !viewModel.refreshing) { Icon(Icons.Default.Refresh, stringResource(com.beauty.app.R.string.refresh_clients)) }
@@ -105,7 +109,7 @@ fun ClientDirectoryScreen(
                         text = { Text(stringResource(com.beauty.app.R.string.organizations_members)) },
                         trailingIcon = if (pendingRequestCount > 0) ({
                             Badge(containerColor = RoseGoldPrimary) {
-                                Text(if (pendingRequestCount > 99) "99+" else pendingRequestCount.toString(), color = Color.Black)
+                                Text(if (pendingRequestCount > 99) "99+" else pendingRequestCount.toString(), color = MaterialTheme.colorScheme.onPrimary)
                             }
                         }) else null,
                         onClick = { menu = false; onOrganizations() }
@@ -114,7 +118,7 @@ fun ClientDirectoryScreen(
                     if (onAdmin != null) DropdownMenuItem(text = { Text(stringResource(com.beauty.app.R.string.admin_panel)) }, onClick = { menu = false; onAdmin() })
                     DropdownMenuItem(
                         text = { Text(stringResource(com.beauty.app.R.string.about)) },
-                        trailingIcon = if (hasActiveUpdate) ({ Badge(containerColor = RoseGoldPrimary) { Text(stringResource(com.beauty.app.R.string.new_badge), color = Color.Black) } }) else null,
+                        trailingIcon = if (hasActiveUpdate) ({ Badge(containerColor = RoseGoldPrimary) { Text(stringResource(com.beauty.app.R.string.new_badge), color = MaterialTheme.colorScheme.onPrimary) } }) else null,
                         onClick = { menu = false; onAbout() }
                     )
                     HorizontalDivider()
@@ -124,7 +128,7 @@ fun ClientDirectoryScreen(
         })
     }) { padding ->
         Box(Modifier.fillMaxSize().padding(padding).pullRefresh(pull)) {
-            LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxSize()) {
+            LazyColumn(contentPadding = PaddingValues(horizontal = 20.dp, vertical = 24.dp), verticalArrangement = Arrangement.spacedBy(16.dp), modifier = Modifier.widthIn(max = 760.dp).fillMaxSize().align(Alignment.TopCenter)) {
                 item { VerificationBanner(repository = repository) }
                 if (hasActiveUpdate) {
                     item {
@@ -135,22 +139,36 @@ fun ClientDirectoryScreen(
                     }
                 }
                 item {
-                    // Equal halves left "Записать посещение" wrapping onto two lines
-                    // in a taller pill. The longer label sizes its own button and
-                    // "New client" takes the rest, so both stay one line high.
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Button(
-                            onClick = onNewClient,
-                            enabled = !viewModel.blocked,
-                            contentPadding = HeaderButtonPadding,
-                            modifier = Modifier.weight(1f).heightIn(min = 48.dp)
-                        ) { Text(stringResource(com.beauty.app.R.string.new_client), maxLines = 1, overflow = TextOverflow.Ellipsis) }
-                        OutlinedButton(
-                            onClick = { chooseClient = true },
-                            enabled = !viewModel.blocked,
-                            contentPadding = HeaderButtonPadding,
-                            modifier = Modifier.heightIn(min = 48.dp)
-                        ) { Text(stringResource(com.beauty.app.R.string.log_visit), maxLines = 1, overflow = TextOverflow.Ellipsis) }
+                    AuraPageHeader(
+                        title = stringResource(com.beauty.app.R.string.workspace_clients),
+                        subtitle = stringResource(com.beauty.app.R.string.workspace_clients_subtitle)
+                    )
+                    Spacer(Modifier.height(20.dp))
+                    val fontScale = LocalDensity.current.fontScale
+                    BoxWithConstraints(Modifier.fillMaxWidth()) {
+                        if (maxWidth >= 340.dp && fontScale <= 1.15f) {
+                            Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Button(onClick = onNewClient, enabled = !viewModel.blocked,
+                                    modifier = Modifier.weight(1f).fillMaxHeight().heightIn(min = 52.dp)) {
+                                    Text(stringResource(com.beauty.app.R.string.new_client))
+                                }
+                                OutlinedButton(onClick = { chooseClient = true }, enabled = !viewModel.blocked,
+                                    modifier = Modifier.weight(1f).fillMaxHeight().heightIn(min = 52.dp)) {
+                                    Text(stringResource(com.beauty.app.R.string.log_visit))
+                                }
+                            }
+                        } else {
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Button(onClick = onNewClient, enabled = !viewModel.blocked,
+                                    modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) {
+                                    Text(stringResource(com.beauty.app.R.string.new_client))
+                                }
+                                OutlinedButton(onClick = { chooseClient = true }, enabled = !viewModel.blocked,
+                                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+                                    Text(stringResource(com.beauty.app.R.string.log_visit))
+                                }
+                            }
+                        }
                     }
                 }
                 item {
@@ -171,7 +189,7 @@ fun ClientDirectoryScreen(
                 }
                 item {
                     Row(
-                        Modifier.bleed(16.dp).horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp),
+                        Modifier.bleed(20.dp).horizontalScroll(rememberScrollState()).padding(horizontal = 20.dp),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         FilterChip(selected = viewModel.tag.isEmpty(), onClick = { viewModel.updateTag("") }, label = { Text(stringResource(com.beauty.app.R.string.all)) })
@@ -192,7 +210,8 @@ fun ClientDirectoryScreen(
                 }
                 if (viewModel.searching || viewModel.refreshing) item { LinearProgressIndicator(Modifier.fillMaxWidth()) }
                 item {
-                    Text(stringResource(com.beauty.app.R.string.client_directory_count, viewModel.filtered.size), style = MaterialTheme.typography.titleMedium)
+                    Text(stringResource(com.beauty.app.R.string.client_directory_count, viewModel.filtered.size), style = MaterialTheme.typography.titleLarge)
+                    Spacer(Modifier.height(6.dp))
                     Text(
                         viewModel.message?.let { localizedMessage(it) } ?: if (viewModel.lastRefresh == 0L) stringResource(com.beauty.app.R.string.loading_saved_clients) else stringResource(com.beauty.app.R.string.synced_with_web),
                         color = if (viewModel.message != null) MaterialTheme.colorScheme.error else TextMuted,
@@ -243,87 +262,63 @@ fun ClientDirectoryScreen(
 private fun ClientCard(client: ClientEntity, logVisitEnabled: Boolean, onClick: () -> Unit, onLogVisit: () -> Unit) {
     val tags = remember(client.tagsJson) { decodeTags(client.tagsJson) }
     val attributes = remember(client.customFieldsJson) { attributeSummary(client.customFieldsJson) }
-    // Card(onClick) rather than Modifier.clickable, so the ripple is clipped
-    // to the rounded shape instead of flashing a rectangle.
     Card(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(containerColor = CardSurface),
-        border = BorderStroke(1.dp, Color(0x14FFFFFF))
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(containerColor = WhiteCard),
+        border = BorderStroke(1.dp, Border)
     ) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Row(verticalAlignment = Alignment.Top) {
-                Column(Modifier.weight(1f)) {
-                    Text(client.name, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Icon(Icons.Default.Phone, null, tint = TextMuted, modifier = Modifier.size(14.dp))
-                        Text(client.phone, color = TextMuted, fontSize = 13.sp)
-                    }
+        Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Box(Modifier.size(48.dp).background(Sage, CircleShape), contentAlignment = Alignment.Center) {
+                    Text(remember(client.name) { initials(client.name) },
+                        color = Forest, style = MaterialTheme.typography.titleMedium)
                 }
-                Spacer(Modifier.width(8.dp))
-                Surface(color = Color(0x1AE5B899), shape = RoundedCornerShape(12.dp)) {
-                    Text(
-                        pluralStringResource(com.beauty.app.R.plurals.visits_count, client.totalVisits, client.totalVisits),
-                        color = RoseGoldPrimary,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
-                    )
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                    Text(client.name, style = MaterialTheme.typography.titleLarge)
+                    Text(client.phone, color = Muted, style = MaterialTheme.typography.bodyMedium)
                 }
+                Icon(Icons.Default.ChevronRight, null, tint = Muted, modifier = Modifier.size(20.dp))
             }
-            if (tags.isNotEmpty()) FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp)
-            ) { tags.forEach { TagBadge(it) } }
+            if (tags.isNotEmpty()) FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                tags.forEach { TagBadge(it) }
+            }
             if (attributes.isNotEmpty()) {
-                Column(
-                    Modifier
-                        .fillMaxWidth()
-                        .border(1.dp, Color(0x33E5B899), RoundedCornerShape(10.dp))
-                        .padding(horizontal = 12.dp, vertical = 8.dp),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Icon(Icons.Outlined.Info, null, tint = RoseGoldPrimary, modifier = Modifier.size(12.dp))
-                        Text(stringResource(com.beauty.app.R.string.custom_specs_attributes), color = RoseGoldPrimary, fontSize = 10.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 0.5.sp)
-                    }
-                    // Value right-aligned against the edge, as on the web card.
-                    attributes.forEach { (key, value) ->
-                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            Text("$key:", color = TextMuted, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
-                            Text(
-                                value,
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Medium,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                textAlign = TextAlign.End,
-                                modifier = Modifier.weight(1f)
-                            )
+                Surface(color = Paper, shape = RoundedCornerShape(16.dp)) {
+                    Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                        Text(stringResource(com.beauty.app.R.string.workspace_client_details), color = Muted, style = MaterialTheme.typography.labelMedium)
+                        attributes.forEach { (key, value) ->
+                            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                Text(key, color = Muted, style = MaterialTheme.typography.bodySmall)
+                                Text(value, color = Forest, style = MaterialTheme.typography.bodyMedium, maxLines = 3, overflow = TextOverflow.Ellipsis)
+                            }
                         }
                     }
                 }
             }
-            HorizontalDivider(color = Color(0x0DFFFFFF))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(stringResource(com.beauty.app.R.string.updated_date, formatUpdatedDate(client.updatedAt)), color = TextMuted, fontSize = 12.sp, modifier = Modifier.weight(1f))
-                Spacer(Modifier.width(8.dp))
-                OutlinedButton(onClick = onLogVisit, enabled = logVisitEnabled, contentPadding = PaddingValues(start = 14.dp, end = 8.dp, top = 4.dp, bottom = 4.dp)) {
-                    Text(stringResource(com.beauty.app.R.string.log_visit), fontSize = 12.sp, maxLines = 1)
-                    Icon(Icons.Default.ChevronRight, null, modifier = Modifier.size(18.dp))
+            HorizontalDivider(color = Border)
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(pluralStringResource(com.beauty.app.R.plurals.visits_count, client.totalVisits, client.totalVisits),
+                        style = MaterialTheme.typography.labelLarge, color = Forest)
+                    Text(stringResource(com.beauty.app.R.string.updated_date, formatUpdatedDate(client.updatedAt)),
+                        color = Muted, style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f), textAlign = TextAlign.End)
+                }
+                OutlinedButton(onClick = onLogVisit, enabled = logVisitEnabled, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+                    Text(stringResource(com.beauty.app.R.string.log_visit))
+                    Spacer(Modifier.width(8.dp))
+                    Icon(Icons.Default.ChevronRight, null, Modifier.size(18.dp))
                 }
             }
         }
     }
 }
 
-private val HeaderButtonPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp)
-
 /**
  * Widens a horizontally scrolling row by [horizontal] on each side, under the
  * list's own content padding, so chips scroll out to the screen edge instead
- * of being cut off 16dp short of it.
+ * of being cut off short of it.
  */
 private fun Modifier.bleed(horizontal: Dp) = layout { measurable, constraints ->
     val extra = horizontal.roundToPx()

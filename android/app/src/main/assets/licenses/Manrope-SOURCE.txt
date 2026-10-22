@@ -1,0 +1,8 @@
+Manrope by Mikhail Sharanda and contributors. SIL Open Font License 1.1.
+Source: https://github.com/google/fonts/tree/main/ofl/manrope
+Font: https://raw.githubusercontent.com/google/fonts/main/ofl/manrope/Manrope%5Bwght%5D.ttf
+Downloaded: 2026-10-22
+Source SHA-256: 3ae11c49db0455a3cc33e37d380f20fdb8c7f8b41dc07625c177e3d87a9d6ae6
+Bundled static wght=400,500,600,700 instances generated with fontTools 4.60.1.
+Full source character set preserved, including Latin and Cyrillic (Ё/ё).
+No runtime font download.

@@ -8,6 +8,9 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.material3.MaterialTheme
+import com.beauty.app.ui.theme.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
@@ -34,7 +37,7 @@ import com.beauty.app.ui.theme.RoseGoldPrimary
 import com.beauty.app.ui.theme.TextLight
 import com.beauty.app.ui.theme.TextMuted
 
-private val TileBorder = Color(0x33E5B899)
+private val TileBorder = Border
 
 /**
  * One editable custom attribute, drawn like the read-only attribute tile: a
@@ -60,7 +63,7 @@ fun AttributeTile(
     Row(
         modifier
             .fillMaxWidth()
-            .border(1.dp, if (nameFocused || valueFocused) RoseGoldPrimary else TileBorder, RoundedCornerShape(10.dp))
+            .border(1.dp, if (nameFocused || valueFocused) RoseGoldPrimary else TileBorder, RoundedCornerShape(16.dp))
             .padding(start = 14.dp, top = 8.dp, bottom = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -71,7 +74,7 @@ fun AttributeTile(
                 placeholder = nameLabel,
                 enabled = enabled,
                 interaction = nameInteraction,
-                style = TextStyle(color = TextMuted, fontSize = 12.sp, letterSpacing = 0.5.sp)
+                style = MaterialTheme.typography.bodyMedium.copy(color = TextMuted)
             )
             InlineField(
                 text = value,
@@ -79,7 +82,7 @@ fun AttributeTile(
                 placeholder = valueLabel,
                 enabled = enabled,
                 interaction = valueInteraction,
-                style = TextStyle(color = TextLight, fontSize = 15.sp, fontWeight = FontWeight.SemiBold),
+                style = MaterialTheme.typography.bodyLarge.copy(color = TextLight, fontWeight = FontWeight.SemiBold),
                 modifier = Modifier.padding(top = 2.dp)
             )
         }
@@ -87,7 +90,7 @@ fun AttributeTile(
             Icon(
                 Icons.Default.Delete,
                 stringResource(R.string.remove_attribute, name.ifBlank { valueLabel }),
-                tint = Color(0xFFF87171)
+                tint = Danger
             )
         }
     }
@@ -111,10 +114,10 @@ private fun InlineField(
         textStyle = style,
         cursorBrush = SolidColor(RoseGoldPrimary),
         interactionSource = interaction,
-        modifier = modifier.fillMaxWidth().semantics { contentDescription = placeholder },
+        modifier = modifier.fillMaxWidth().heightIn(min = 48.dp).padding(vertical = 10.dp).semantics { contentDescription = placeholder },
         decorationBox = { inner ->
             Box {
-                if (text.isEmpty()) Text(placeholder, style = style.copy(color = TextMuted.copy(alpha = 0.6f), fontWeight = FontWeight.Normal))
+                if (text.isEmpty()) Text(placeholder, style = style.copy(color = TextMuted, fontWeight = FontWeight.Normal))
                 inner()
             }
         }

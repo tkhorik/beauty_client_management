@@ -12,6 +12,8 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
+import com.beauty.app.ui.theme.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -29,7 +31,7 @@ fun EditClientScreen(
     viewModel: EditClientViewModel,
     onBack: () -> Unit
 ) {
-    var tagInput by remember { mutableStateOf("") }
+    var tagInput by rememberSaveable { mutableStateOf("") }
 
     // Navigate back on success
     LaunchedEffect(viewModel.saveState) {
@@ -44,9 +46,7 @@ fun EditClientScreen(
                 title = {
                     Text(
                         if (viewModel.isNewClient) stringResource(com.beauty.app.R.string.new_client) else stringResource(com.beauty.app.R.string.edit_client),
-                        color = RoseGoldPrimary,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 20.sp
+                        style = MaterialTheme.typography.titleMedium
                     )
                 },
                 navigationIcon = {
@@ -59,7 +59,7 @@ fun EditClientScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color(0xFF0F0E13)
+                    containerColor = Paper
                 )
             )
         }
@@ -68,8 +68,9 @@ fun EditClientScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .padding(16.dp)
-                .verticalScroll(rememberScrollState()),
+                .imePadding()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 20.dp, vertical = 24.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             when (viewModel.existingClientState) {
@@ -85,7 +86,10 @@ fun EditClientScreen(
                 // Branches rather than early `return@Column`s: returning out of an
                 // inline composable lambda skips closing its group and crashes the
                 // slot table.
-                else -> ClientForm(viewModel, tagInput, onTagInputChange = { tagInput = it })
+                else -> Column(Modifier.widthIn(max = 680.dp).fillMaxWidth().align(Alignment.CenterHorizontally), verticalArrangement = Arrangement.spacedBy(20.dp)) {
+                    AuraPageHeader(if (viewModel.isNewClient) stringResource(com.beauty.app.R.string.new_client) else stringResource(com.beauty.app.R.string.edit_client))
+                    ClientForm(viewModel, tagInput, onTagInputChange = { tagInput = it })
+                }
             }
         }
     }
@@ -98,6 +102,8 @@ private fun ColumnScope.ClientForm(
     tagInput: String,
     onTagInputChange: (String) -> Unit
 ) {
+        AuraCard {
+        AuraSectionLabel(stringResource(com.beauty.app.R.string.client_details))
         // Full Name
         OutlinedTextField(
             value = viewModel.name,
@@ -113,7 +119,7 @@ private fun ColumnScope.ClientForm(
             value = viewModel.phone,
             onValueChange = { viewModel.updatePhone(it) },
             label = { Text(stringResource(com.beauty.app.R.string.phone_number), color = TextMuted) },
-            placeholder = { Text("+1 (555) 000-0000") },
+            placeholder = { Text(stringResource(com.beauty.app.R.string.workspace_phone_example)) },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
@@ -124,25 +130,29 @@ private fun ColumnScope.ClientForm(
         OutlinedTextField(
             value = viewModel.email,
             onValueChange = { viewModel.updateEmail(it) },
-            label = { Text(stringResource(com.beauty.app.R.string.email_optional), color = TextMuted) },
+            label = { Text(stringResource(com.beauty.app.R.string.email), color = TextMuted) },
+            supportingText = { Text(stringResource(com.beauty.app.R.string.workspace_optional)) },
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
             colors = outlinedColors()
         )
 
+        }
+
+        AuraCard {
         // Tags section
-        Text(stringResource(com.beauty.app.R.string.tags), color = RoseGoldPrimary, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
-        Row(
+        AuraSectionLabel(stringResource(com.beauty.app.R.string.tags))
+        Column(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             OutlinedTextField(
                 value = tagInput,
                 onValueChange = onTagInputChange,
                 label = { Text(stringResource(com.beauty.app.R.string.add_tag), color = TextMuted) },
                 singleLine = true,
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.fillMaxWidth(),
                 colors = outlinedColors()
             )
             OutlinedButton(
@@ -156,49 +166,52 @@ private fun ColumnScope.ClientForm(
         if (viewModel.tags.isNotEmpty()) {
             FlowRow(
                 modifier = Modifier.fillMaxWidth(),
-                maxItemsInEachRow = 4,
+
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 viewModel.tags.forEach { tag ->
                     InputChip(
                         selected = false,
                         onClick = {},
-                        label = { Text(tag, color = TextLight, fontSize = 12.sp) },
+                        label = { Text(tag, color = Forest, style = MaterialTheme.typography.bodyMedium) },
                         trailingIcon = {
                             IconButton(
                                 onClick = { viewModel.removeTag(tag) },
-                                modifier = Modifier.size(16.dp)
+                                modifier = Modifier.size(48.dp)
                             ) {
                                 Icon(
                                     Icons.Default.Close,
                                     contentDescription = stringResource(com.beauty.app.R.string.remove_tag),
                                     tint = TextMuted,
-                                    modifier = Modifier.size(12.dp)
+                                    modifier = Modifier.size(18.dp)
                                 )
                             }
                         },
                         shape = RoundedCornerShape(8.dp),
                         colors = InputChipDefaults.inputChipColors(
-                            containerColor = Color(0x22E5B899)
+                            containerColor = Sage
                         )
                     )
                 }
             }
         }
 
+        }
+
+        AuraCard {
         // Custom fields section
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(stringResource(com.beauty.app.R.string.custom_attributes), color = RoseGoldPrimary, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+            Text(stringResource(com.beauty.app.R.string.custom_attributes), style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
             OutlinedButton(
                 onClick = { viewModel.addCustomField() },
                 border = ButtonDefaults.outlinedButtonBorder.copy(
                     brush = androidx.compose.ui.graphics.SolidColor(RoseGoldPrimary)
                 )
-            ) { Text(stringResource(com.beauty.app.R.string.add), color = RoseGoldPrimary, fontSize = 12.sp) }
+            ) { Text(stringResource(com.beauty.app.R.string.add), color = RoseGoldPrimary, fontSize = 14.sp) }
         }
         viewModel.customFields.forEachIndexed { index, field ->
             key(field.id) {
@@ -210,6 +223,8 @@ private fun ColumnScope.ClientForm(
                     onRemove = { viewModel.removeCustomField(index) }
                 )
             }
+        }
+
         }
 
         // Error
@@ -229,20 +244,20 @@ private fun ColumnScope.ClientForm(
             enabled = viewModel.saveState !is EditClientViewModel.SaveState.Loading,
             modifier = Modifier
                 .fillMaxWidth()
-                .height(52.dp),
+                .heightIn(min = 52.dp),
             shape = RoundedCornerShape(12.dp),
             colors = ButtonDefaults.buttonColors(containerColor = RoseGoldPrimary)
         ) {
             if (viewModel.saveState is EditClientViewModel.SaveState.Loading) {
                 CircularProgressIndicator(
                     modifier = Modifier.size(20.dp),
-                    color = Color.Black,
+                    color = WhiteCard,
                     strokeWidth = 2.dp
                 )
             } else {
                 Text(
                     text = if (viewModel.isNewClient) stringResource(com.beauty.app.R.string.create_client) else stringResource(com.beauty.app.R.string.save_changes),
-                    color = Color.Black,
+                    color = WhiteCard,
                     fontWeight = FontWeight.Bold,
                     fontSize = 15.sp
                 )
@@ -255,7 +270,7 @@ private fun ColumnScope.ClientForm(
 @Composable
 private fun outlinedColors() = OutlinedTextFieldDefaults.colors(
     focusedBorderColor = RoseGoldPrimary,
-    unfocusedBorderColor = Color(0x33E5B899),
+    unfocusedBorderColor = MaterialTheme.colorScheme.outline,
     focusedTextColor = TextLight,
     unfocusedTextColor = TextLight
 )

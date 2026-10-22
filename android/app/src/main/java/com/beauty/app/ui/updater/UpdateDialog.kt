@@ -1,6 +1,7 @@
 package com.beauty.app.ui.updater
 
 import androidx.compose.ui.res.stringResource
+import com.beauty.app.ui.i18n.localizedMessage
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -14,7 +15,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -60,7 +60,7 @@ fun UpdateDialog(
     ) {
         Card(
             shape = RoundedCornerShape(20.dp),
-            colors = CardDefaults.cardColors(containerColor = CardSurface),
+            colors = CardDefaults.cardColors(containerColor = WhiteCard),
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(vertical = 16.dp)
@@ -68,6 +68,8 @@ fun UpdateDialog(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .heightIn(max = 640.dp)
+                    .verticalScroll(rememberScrollState())
                     .padding(24.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
@@ -79,21 +81,21 @@ fun UpdateDialog(
                     Box(
                         modifier = Modifier
                             .size(44.dp)
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(Color(0x22E5B899)),
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(Border),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             Icons.Default.SystemUpdate,
                             contentDescription = stringResource(com.beauty.app.R.string.update),
-                            tint = RoseGoldPrimary
+                            tint = Forest
                         )
                     }
 
-                    Column {
+                    Column(Modifier.weight(1f)) {
                         Text(
                             text = stringResource(com.beauty.app.R.string.new_version_available),
-                            color = TextLight,
+                            color = Forest,
                             fontWeight = FontWeight.Bold,
                             fontSize = 18.sp
                         )
@@ -103,18 +105,18 @@ fun UpdateDialog(
                         ) {
                             Text(
                                 text = "v$currentVersion",
-                                color = TextMuted,
+                                color = Muted,
                                 fontSize = 13.sp
                             )
                             Icon(
                                 Icons.Default.ArrowForward,
                                 contentDescription = null,
-                                tint = RoseGoldPrimary,
+                                tint = Forest,
                                 modifier = Modifier.size(12.dp)
                             )
                             Text(
                                 text = "v${release.versionName}",
-                                color = RoseGoldPrimary,
+                                color = Forest,
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 13.sp
                             )
@@ -126,14 +128,14 @@ fun UpdateDialog(
                 if (release.notes.isNotBlank()) {
                     Text(
                         text = stringResource(com.beauty.app.R.string.what_s_new_in_this_release),
-                        color = TextLight,
+                        color = Forest,
                         fontWeight = FontWeight.SemiBold,
                         fontSize = 14.sp
                     )
 
                     Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = Color(0x10FFFFFF),
+                        shape = RoundedCornerShape(14.dp),
+                        color = Paper,
                         modifier = Modifier
                             .fillMaxWidth()
                             .heightIn(max = 160.dp)
@@ -145,7 +147,7 @@ fun UpdateDialog(
                         ) {
                             Text(
                                 text = release.notes,
-                                color = TextMuted,
+                                color = Muted,
                                 fontSize = 13.sp,
                                 lineHeight = 18.sp
                             )
@@ -157,8 +159,8 @@ fun UpdateDialog(
                 if (release.apkSize > 0L && distributionMode != UpdateDistributionMode.PLAY_STORE) {
                     Text(
                         text = stringResource(com.beauty.app.R.string.download_size, formatBytes(release.apkSize)),
-                        color = TextMuted,
-                        fontSize = 12.sp
+                        color = Muted,
+                        fontSize = 13.sp
                     )
                 }
 
@@ -171,8 +173,8 @@ fun UpdateDialog(
                                 .fillMaxWidth()
                                 .height(6.dp)
                                 .clip(RoundedCornerShape(3.dp)),
-                            color = RoseGoldPrimary,
-                            trackColor = Color(0x33E5B899),
+                            color = Forest,
+                            trackColor = Border,
                         )
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -180,14 +182,14 @@ fun UpdateDialog(
                         ) {
                             Text(
                                 text = "${(state.progress * 100).toInt()}%",
-                                color = RoseGoldPrimary,
-                                fontSize = 12.sp,
+                                color = Forest,
+                                fontSize = 13.sp,
                                 fontWeight = FontWeight.Bold
                             )
                             Text(
                                 text = "${formatBytes(state.downloadedBytes)} / ${formatBytes(state.totalBytes)}",
-                                color = TextMuted,
-                                fontSize = 12.sp
+                                color = Muted,
+                                fontSize = 13.sp
                             )
                         }
                     }
@@ -196,33 +198,33 @@ fun UpdateDialog(
                 // Error message if any
                 if (state is UpdateState.Error) {
                     Text(
-                        text = state.message,
+                        text = localizedMessage(state.message),
                         color = MaterialTheme.colorScheme.error,
-                        fontSize = 12.sp
+                        fontSize = 13.sp
                     )
                 }
 
                 // Permission warning if about to install
                 if (state is UpdateState.ReadyToInstall && needsInstallPermission) {
                     Surface(
-                        color = Color(0x1AD4A373),
-                        shape = RoundedCornerShape(8.dp),
+                        color = Sage,
+                        shape = RoundedCornerShape(14.dp),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text(
                             text = stringResource(com.beauty.app.R.string.ui2_to_install_this_update_you_ll_need_to_allow_aura_beauty_to_instal),
                             color = ChampagneAccent,
-                            fontSize = 12.sp,
+                            fontSize = 13.sp,
                             modifier = Modifier.padding(10.dp)
                         )
                     }
                 }
 
                 // Action Buttons
-                Row(
+                Column(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End,
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     when (state) {
                         is UpdateState.Downloading -> {
@@ -230,50 +232,50 @@ fun UpdateDialog(
                                 onClick = onCancelDownload,
                                 shape = RoundedCornerShape(10.dp)
                             ) {
-                                Text(stringResource(com.beauty.app.R.string.cancel), color = TextLight)
+                                Text(stringResource(com.beauty.app.R.string.cancel), color = Forest)
                             }
                         }
                         is UpdateState.ReadyToInstall -> {
-                            TextButton(onClick = onDismiss) {
-                                Text(stringResource(com.beauty.app.R.string.later), color = TextMuted)
-                            }
-                            Spacer(modifier = Modifier.width(8.dp))
                             Button(
+                                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
                                 onClick = {
                                     if (needsInstallPermission) onRequestPermission() else onInstall()
                                 },
                                 shape = RoundedCornerShape(10.dp),
-                                colors = ButtonDefaults.buttonColors(containerColor = EmeraldStatus)
+                                colors = ButtonDefaults.buttonColors(containerColor = Success)
                             ) {
                                 Text(
                                     text = if (needsInstallPermission) stringResource(com.beauty.app.R.string.grant_permission) else stringResource(com.beauty.app.R.string.install_now),
-                                    color = Color.Black,
+                                    color = WhiteCard,
                                     fontWeight = FontWeight.Bold
                                 )
                             }
+                            TextButton(onClick = onDismiss) {
+                                Text(stringResource(com.beauty.app.R.string.later), color = Muted)
+                            }
                         }
                         else -> {
-                            TextButton(onClick = onDismiss) {
-                                Text(stringResource(com.beauty.app.R.string.later), color = TextMuted)
-                            }
-                            Spacer(modifier = Modifier.width(8.dp))
-
                             if (distributionMode == UpdateDistributionMode.PLAY_STORE) {
                                 Button(
+                                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
                                     onClick = onOpenPlayStore,
                                     shape = RoundedCornerShape(10.dp),
-                                    colors = ButtonDefaults.buttonColors(containerColor = RoseGoldPrimary)
+                                    colors = ButtonDefaults.buttonColors(containerColor = Forest)
                                 ) {
-                                    Text(stringResource(com.beauty.app.R.string.open_google_play), color = Color.Black, fontWeight = FontWeight.Bold)
+                                    Text(stringResource(com.beauty.app.R.string.open_google_play), color = WhiteCard, fontWeight = FontWeight.Bold)
                                 }
                             } else {
                                 Button(
+                                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
                                     onClick = onStartDownload,
                                     shape = RoundedCornerShape(10.dp),
-                                    colors = ButtonDefaults.buttonColors(containerColor = RoseGoldPrimary)
+                                    colors = ButtonDefaults.buttonColors(containerColor = Forest)
                                 ) {
-                                    Text(stringResource(com.beauty.app.R.string.download_install), color = Color.Black, fontWeight = FontWeight.Bold)
+                                    Text(stringResource(com.beauty.app.R.string.download_install), color = WhiteCard, fontWeight = FontWeight.Bold)
                                 }
+                            }
+                            TextButton(onClick = onDismiss) {
+                                Text(stringResource(com.beauty.app.R.string.later), color = Muted)
                             }
                         }
                     }

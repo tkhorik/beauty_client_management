@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="workspace_clients">Clients</string>
+    <string name="workspace_clients_subtitle">A little care, beautifully remembered.</string>
+    <string name="workspace_client_details">Client details</string>
+    <string name="workspace_phone_example">+1 (555) 000-0000</string>
+    <string name="workspace_optional">Optional</string>
+</resources>

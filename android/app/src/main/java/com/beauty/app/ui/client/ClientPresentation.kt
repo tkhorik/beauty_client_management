@@ -12,7 +12,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.beauty.app.data.api.VisitAttachmentDto
-import com.beauty.app.ui.theme.RoseGoldPrimary
+import com.beauty.app.ui.theme.*
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.jsonObject
@@ -65,12 +65,20 @@ fun visitsLabel(count: Int): String = if (count == 1) "1 Visit" else "$count Vis
 fun formatUpdatedDate(epochMillis: Long): String =
     DateFormat.getDateInstance(DateFormat.MEDIUM).format(Date(epochMillis))
 
+private val Whitespace = Regex("\\s+")
+
+/** Up to two initials for an avatar, taking whole code points so emoji are not split. */
+fun initials(name: String): String =
+    name.trim().split(Whitespace).filter { it.isNotEmpty() }.take(2).joinToString("") { word ->
+        String(Character.toChars(word.codePointAt(0)))
+    }.uppercase()
+
 @Composable
 fun TagBadge(tag: String) {
     val (background, foreground) = when (tagTone(tag)) {
-        TagTone.VIP -> Color(0x26A855F7) to Color(0xFFC084FC)
-        TagTone.SENSITIVE -> Color(0x26EF4444) to Color(0xFFFCA5A5)
-        TagTone.DEFAULT -> Color(0x1AE5B899) to RoseGoldPrimary
+        TagTone.VIP -> Peach.copy(alpha = 0.45f) to Forest
+        TagTone.SENSITIVE -> Color(0xFFF8E4DD) to Danger
+        TagTone.DEFAULT -> Sage to Forest
     }
     Surface(
         color = background,
@@ -80,9 +88,9 @@ fun TagBadge(tag: String) {
         Text(
             tag,
             color = foreground,
-            fontSize = 11.sp,
+            fontSize = 12.sp,
             fontWeight = FontWeight.SemiBold,
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
         )
     }
 }
@@ -90,9 +98,9 @@ fun TagBadge(tag: String) {
 @Composable
 fun VisitStatusBadge(status: String) {
     val color = when (status) {
-        "COMPLETED" -> Color(0xFF2DD4BF)
-        "SCHEDULED" -> Color(0xFF60A5FA)
-        else -> Color(0xFFF87171)
+        "COMPLETED" -> Success
+        "SCHEDULED" -> Clay
+        else -> Danger
     }
     Surface(
         color = color.copy(alpha = 0.12f),
@@ -102,7 +110,7 @@ fun VisitStatusBadge(status: String) {
         Text(
             com.beauty.app.ui.i18n.statusLabel(status),
             color = color,
-            fontSize = 10.sp,
+            fontSize = 12.sp,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
         )
