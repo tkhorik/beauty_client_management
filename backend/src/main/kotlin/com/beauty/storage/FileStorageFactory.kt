@@ -62,7 +62,12 @@ object FileStorageFactory {
                     null
                 }
 
-                S3StorageService(s3Client, presigner, s3)
+                // Files uploaded while the provider was still "local" stay in
+                // the uploads volume; serve them from there until copied over.
+                LegacyFallbackStorageService(
+                    S3StorageService(s3Client, presigner, s3),
+                    LocalFileStorageService(settings.uploadDir)
+                )
             }
         }
     }
