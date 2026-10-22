@@ -49,20 +49,20 @@ export function VerificationWall() {
       title={t('verificationWall.confirmYourEmail')}
       subtitle={t('verificationWall.yourAccountIsReadyItJustNeedsAConfirmedEmailAddressBeforeYouCanU')}
     >
-      <div style={{ textAlign: 'center' }}>
-        <MailWarning size={40} color="var(--rose-gold-primary)" style={{ marginBottom: '16px' }} />
+      <div className="auth-content-center">
+        <MailWarning size={40} className="auth-status-icon" />
 
-        <p style={{ color: 'var(--text-muted)', fontSize: '14px', lineHeight: 1.6, overflowWrap: 'anywhere' }}>
+        <p style={{ overflowWrap: 'anywhere' }}>
           {t('verificationWall.sentDescription', { email: user.email })}
         </p>
-        <p style={{ color: 'var(--text-muted)', fontSize: '13px', lineHeight: 1.6 }}>
+        <p className="auth-hint">
           {t('verificationWall.spamDescription')}
         </p>
 
         {sendState === 'sent' && (
           <p
             role="status"
-            style={{ margin: '16px 0 0', fontSize: '13px', color: 'var(--rose-gold-primary)' }}
+            className="auth-alert auth-alert--success"
           >
             {t('verificationWall.newLinkSentItCanTakeAMinuteToArrive')}
           </p>
@@ -70,7 +70,7 @@ export function VerificationWall() {
         {sendState === 'failed' && (
           <p
             role="status"
-            style={{ margin: '16px 0 0', fontSize: '13px', color: '#e87c8a' }}
+            className="auth-alert auth-alert--error"
           >
             {coolingDown
               ?t('verificationWall.tooManyRequestsJustNowTryAgainInAMinute')
@@ -78,7 +78,7 @@ export function VerificationWall() {
           </p>
         )}
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '24px' }}>
+        <div className="auth-actions-stack">
           {/*
             The primary action is the re-check, not the resend. Most people
             reaching this screen have already received the mail and are coming
@@ -120,17 +120,8 @@ export function VerificationWall() {
         <button
           type="button"
           onClick={logout}
-          style={{
-            background: 'none',
-            border: 'none',
-            color: 'var(--text-muted)',
-            cursor: 'pointer',
-            fontSize: '13px',
-            marginTop: '20px',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '6px',
-          }}
+          className="auth-quiet-button"
+          style={{ marginTop: '20px' }}
         >
           <LogOut size={14} /> {t('verificationWall.wrongAddressSignOut')}
         </button>

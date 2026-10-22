@@ -6,6 +6,7 @@ import { AUTH_TRANSPORT_HEADERS } from '../auth/session';
 import { PASSWORD_MIN_LENGTH, validatePasswordLocally } from '../utils/passwordRules';
 import { FORGOT_PASSWORD_PATH, navigate } from '../auth/route';
 import { LanguageSelector } from './LanguageSelector';
+import './AuthScreens.css';
 import { useAppTranslation, useLocale } from '../i18n/LocaleProvider';
 import { effectiveAcceptLanguage } from '../i18n/store';
 import { errorTranslationKey, translatedFieldErrors } from '../i18n/errors';
@@ -155,60 +156,45 @@ export function LoginPage({ initialMode = 'login', onBack }: { initialMode?: Log
     }
   }
 
-  const fieldErrorStyle = {
-    color: '#e87c8a',
-    fontSize: '12px',
-    marginTop: '5px',
-  } as const;
-
   return (
-    <div style={{
-      minHeight: '100vh',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: '24px',
-    }}>
-      <div className="glass-panel" style={{
-        width: '100%',
-        maxWidth: '420px',
-        padding: '40px',
-        borderRadius: '20px',
-      }}>
+    <main className="auth-screen">
+      <aside className="auth-screen__aside" aria-hidden="true"><div className="auth-screen__aside-inner"><div className="auth-screen__brand"><Sparkles size={22} /><span>Aura</span></div><p>{t('landingPage.heroTitle')}</p><div className="auth-screen__aside-note">{t('landingPage.studioCaption')}</div></div></aside>
+      <section className="auth-screen__content">
+      <div className="auth-card">
         {/* Header */}
-        <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-          <div style={{ display: 'flex', justifyContent: onBack ? 'space-between' : 'flex-end', alignItems: 'center', marginBottom: '12px' }}>
+        <header className="auth-card__header">
+          <div className="auth-card__top" style={{ justifyContent: onBack ? 'space-between' : 'flex-end' }}>
             {onBack && (
               <button
                 type="button"
                 onClick={onBack}
-                style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '13px', display: 'inline-flex', alignItems: 'center', gap: '6px', padding: 0 }}
+                className="auth-quiet-button"
               >
                 <ArrowLeft size={14} aria-hidden="true" /> {t('loginPage.back')}
               </button>
             )}
             <LanguageSelector compact />
           </div>
-          <Sparkles size={36} color="var(--rose-gold-primary)" style={{ marginBottom: '12px' }} />
-          <h1 className="text-gradient" style={{ fontSize: '26px', marginBottom: '6px' }}>
+          <div className="auth-card__mark" aria-hidden="true"><Sparkles size={24} /></div>
+          <h1>
             {t('common.appName')}
           </h1>
-          <p style={{ color: 'var(--text-muted)', fontSize: '14px' }}>
+          <p>
             {mode === 'login' ? t('auth.signInAccount') : t('auth.createYourAccount')}
           </p>
           {pendingInviteToken() && (
-            <p role="status" style={{ color: 'var(--rose-gold-primary)', fontSize: '13px', marginTop: '10px' }}>
+            <p role="status" className="auth-alert auth-alert--info">
               {t('loginPage.inviteNotice')}
             </p>
           )}
-        </div>
+        </header>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <form onSubmit={handleSubmit} className="auth-form">
 
           {isRegister && (
-            <div>
-              <label htmlFor="fullName" style={{ display: 'block', fontSize: '13px', color: 'var(--text-muted)', marginBottom: '6px' }}>
+            <div className="auth-field">
+              <label htmlFor="fullName">
                 {t('auth.fullName')}
               </label>
               <input
@@ -224,12 +210,12 @@ export function LoginPage({ initialMode = 'login', onBack }: { initialMode?: Log
                 aria-invalid={!!fieldErrors.fullName}
                 style={{ width: '100%' }}
               />
-              {fieldErrors.fullName && <div style={fieldErrorStyle}>{fieldErrors.fullName}</div>}
+              {fieldErrors.fullName && <div className="auth-field-error">{fieldErrors.fullName}</div>}
             </div>
           )}
 
-          <div>
-            <label htmlFor="email" style={{ display: 'block', fontSize: '13px', color: 'var(--text-muted)', marginBottom: '6px' }}>
+          <div className="auth-field">
+            <label htmlFor="email">
               {t('auth.email')}
             </label>
             <input
@@ -248,14 +234,14 @@ export function LoginPage({ initialMode = 'login', onBack }: { initialMode?: Log
               aria-invalid={!!fieldErrors.email}
               style={{ width: '100%' }}
             />
-            {fieldErrors.email && <div style={fieldErrorStyle}>{fieldErrors.email}</div>}
+            {fieldErrors.email && <div className="auth-field-error">{fieldErrors.email}</div>}
           </div>
 
-          <div>
-            <label htmlFor="password" style={{ display: 'block', fontSize: '13px', color: 'var(--text-muted)', marginBottom: '6px' }}>
+          <div className="auth-field">
+            <label htmlFor="password">
               {t('auth.password')}
             </label>
-            <div style={{ position: 'relative' }}>
+            <div className="auth-password">
               <input
                 id="password"
                 name="password"
@@ -271,44 +257,32 @@ export function LoginPage({ initialMode = 'login', onBack }: { initialMode?: Log
                 placeholder="••••••••"
                 required
                 aria-invalid={!!fieldErrors.password}
-                style={{ width: '100%', paddingRight: '42px' }}
+                style={{ width: '100%' }}
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(v => !v)}
                 aria-label={showPassword ? t('auth.hidePassword') : t('auth.showPassword')}
-                style={{
-                  position: 'absolute',
-                  right: '10px',
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  background: 'none',
-                  border: 'none',
-                  cursor: 'pointer',
-                  color: 'var(--text-muted)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  padding: 0,
-                }}
+                className="auth-icon-button"
               >
                 {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
             </div>
             {fieldErrors.password ? (
-              <div style={fieldErrorStyle}>{fieldErrors.password}</div>
+              <div className="auth-field-error">{fieldErrors.password}</div>
             ) : isRegister ? (
-              <div style={{ color: 'var(--text-muted)', fontSize: '12px', marginTop: '5px' }}>
+              <div className="auth-hint">
                 {t('password.guidance', { min: PASSWORD_MIN_LENGTH })}
               </div>
             ) : (
               // Sign-in only. Offering "forgot password" on the registration
               // form would point someone with no account at a flow that, by
               // design, tells them nothing about whether one exists.
-              <div style={{ textAlign: 'right', marginTop: '6px' }}>
+              <div style={{ textAlign: 'right' }}>
                 <button
                   type="button"
                   onClick={() => navigate(FORGOT_PASSWORD_PATH)}
-                  style={{ background: 'none', border: 'none', color: 'var(--rose-gold-primary)', cursor: 'pointer', fontSize: '12px', padding: 0 }}
+                  className="auth-link"
                 >
                   {t('auth.forgotPassword')}
                 </button>
@@ -317,8 +291,8 @@ export function LoginPage({ initialMode = 'login', onBack }: { initialMode?: Log
           </div>
 
           {isRegister && (
-            <div>
-              <label htmlFor="confirmPassword" style={{ display: 'block', fontSize: '13px', color: 'var(--text-muted)', marginBottom: '6px' }}>
+            <div className="auth-field">
+              <label htmlFor="confirmPassword">
               {t('auth.confirmPassword')}
               </label>
               <input
@@ -334,13 +308,13 @@ export function LoginPage({ initialMode = 'login', onBack }: { initialMode?: Log
                 aria-invalid={!!fieldErrors.confirmPassword}
                 style={{ width: '100%' }}
               />
-              {fieldErrors.confirmPassword && <div style={fieldErrorStyle}>{fieldErrors.confirmPassword}</div>}
+              {fieldErrors.confirmPassword && <div className="auth-field-error">{fieldErrors.confirmPassword}</div>}
             </div>
           )}
 
           {isRegister && offerJoinField && (
-            <div>
-              <label htmlFor="organizationSlug" style={{ display: 'block', fontSize: '13px', color: 'var(--text-muted)', marginBottom: '6px' }}>
+            <div className="auth-field">
+              <label htmlFor="organizationSlug">
                 {t('loginPage.organizationHandle')}
               </label>
               <input
@@ -359,9 +333,9 @@ export function LoginPage({ initialMode = 'login', onBack }: { initialMode?: Log
                 style={{ width: '100%' }}
               />
               {fieldErrors.organizationSlug ? (
-                <div style={fieldErrorStyle}>{fieldErrors.organizationSlug}</div>
+                <div className="auth-field-error">{fieldErrors.organizationSlug}</div>
               ) : (
-                <div id="organizationSlugHint" style={{ color: 'var(--text-muted)', fontSize: '12px', marginTop: '5px' }}>
+                <div id="organizationSlugHint" className="auth-hint">
                   {t('loginPage.organizationHandleHint')}
                 </div>
               )}
@@ -369,14 +343,7 @@ export function LoginPage({ initialMode = 'login', onBack }: { initialMode?: Log
           )}
 
           {error && (
-            <div style={{
-              padding: '10px 14px',
-              borderRadius: '8px',
-              background: 'rgba(220, 50, 80, 0.12)',
-              border: '1px solid rgba(220, 50, 80, 0.3)',
-              color: '#e87c8a',
-              fontSize: '13px',
-            }}>
+            <div className="auth-alert auth-alert--error" role="alert">
               {error}
             </div>
           )}
@@ -385,20 +352,20 @@ export function LoginPage({ initialMode = 'login', onBack }: { initialMode?: Log
             type="submit"
             className="btn-rose"
             disabled={loading}
-            style={{ marginTop: '4px', opacity: loading ? 0.7 : 1, cursor: loading ? 'not-allowed' : 'pointer' }}
+          style={{ opacity: loading ? 0.7 : 1 }}
           >
             {loading ? t('auth.pleaseWait') : mode === 'login' ? t('auth.signIn') : t('auth.createAccount')}
           </button>
         </form>
 
         {/* Toggle mode */}
-        <p style={{ textAlign: 'center', marginTop: '20px', fontSize: '13px', color: 'var(--text-muted)' }}>
+        <p className="auth-form-footer">
           {mode === 'login' ? (
             <>
               {t('auth.firstTime')}{' '}
               <button
                 onClick={() => switchMode('register')}
-                style={{ background: 'none', border: 'none', color: 'var(--rose-gold-primary)', cursor: 'pointer', fontSize: '13px' }}
+                className="auth-link"
               >
                 {t('auth.createAccount')}
               </button>
@@ -408,7 +375,7 @@ export function LoginPage({ initialMode = 'login', onBack }: { initialMode?: Log
               {t('auth.alreadyAccount')}{' '}
               <button
                 onClick={() => switchMode('login')}
-                style={{ background: 'none', border: 'none', color: 'var(--rose-gold-primary)', cursor: 'pointer', fontSize: '13px' }}
+                className="auth-link"
               >
                 {t('auth.signIn')}
               </button>
@@ -416,6 +383,7 @@ export function LoginPage({ initialMode = 'login', onBack }: { initialMode?: Log
           )}
         </p>
       </div>
-    </div>
+      </section>
+    </main>
   );
 }

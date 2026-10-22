@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { lazyOverlay } from './components/lazyOverlay';
 import type { Client, Visit, Attachment, Organization, ClientTag } from './types';
 import { api } from './services/api';
 import { useAuth } from './auth/AuthContext';
@@ -6,15 +7,15 @@ import { useOrg } from './auth/OrgContext';
 import { LoginPage, type LoginMode } from './components/LoginPage';
 import { LandingPage } from './components/LandingPage';
 import { OrganizationOnboarding } from './components/OrganizationOnboarding';
-import { MembersModal } from './components/MembersModal';
-import { AdminPanel } from './components/AdminPanel';
+const MembersModal = lazyOverlay(async () => { const module = await import('./components/MembersModal'); return { default: module.MembersModal }; });
+const AdminPanel = lazyOverlay(async () => { const module = await import('./components/AdminPanel'); return { default: module.AdminPanel }; });
 import { Header } from './components/Header';
 import { ClientCard } from './components/ClientCard';
-import { ClientDetailModal } from './components/ClientDetailModal';
-import { NewClientModal } from './components/NewClientModal';
-import { NewVisitModal } from './components/NewVisitModal';
-import { PhotoCompareModal } from './components/PhotoCompareModal';
-import { SettingsModal } from './components/SettingsModal';
+const ClientDetailModal = lazyOverlay(async () => { const module = await import('./components/ClientDetailModal'); return { default: module.ClientDetailModal }; });
+const NewClientModal = lazyOverlay(async () => { const module = await import('./components/NewClientModal'); return { default: module.NewClientModal }; });
+const NewVisitModal = lazyOverlay(async () => { const module = await import('./components/NewVisitModal'); return { default: module.NewVisitModal }; });
+const PhotoCompareModal = lazyOverlay(async () => { const module = await import('./components/PhotoCompareModal'); return { default: module.PhotoCompareModal }; });
+const SettingsModal = lazyOverlay(async () => { const module = await import('./components/SettingsModal'); return { default: module.SettingsModal }; });
 import { VerificationBanner } from './components/VerificationBanner';
 import { Users, Sparkles } from 'lucide-react';
 import { useAppTranslation } from './i18n/LocaleProvider';
@@ -52,7 +53,7 @@ export function App() {
   // On a reload the access token is always briefly absent while the refresh
   // cookie is exchanged. Rendering the login page during that window would
   // flash a login form at a user who is in fact signed in.
-  if (initialising) return null;
+  if (initialising) return <ScreenLoading />;
 
   // Show the landing page, then the login form, when unauthenticated
   if (!token) {
@@ -120,7 +121,7 @@ function OrganizationGate({
   // Same reasoning as `initialising` above: a brief null while the list loads
   // is not the same as "has no organization", and flashing the onboarding
   // screen at someone who has three salons would be alarming.
-  if (loading) return null;
+  if (loading) return <ScreenLoading />;
 
   // The banner wraps the onboarding screen too, not just the app proper.
   // Creating an organization is one of the actions the restriction blocks, so
@@ -165,7 +166,11 @@ function AuthenticatedApp({
   const { t } = useAppTranslation();
   const { user } = useAuth();
   const [clients, setClients] = useState<Client[]>([]);
+  // The search and tag the current list was loaded for, so a failed load for
+  // a new filter never presents the previous results as matches.
+  const [clientsFilter, setClientsFilter] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [clientsError, setClientsError] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTag, setSelectedTag] = useState('');
   const [tags, setTags] = useState<ClientTag[]>([]);
@@ -202,10 +207,18 @@ function AuthenticatedApp({
     const request = ++clientRequest.current;
     let active = true;
     setLoading(true);
+    setClientsError(false);
+    const filterKey = JSON.stringify([searchQuery, selectedTag]);
     void api.getClients(searchQuery, selectedTag).then(data => {
-      if (active && request === clientRequest.current) setClients(data);
+      if (active && request === clientRequest.current) {
+        setClients(data);
+        setClientsFilter(filterKey);
+      }
     }).catch(err => {
-      if (active && request === clientRequest.current) console.error('Error loading client data:', err);
+      if (active && request === clientRequest.current) {
+        setClientsError(true);
+        console.error('Error loading client data:', err);
+      }
     }).finally(() => {
       if (active && request === clientRequest.current) setLoading(false);
     });
@@ -262,8 +275,11 @@ function AuthenticatedApp({
     setIsNewVisitOpen(true);
   };
 
+  const listMatchesFilter = clientsFilter === JSON.stringify([searchQuery, selectedTag]);
+  const visibleClients = clientsError && !listMatchesFilter ? [] : clients;
+
   return (
-    <div className="client-directory" style={{ minHeight: '100vh', maxWidth: '1400px', margin: '0 auto' }}>
+    <div className="client-directory">
       
       {/* Navigation Header */}
       <Header
@@ -277,20 +293,21 @@ function AuthenticatedApp({
         onOpenSettings={() => setIsSettingsOpen(true)}
         onOpenMembers={() => setIsMembersOpen(true)}
         onOpenAdmin={onOpenAdmin}
-        totalClients={clients.length}
+        totalClients={visibleClients.length}
       />
 
       {/* Renders nothing at all for a verified account. */}
       <VerificationBanner />
 
       {/* Main Grid Content */}
-      <main>
+      <main id="client-directory-content" tabIndex={-1} aria-busy={loading}>
+        {clientsError && <div className="notice notice--error directory-error" role="alert"><span>{t('clients.failed')}</span><button className="btn-secondary" onClick={loadData}>{t('clients.retry')}</button></div>}
         {loading ? (
-          <div style={{ textAlign: 'center', padding: '60px', color: 'var(--rose-gold-primary)' }}>
+          <div className="directory-loading" role="status">
             <p>{t('clients.loading')}</p>
           </div>
-        ) : clients.length === 0 ? (
-          <div className="glass-panel" style={{ padding: '60px', textAlign: 'center', borderRadius: '20px' }}>
+        ) : clientsError && visibleClients.length === 0 ? null : visibleClients.length === 0 ? (
+          <div className="directory-empty">
             <Users size={48} color="var(--rose-gold-primary)" style={{ opacity: 0.7, marginBottom: '16px' }} />
             <h2 className="text-gradient" style={{ fontSize: '22px', marginBottom: '8px' }}>{t('clients.none')}</h2>
             <p style={{ color: 'var(--text-muted)', marginBottom: '20px' }}>
@@ -301,12 +318,8 @@ function AuthenticatedApp({
             </button>
           </div>
         ) : (
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 360px), 1fr))',
-            gap: '24px'
-          }}>
-            {clients.map(client => (
+          <div className="client-grid">
+            {visibleClients.map(client => (
               <ClientCard
                 key={client.id}
                 client={client}
@@ -374,6 +387,11 @@ function AuthenticatedApp({
       )}
     </div>
   );
+}
+
+function ScreenLoading() {
+  const { t } = useAppTranslation();
+  return <div className="screen-loading" role="status"><Sparkles size={28} aria-hidden="true" /><p>{t('common.loading')}</p></div>;
 }
 
 export default App;

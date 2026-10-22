@@ -28,7 +28,7 @@ export const AttributeEditor: React.FC<AttributeEditorProps> = ({ rows, onChange
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+    <div className="dialog-stack" style={{ gap: '10px' }}>
       {rows.length > 0 && (
         <div className="attribute-grid">
           {rows.map(row => (
@@ -59,7 +59,8 @@ export const AttributeEditor: React.FC<AttributeEditorProps> = ({ rows, onChange
                 aria-label={t('common.remove')}
                 disabled={disabled}
                 onClick={() => remove(row.id)}
-                style={{ background: 'none', border: 'none', color: '#f87171', cursor: 'pointer', padding: '4px', flexShrink: 0 }}
+                className="icon-button"
+                style={{ color: '#a9303b', flexShrink: 0 }}
               >
                 <Trash2 size={15} />
               </button>
@@ -67,7 +68,7 @@ export const AttributeEditor: React.FC<AttributeEditorProps> = ({ rows, onChange
           ))}
         </div>
       )}
-      <button type="button" className="btn-secondary" style={{ alignSelf: 'flex-start', padding: '6px 12px', fontSize: '12px' }} disabled={disabled} onClick={add}>
+      <button type="button" className="btn-secondary" style={{ alignSelf: 'flex-start' }} disabled={disabled} onClick={add}>
         <Plus size={14} /> {addLabel}
       </button>
     </div>

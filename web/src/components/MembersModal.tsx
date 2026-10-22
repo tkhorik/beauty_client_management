@@ -8,6 +8,7 @@ import { api, writeErrorMessage } from '../services/api';
 import { useAuth } from '../auth/AuthContext';
 import { useOrg } from '../auth/OrgContext';
 import { useLocale } from '../i18n/LocaleProvider';
+import './Administration.css';
 
 interface MembersModalProps {
   /**
@@ -26,16 +27,6 @@ interface MembersModalProps {
   orgName: string;
   onClose: () => void;
 }
-
-const bannerStyle = (kind: 'error' | 'success') =>
-  ({
-    padding: '10px 14px',
-    borderRadius: '8px',
-    background: kind === 'error' ? 'rgba(220, 50, 80, 0.12)' : 'rgba(45, 212, 191, 0.12)',
-    border: `1px solid ${kind === 'error' ? 'rgba(220, 50, 80, 0.3)' : 'rgba(45, 212, 191, 0.35)'}`,
-    color: kind === 'error' ? '#e87c8a' : '#2dd4bf',
-    fontSize: '13px',
-  }) as const;
 
 /**
  * Membership management for an organization administrator.
@@ -214,72 +205,48 @@ export const MembersModal: React.FC<MembersModalProps> = ({ orgId, orgName, onCl
 
   return (
     <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        background: 'rgba(0,0,0,0.85)',
-        backdropFilter: 'blur(10px)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 1000,
-        padding: '20px',
-      }}
+      className="dialog-overlay administration-overlay"
       {...dismiss}
     >
       <div
-        className="glass-panel-glow"
-        style={{
-          width: '620px',
-          maxWidth: '95vw',
-          maxHeight: '90vh',
-          borderRadius: '20px',
-          display: 'flex',
-          flexDirection: 'column',
-          overflow: 'hidden',
-        }}
+        className="dialog-panel administration-panel administration-panel--members"
         onClick={e => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="members-modal-title"
+        tabIndex={-1}
       >
-        <div
-          style={{
-            padding: '20px 24px',
-            borderBottom: '1px solid var(--border-color)',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            background: 'rgba(15, 14, 19, 0.9)',
-          }}
-        >
-          <h2 className="text-gradient" style={{ fontSize: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div className="dialog-header administration-header">
+          <h2 id="members-modal-title" className="administration-title">
             <Users size={20} /> {orgName}
           </h2>
-          <button aria-label={t('common.close')} onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
+          <button type="button" className="icon-button" aria-label={t('common.close')} onClick={onClose}>
             <X size={22} />
           </button>
         </div>
 
-        <div role="tablist" style={{ display: 'flex', gap: '8px', padding: '12px 24px 0' }}>
+        <nav className="administration-nav" aria-label={orgName}>
           <TabButton active={tab === 'members'} onClick={() => setTab('members')}>
             <Users size={14} /> {t('membersModal.membersTab')}
           </TabButton>
           <TabButton active={tab === 'activity'} onClick={() => setTab('activity')}>
             <History size={14} /> {t('membersModal.activityTab')}
           </TabButton>
-        </div>
+        </nav>
 
         {tab === 'activity' ? (
-          <div style={{ padding: '24px', flex: 1, overflowY: 'auto' }}>
+          <div className="dialog-body administration-body">
             <OrgActivity orgId={orgId} />
           </div>
         ) : (
-        <div style={{ padding: '24px', flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '24px' }}>
-          {error && <div style={bannerStyle('error')}>{error}</div>}
-          {notice && <div style={bannerStyle('success')}>{notice}</div>}
+        <div className="dialog-body administration-body administration-stack">
+          {error && <div className="notice notice--error" role="alert">{error}</div>}
+          {notice && <div className="notice" role="status">{notice}</div>}
 
           {/* Pending approvals first — this is the queue that needs action. */}
           {pending.length > 0 && (
-            <section style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              <h3 style={{ fontSize: '14px', color: 'var(--rose-gold-primary)' }}>
+            <section className="administration-section">
+              <h3>
                 {t('membersModal.waitingForApproval')}{pending.length})
               </h3>
               {pending.map(m => (
@@ -303,8 +270,8 @@ export const MembersModal: React.FC<MembersModalProps> = ({ orgId, orgName, onCl
           )}
 
           {invited.length > 0 && (
-            <section style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              <h3 style={{ fontSize: '14px', color: 'var(--rose-gold-primary)' }}>
+            <section className="administration-section">
+              <h3>
                 {t('membersModal.invited')}{invited.length})
               </h3>
               {invited.map(m => (
@@ -320,8 +287,8 @@ export const MembersModal: React.FC<MembersModalProps> = ({ orgId, orgName, onCl
             </section>
           )}
 
-          <section style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            <h3 style={{ fontSize: '14px', color: 'var(--rose-gold-primary)' }}>
+          <section className="administration-section">
+            <h3>
               {t('membersModal.members')}{active.length})
             </h3>
             {loading ? (
@@ -330,6 +297,7 @@ export const MembersModal: React.FC<MembersModalProps> = ({ orgId, orgName, onCl
               active.map(m => (
                 <MemberRow key={m.userId} member={m}>
                   <select
+                    aria-label={t('membersModal.roleFor', { name: m.fullName })}
                     className="input-field"
                     style={{ padding: '6px 10px', fontSize: '12px', width: 'auto' }}
                     value={m.role}
@@ -363,8 +331,8 @@ export const MembersModal: React.FC<MembersModalProps> = ({ orgId, orgName, onCl
           </section>
 
           {suspended.length > 0 && (
-            <section style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              <h3 style={{ fontSize: '14px', color: 'var(--rose-gold-primary)' }}>
+            <section className="administration-section">
+              <h3>
                 {t('membersModal.revokedSection', { count: suspended.length })}
               </h3>
               {suspended.map(m => (
@@ -385,20 +353,20 @@ export const MembersModal: React.FC<MembersModalProps> = ({ orgId, orgName, onCl
           )}
 
           {/* Invite */}
-          <form onSubmit={handleInvite} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            <h3 style={{ fontSize: '14px', color: 'var(--rose-gold-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <form onSubmit={handleInvite} className="administration-section">
+            <h3 className="administration-section__title">
               <UserPlus size={16} /> {t('membersModal.inviteSomeone')}
             </h3>
-            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+            <div className="administration-form-row">
+              <label className="administration-field"><span className="sr-only">{t('membersModal.email')}</span>
               <input
                 className="input-field"
-                style={{ flex: '1 1 220px' }}
                 type="email"
                 value={inviteEmail}
                 onChange={e => setInviteEmail(e.target.value)}
                 placeholder="colleague@example.com"
               />
-              <select
+              </label><label className="administration-field"><span>{t('membersModal.member')}</span><select
                 className="input-field"
                 style={{ width: 'auto' }}
                 value={inviteRole}
@@ -407,6 +375,7 @@ export const MembersModal: React.FC<MembersModalProps> = ({ orgId, orgName, onCl
                 <option value="ORG_USER">{t('membersModal.member')}</option>
                 <option value="ORG_ADMIN">{t('membersModal.administrator')}</option>
               </select>
+              </label>
               <button type="submit" className="btn-rose" disabled={inviting || !inviteEmail.trim()}>
                 {inviting ?t('membersModal.sending') :t('membersModal.invite')}
               </button>
@@ -416,13 +385,13 @@ export const MembersModal: React.FC<MembersModalProps> = ({ orgId, orgName, onCl
             </p>
           </form>
 
-          <section style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            <h3 style={{ fontSize: '14px', color: 'var(--rose-gold-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <section className="administration-section">
+            <h3 className="administration-section__title">
               <Link2 size={16} /> {t('membersModal.inviteLinksTitle')}
             </h3>
-            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
+            <div className="administration-code-row">
               {issuedLink && (
-                <code style={{ flex: '1 1 260px', fontSize: '12px', wordBreak: 'break-all', color: 'var(--text-muted)' }}>{issuedLink}</code>
+                <code className="administration-code">{issuedLink}</code>
               )}
               <button type="button" className="btn-rose" disabled={issuing} onClick={() => void issueInviteLink()}>
                 {t('membersModal.generateInviteLink')}
@@ -435,14 +404,13 @@ export const MembersModal: React.FC<MembersModalProps> = ({ orgId, orgName, onCl
                   {t('membersModal.activeInviteLinks', { count: inviteLinks.length })}
                 </h4>
                 {inviteLinks.map(link => (
-                  <div key={link.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', fontSize: '13px' }}>
-                    <span style={{ color: 'var(--text-muted)' }}>
+                  <div key={link.id} className="administration-row administration-row--compact">
+                    <span className="administration-row__meta">
                       {t('membersModal.inviteLinkExpires', { name: link.createdByName, date: formatDate(link.expiresAt) })}
                     </span>
                     <button
                       type="button"
-                      className="btn-secondary"
-                      style={{ padding: '6px 12px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}
+                      className="btn-secondary administration-action"
                       onClick={() => run(() => api.revokeInviteLink(orgId, link.id), t('membersModal.inviteLinkRevoked'))}
                     >
                       <Ban size={14} /> {t('adminPanel.revoke')}
@@ -454,12 +422,12 @@ export const MembersModal: React.FC<MembersModalProps> = ({ orgId, orgName, onCl
           </section>
 
           {joinLink && (
-            <section style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              <h3 style={{ fontSize: '14px', color: 'var(--rose-gold-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <section className="administration-section">
+              <h3 className="administration-section__title">
                 <Link2 size={16} /> {t('membersModal.joinLinkTitle')}
               </h3>
-              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
-                <code style={{ flex: '1 1 260px', fontSize: '12px', wordBreak: 'break-all', color: 'var(--text-muted)' }}>{joinLink}</code>
+              <div className="administration-code-row">
+                <code className="administration-code">{joinLink}</code>
                 <button type="button" className="btn-secondary" onClick={() => void copyJoinLink()}>
                   {t('membersModal.copyJoinLink')}
                 </button>
@@ -476,21 +444,10 @@ export const MembersModal: React.FC<MembersModalProps> = ({ orgId, orgName, onCl
 
 const TabButton: React.FC<{ active: boolean; onClick: () => void; children: React.ReactNode }> = ({ active, onClick, children }) => (
   <button
-    role="tab"
-    aria-selected={active}
+    type="button"
+    aria-pressed={active}
     onClick={onClick}
-    style={{
-      background: active ? 'rgba(183, 110, 121, 0.15)' : 'none',
-      border: '1px solid var(--border-color)',
-      borderRadius: '8px',
-      padding: '6px 12px',
-      color: active ? 'var(--rose-gold-primary)' : 'var(--text-muted)',
-      cursor: 'pointer',
-      display: 'flex',
-      alignItems: 'center',
-      gap: '6px',
-      fontSize: '13px',
-    }}
+    className="administration-nav__button"
   >
     {children}
   </button>
@@ -500,30 +457,21 @@ const MemberRow: React.FC<{ member: OrgMember; children: React.ReactNode }> = ({
   const { t } = useAppTranslation();
   return (
   <div
-    style={{
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      gap: '12px',
-      padding: '10px 14px',
-      borderRadius: '10px',
-      border: '1px solid var(--border-color)',
-      flexWrap: 'wrap',
-    }}
+    className="administration-row"
   >
-    <div style={{ minWidth: 0 }}>
-      <div style={{ fontSize: '14px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-        {member.role === 'ORG_ADMIN' && <Shield size={13} color="var(--rose-gold-primary)" />}
+    <div className="administration-row__identity">
+      <div className="administration-row__name">
+        {member.role === 'ORG_ADMIN' && <Shield size={13} />}
         {member.fullName}
       </div>
-      <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+      <div className="administration-row__meta">
         {member.email}
         {!member.emailVerified && (
-          <span style={{ marginLeft: '6px', color: 'var(--rose-gold-primary)' }}>· {t('membersModal.emailNotConfirmed')}</span>
+          <span className="administration-badge">{t('membersModal.emailNotConfirmed')}</span>
         )}
       </div>
     </div>
-    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>{children}</div>
+    <div className="administration-actions">{children}</div>
   </div>
   );
 };
@@ -537,15 +485,8 @@ const IconButton: React.FC<{ title: string; onClick: () => void; children: React
     title={title}
     aria-label={title}
     onClick={onClick}
-    style={{
-      background: 'none',
-      border: '1px solid var(--border-color)',
-      borderRadius: '8px',
-      padding: '6px',
-      color: 'var(--text-muted)',
-      cursor: 'pointer',
-      display: 'flex',
-    }}
+    type="button"
+    className="icon-button"
   >
     {children}
   </button>

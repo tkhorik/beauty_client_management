@@ -1,0 +1,6 @@
+Self-hosted WOFF2 fonts, downloaded 2026-10-21.
+
+Manrope: @fontsource-variable/manrope 5.3.0
+https://registry.npmjs.org/@fontsource-variable/manrope/-/manrope-5.3.0.tgz
+Cyrillic and Latin variable normal subsets; SIL Open Font License (Manrope-LICENSE.txt).
+No runtime CDN requests or npm dependencies.

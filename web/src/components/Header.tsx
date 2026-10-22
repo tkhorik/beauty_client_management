@@ -1,16 +1,16 @@
 import { useAppTranslation } from '../i18n/LocaleProvider';
-import React from 'react';
-import { Search, Plus, Sparkles, Filter, Settings, Users, ShieldCheck } from 'lucide-react';
+import { Search, Plus, Sparkles, Settings, Users, ShieldCheck, ArrowUpRight } from 'lucide-react';
 import { useAuth } from '../auth/AuthContext';
 import { useOrg } from '../auth/OrgContext';
+import { LanguageSelector } from './LanguageSelector';
 import type { ClientTag } from '../types';
+import './Workspace.css';
 
 interface HeaderProps {
   searchQuery: string;
   onSearchChange: (q: string) => void;
   selectedTag: string;
   onTagSelect: (tag: string) => void;
-  /** Tags in use in the organization, most common first. */
   tags: ClientTag[];
   onOpenNewClient: () => void;
   onOpenNewVisit: () => void;
@@ -20,218 +20,64 @@ interface HeaderProps {
   totalClients: number;
 }
 
-export const Header: React.FC<HeaderProps> = ({
-  searchQuery,
-  onSearchChange,
-  selectedTag,
-  onTagSelect,
-  tags,
-  onOpenNewClient,
-  onOpenNewVisit,
-  onOpenSettings,
-  onOpenMembers,
-  onOpenAdmin,
-  totalClients
-}) => {
+export function Header({ searchQuery, onSearchChange, selectedTag, onTagSelect, tags, onOpenNewClient, onOpenNewVisit, onOpenSettings, onOpenMembers, onOpenAdmin, totalClients }: HeaderProps) {
   const { t } = useAppTranslation();
   const { user } = useAuth();
   const { current, activeOrganizations, offline, select } = useOrg();
-  // Requests waiting on approval in the active organization; the server only
-  // reports it to admins, so this is 0 for everyone else.
   const pendingCount = current?.pendingRequestCount ?? 0;
-  // The chips are the tags clients actually carry, shown as written on the
-  // cards. A selected tag the last client just lost stays visible so the
-  // filter can still be cleared from here.
   const tagsList: Array<{ value: string; label: string; count?: number }> = [
     { value: '', label: t('header.all') },
     ...tags.map(tag => ({ value: tag.name, label: tag.name, count: tag.count })),
   ];
-  if (selectedTag && !tags.some(tag => tag.name.toLowerCase() === selectedTag.toLowerCase())) {
-    tagsList.push({ value: selectedTag, label: selectedTag });
-  }
+  if (selectedTag && !tags.some(tag => tag.name.toLowerCase() === selectedTag.toLowerCase())) tagsList.push({ value: selectedTag, label: selectedTag });
 
   return (
-    <header className="glass-panel-glow" style={{ padding: '20px 28px', marginBottom: '28px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
-        
-        {/* Brand */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <div style={{
-            width: '44px',
-            height: '44px',
-            borderRadius: '12px',
-            background: 'linear-gradient(135deg, var(--rose-gold-primary) 0%, var(--rose-gold-dark) 100%)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            boxShadow: '0 4px 15px rgba(229, 184, 153, 0.3)'
-          }}>
-            <Sparkles size={24} color="#0f0e13" />
-          </div>
-          <div>
-            <h1 className="text-gradient" style={{ fontSize: '24px', lineHeight: '1.2' }}>{t('header.auraBeautyLog')}</h1>
-            <p style={{ color: 'var(--text-muted)', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#2dd4bf' }}></span>
-              {t('header.studioSummary', { profiles: t('counts.activeProfiles', { count: totalClients }) })}
-            </p>
-          </div>
+    <header className="workspace-header">
+      <a className="workspace-skip" href="#client-directory-content">{t('landingPage.skip')}</a>
+      <div className="workspace-topbar">
+        <div className="workspace-brand" aria-label={t('common.appName')}>
+          <span className="workspace-brand__mark"><Sparkles size={22} aria-hidden="true" /></span>
+          <span className="workspace-brand__word">aura<small>beauty log</small></span>
         </div>
-
-        {/* Action Buttons */}
-        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-          {/*
-            Organization switcher. Rendered as a plain <select> rather than a
-            fancy menu because getting this wrong is expensive: the visible
-            label here is the only thing telling a user which salon's records
-            they are about to edit.
-          */}
-          {current && (
-            <select
-              className="input-field"
-              value={current.id}
-              onChange={(e) => select(e.target.value)}
-              title={offline ?t('header.offlineDemoDataTheBackendIsUnreachable') : t('header.activeOrganization')}
-              aria-label={t('header.activeOrganization')}
-              style={{ width: 'auto', padding: '9px 12px', fontSize: '13px' }}
-              disabled={activeOrganizations.length <= 1}
-            >
-              {activeOrganizations.map(org => (
-                <option key={org.id} value={org.id}>{offline ? t('header.demoOrganization') : org.name}</option>
-              ))}
-            </select>
-          )}
-
-          {/*
-            Shown to administrators only — a convenience, not the control. The
-            backend refuses these calls from a plain member regardless of what
-            the UI renders.
-
-            A SUPER_ADMIN qualifies whatever their membership role says, because
-            the server already treats them as an administrator of every
-            organization: requireOrgAccess() hands them ORG_ADMIN for any
-            X-Org-Id without consulting the membership table at all. Gating this
-            on the org role alone hid the entry point in any salon where the
-            super admin happened to be a plain member, while every action behind
-            it would have been accepted.
-          */}
+        <div className="workspace-tools">
+          {current && <select className="input-field workspace-org" value={current.id} onChange={e => select(e.target.value)}
+            title={offline ? t('header.offlineDemoDataTheBackendIsUnreachable') : t('header.activeOrganization')}
+            aria-label={t('header.activeOrganization')} disabled={activeOrganizations.length <= 1}>
+            {activeOrganizations.map(org => <option key={org.id} value={org.id}>{offline ? t('header.demoOrganization') : org.name}</option>)}
+          </select>}
+          <LanguageSelector compact />
           {(current?.role === 'ORG_ADMIN' || user?.globalRole === 'SUPER_ADMIN') && !offline && (
-            <button
-              className="btn-secondary"
-              onClick={onOpenMembers}
-              title={t('header.manageMembers')}
-              aria-label={pendingCount > 0
-                ? `${t('header.manageMembers')} — ${t('header.pendingRequests', { count: pendingCount })}`
-                : t('header.manageMembers')}
-              style={{ padding: '10px', display: 'flex', position: 'relative' }}
-            >
-              <Users size={18} />
-              {pendingCount > 0 && (
-                <span
-                  aria-hidden="true"
-                  style={{
-                    position: 'absolute',
-                    top: '-6px',
-                    right: '-6px',
-                    minWidth: '18px',
-                    height: '18px',
-                    padding: '0 5px',
-                    borderRadius: '9px',
-                    background: 'var(--rose-gold-primary)',
-                    color: '#fff',
-                    fontSize: '11px',
-                    fontWeight: 600,
-                    lineHeight: '18px',
-                    textAlign: 'center',
-                  }}
-                >
-                  {pendingCount > 99 ? '99+' : pendingCount}
-                </span>
-              )}
+            <button className="icon-button workspace-members" onClick={onOpenMembers} title={t('header.manageMembers')}
+              aria-label={pendingCount > 0 ? `${t('header.manageMembers')} — ${t('header.pendingRequests', { count: pendingCount })}` : t('header.manageMembers')}>
+              <Users size={19} aria-hidden="true" />
+              {pendingCount > 0 && <span className="workspace-count" aria-hidden="true">{pendingCount > 99 ? '99+' : pendingCount}</span>}
             </button>
           )}
-
-          {/*
-            System-wide, not organization-scoped — visible regardless of which
-            organization is currently active. The backend's requireSuperAdmin()
-            guard is the real gate; this is just where the entry point lives.
-          */}
-          {user?.globalRole === 'SUPER_ADMIN' && !offline && (
-            <button
-              className="btn-secondary"
-              onClick={onOpenAdmin}
-              title={t('header.adminPanel')}
-              aria-label={t('header.adminPanel')}
-              style={{ padding: '10px', display: 'flex' }}
-            >
-              <ShieldCheck size={18} />
-            </button>
-          )}
-
-          <button className="btn-secondary" onClick={onOpenNewVisit}>
-            <Plus size={16} /> {t('header.logNewVisit')}
-          </button>
-          <button className="btn-rose" onClick={onOpenNewClient}>
-            <Plus size={18} /> {t('header.newClientProfile')}
-          </button>
-          <button
-            className="btn-secondary"
-            onClick={onOpenSettings}
-            title={user ? t('header.signedInAs', { name: user.fullName }) : t('header.accountSettings')}
-            aria-label={t('header.accountSettings')}
-            style={{ padding: '10px', display: 'flex' }}
-          >
-            <Settings size={18} />
-          </button>
+          {user?.globalRole === 'SUPER_ADMIN' && !offline && <button className="icon-button" onClick={onOpenAdmin} title={t('header.adminPanel')} aria-label={t('header.adminPanel')}><ShieldCheck size={19} aria-hidden="true" /></button>}
+          <button className="icon-button" onClick={onOpenSettings} title={user ? t('header.signedInAs', { name: user.fullName }) : t('header.accountSettings')} aria-label={t('header.accountSettings')}><Settings size={19} aria-hidden="true" /></button>
         </div>
       </div>
-
-      {/* Search & Tag Filter Bar */}
-      <div style={{ display: 'flex', gap: '16px', marginTop: '20px', alignItems: 'center', flexWrap: 'wrap' }}>
-        <div style={{ flex: '1 1 300px', position: 'relative' }}>
-          <Search size={18} style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-          <input
-            type="text"
-            className="input-field"
-            aria-label={t('header.searchClientsByNamePhoneAllergiesFormulasOrProcedureNotes')}
-            placeholder={t('header.searchClientsByNamePhoneAllergiesFormulasOrProcedureNotes')}
-            value={searchQuery}
-            onChange={(e) => onSearchChange(e.target.value)}
-            style={{ paddingLeft: '42px', height: '42px' }}
-          />
+      <div className="workspace-heading">
+        <div>
+          <p className="workspace-eyebrow">{t('header.journal')}</p>
+          <h1>{t('header.clientsTitle')}<span aria-hidden="true">{totalClients}</span><span className="sr-only">, {t('counts.activeProfiles', { count: totalClients })}</span></h1>
+          <p className="workspace-description">{t('header.clientsDescription')}</p>
         </div>
-
-        {/* Tag Filters */}
-        <div style={{ flex: '1 1 300px', minWidth: 0, display: 'flex', alignItems: 'center', gap: '8px', overflowX: 'auto', paddingBottom: '4px' }}>
-          <Filter size={16} style={{ color: 'var(--text-dim)', marginRight: '4px' }} />
-          {tagsList.map(tag => {
-            const isActive = selectedTag.toLowerCase() === tag.value.toLowerCase();
-            return (
-              <button
-                key={tag.value}
-                aria-pressed={isActive}
-                onClick={() => onTagSelect(tag.value)}
-                style={{
-                  background: isActive ? 'var(--rose-gold-primary)' : 'rgba(255,255,255,0.05)',
-                  color: isActive ? '#0f0e13' : 'var(--text-muted)',
-                  border: isActive ? 'none' : '1px solid var(--border-color)',
-                  padding: '6px 14px',
-                  borderRadius: '20px',
-                  fontSize: '12px',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  whiteSpace: 'nowrap',
-                  transition: 'all 0.2s ease'
-                }}
-              >
-                {tag.label}
-                {tag.count !== undefined && (
-                  <span style={{ marginLeft: '6px', opacity: 0.6, fontWeight: 500 }}>{tag.count}</span>
-                )}
-              </button>
-            );
-          })}
+        <div className="workspace-actions">
+          <button className="btn-secondary" onClick={onOpenNewVisit}><Plus size={18} aria-hidden="true" />{t('header.logNewVisit')}</button>
+          <button className="btn-rose" onClick={onOpenNewClient}>{t('header.newClientProfile')}<ArrowUpRight size={19} aria-hidden="true" /></button>
         </div>
+      </div>
+      <div className="workspace-search" role="search">
+        <Search size={20} aria-hidden="true" />
+        <input type="search" className="input-field" aria-label={t('header.searchClientsByNamePhoneAllergiesFormulasOrProcedureNotes')}
+          placeholder={t('header.searchShort')} value={searchQuery} onChange={e => onSearchChange(e.target.value)} />
+      </div>
+      <div className="workspace-tags" aria-label={t('header.filtersLabel')}>
+        {tagsList.map(tag => <button key={tag.value} className="workspace-tag" aria-pressed={selectedTag.toLowerCase() === tag.value.toLowerCase()} onClick={() => onTagSelect(tag.value)}>
+          {tag.label}{tag.count !== undefined && <span>{tag.count}</span>}
+        </button>)}
       </div>
     </header>
   );
-};
+}

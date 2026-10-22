@@ -1,8 +1,9 @@
 import { useAppTranslation } from '../i18n/LocaleProvider';
-import React, { useState } from 'react';
+import React, { useId, useState } from 'react';
 import { useDismiss } from './useDismiss';
 import type { Attachment } from '../types';
 import { X, Sliders, Columns } from 'lucide-react';
+import './ClientForms.css';
 
 interface PhotoCompareModalProps {
   attachments: Attachment[];
@@ -12,6 +13,7 @@ interface PhotoCompareModalProps {
 export const PhotoCompareModal: React.FC<PhotoCompareModalProps> = ({ attachments, onClose }) => {
   const { t } = useAppTranslation();
   const dismiss = useDismiss(onClose);
+  const id = useId();
   const beforePhoto = attachments.find(a => a.tag === 'BEFORE') || attachments[0];
   const afterPhoto = attachments.find(a => a.tag === 'AFTER') || attachments[1] || attachments[0];
 
@@ -19,105 +21,44 @@ export const PhotoCompareModal: React.FC<PhotoCompareModalProps> = ({ attachment
   const [viewMode, setViewMode] = useState<'slider' | 'sideBySide'>('slider');
 
   return (
-    <div style={{
-      position: 'fixed',
-      inset: 0,
-      background: 'rgba(0, 0, 0, 0.85)',
-      backdropFilter: 'blur(10px)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      zIndex: 1000,
-      padding: '20px'
-    }} {...dismiss}>
-      <div className="glass-panel-glow" style={{
-        width: '900px',
-        maxWidth: '95vw',
-        maxHeight: '90vh',
-        borderRadius: '20px',
-        display: 'flex',
-        flexDirection: 'column',
-        overflow: 'hidden'
-      }}>
+    <div className="dialog-overlay" {...dismiss}>
+      <div role="dialog" aria-modal="true" aria-labelledby={`${id}-title`} tabIndex={-1} className="dialog-panel client-dialog client-dialog--wide">
         {/* Header */}
-        <div style={{
-          padding: '18px 24px',
-          borderBottom: '1px solid var(--border-color)',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          flexWrap: 'wrap',
-          gap: '12px',
-          background: 'rgba(15, 14, 19, 0.8)'
-        }}>
-          <div>
-            <h2 className="text-gradient" style={{ fontSize: '20px' }}>{t('photoCompareModal.procedureBeforeAndAfterComparison')}</h2>
-            <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{t('photoCompareModal.interactiveSideBySideAndSliderInspection')}</p>
+        <div className="dialog-header dialog-header--responsive">
+          <div className="dialog-header__copy">
+            <h2 id={`${id}-title`} className="dialog-title">{t('photoCompareModal.procedureBeforeAndAfterComparison')}</h2>
+            <p className="dialog-subtitle">{t('photoCompareModal.interactiveSideBySideAndSliderInspection')}</p>
           </div>
 
           {/* Controls */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <div style={{ display: 'flex', background: 'rgba(255,255,255,0.05)', borderRadius: '10px', padding: '4px' }}>
+          <div className="photo-toolbar">
+            <div className="segmented">
               <button
                 onClick={() => setViewMode('slider')}
-                style={{
-                  background: viewMode === 'slider' ? 'var(--rose-gold-primary)' : 'transparent',
-                  color: viewMode === 'slider' ? '#0f0e13' : 'var(--text-muted)',
-                  border: 'none',
-                  padding: '6px 12px',
-                  borderRadius: '6px',
-                  fontSize: '12px',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px'
-                }}
+                aria-pressed={viewMode === 'slider'}
               >
                 <Sliders size={14} /> {t('photoCompareModal.sliderSplit')}
               </button>
               <button
                 onClick={() => setViewMode('sideBySide')}
-                style={{
-                  background: viewMode === 'sideBySide' ? 'var(--rose-gold-primary)' : 'transparent',
-                  color: viewMode === 'sideBySide' ? '#0f0e13' : 'var(--text-muted)',
-                  border: 'none',
-                  padding: '6px 12px',
-                  borderRadius: '6px',
-                  fontSize: '12px',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px'
-                }}
+                aria-pressed={viewMode === 'sideBySide'}
               >
                 <Columns size={14} /> {t('photoCompareModal.sideBySide')}
               </button>
             </div>
 
-            <button aria-label={t('common.close')} onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
-              <X size={24} />
-            </button>
           </div>
+          <button type="button" aria-label={t('common.close')} onClick={onClose} className="close-button">
+            <X size={24} />
+          </button>
         </div>
 
         {/* Content Area */}
-        <div style={{ flex: 1, padding: '24px', overflowY: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+        <div className="dialog-body" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
           {viewMode === 'slider' ? (
             /* Interactive Slider Comparison */
             <div style={{ width: '100%', maxWidth: '750px' }}>
-              <div 
-                style={{
-                  position: 'relative',
-                  width: '100%',
-                  aspectRatio: '16 / 9',
-                  borderRadius: '16px',
-                  overflow: 'hidden',
-                  userSelect: 'none',
-                  boxShadow: '0 10px 30px rgba(0,0,0,0.6)',
-                  border: '1px solid var(--border-color)'
-                }}
+              <div className="compare-stage"
                 onMouseMove={(e) => {
                   const rect = e.currentTarget.getBoundingClientRect();
                   const x = Math.max(0, Math.min(e.clientX - rect.left, rect.width));
@@ -134,21 +75,9 @@ export const PhotoCompareModal: React.FC<PhotoCompareModalProps> = ({ attachment
                 <img
                   src={afterPhoto?.fileUrl}
                   alt={t('photoCompareModal.afterProcedure')}
-                  style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+                  loading="lazy" decoding="async"
                 />
-                <div style={{
-                  position: 'absolute',
-                  top: '16px',
-                  right: '16px',
-                  background: 'rgba(0,0,0,0.7)',
-                  color: '#2dd4bf',
-                  padding: '4px 12px',
-                  borderRadius: '12px',
-                  fontSize: '12px',
-                  fontWeight: 700,
-                  backdropFilter: 'blur(8px)',
-                  border: '1px solid rgba(45,212,191,0.3)'
-                }}>
+                <div className="compare-chip" style={{ right: '14px' }}>
                   {t('photoCompareModal.aFTERPROCEDURE')}
                 </div>
 
@@ -162,55 +91,18 @@ export const PhotoCompareModal: React.FC<PhotoCompareModalProps> = ({ attachment
                   <img
                     src={beforePhoto?.fileUrl}
                     alt={t('photoCompareModal.beforeProcedure')}
-                    style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+                    loading="lazy" decoding="async"
                   />
-                  <div style={{
-                    position: 'absolute',
-                    top: '16px',
-                    left: '16px',
-                    background: 'rgba(0,0,0,0.7)',
-                    color: 'var(--rose-gold-primary)',
-                    padding: '4px 12px',
-                    borderRadius: '12px',
-                    fontSize: '12px',
-                    fontWeight: 700,
-                    backdropFilter: 'blur(8px)',
-                    border: '1px solid rgba(229,184,153,0.3)'
-                  }}>
+                  <div className="compare-chip" style={{ left: '14px' }}>
                     {t('photoCompareModal.bEFOREPROCEDURE')}
                   </div>
                 </div>
 
                 {/* Slider Handle */}
-                <div style={{
-                  position: 'absolute',
-                  top: 0,
-                  bottom: 0,
-                  left: `${sliderPos}%`,
-                  transform: 'translateX(-50%)',
-                  width: '4px',
-                  background: 'var(--rose-gold-primary)',
-                  boxShadow: '0 0 15px rgba(229,184,153,0.8)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  pointerEvents: 'none'
-                }}>
-                  <div style={{
-                    width: '32px',
-                    height: '32px',
-                    borderRadius: '50%',
-                    background: 'var(--rose-gold-primary)',
-                    color: '#0f0e13',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontWeight: 'bold',
-                    fontSize: '14px',
-                    boxShadow: '0 0 20px rgba(0,0,0,0.5)'
-                  }}>
+                <div className="compare-handle" style={{ left: `${sliderPos}%`, transform: 'translateX(-50%)' }}>
+                  <span>
                     ↔
-                  </div>
+                  </span>
                 </div>
               </div>
 
@@ -238,22 +130,9 @@ export const PhotoCompareModal: React.FC<PhotoCompareModalProps> = ({ attachment
             </div>
           ) : (
             /* Side by Side Mode */
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))', gap: '20px', width: '100%' }}>
-              <div style={{ borderRadius: '16px', overflow: 'hidden', border: '1px solid var(--border-color)', background: 'rgba(0,0,0,0.4)', padding: '12px' }}>
-                <div style={{ position: 'relative', height: '320px', borderRadius: '12px', overflow: 'hidden', marginBottom: '10px' }}>
-                  <img src={beforePhoto?.fileUrl} alt={t('photoCompareModal.before')} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                  <span style={{ position: 'absolute', top: '10px', left: '10px', background: 'rgba(0,0,0,0.7)', color: 'var(--rose-gold-primary)', padding: '4px 10px', borderRadius: '8px', fontSize: '11px', fontWeight: 700 }}>{t('photoCompareModal.bEFORE')}</span>
-                </div>
-                <p style={{ fontSize: '13px', color: 'var(--text-main)', fontWeight: 500 }}>{beforePhoto?.caption || t('photoCompareModal.beforeCaption')}</p>
-              </div>
-
-              <div style={{ borderRadius: '16px', overflow: 'hidden', border: '1px solid var(--border-color)', background: 'rgba(0,0,0,0.4)', padding: '12px' }}>
-                <div style={{ position: 'relative', height: '320px', borderRadius: '12px', overflow: 'hidden', marginBottom: '10px' }}>
-                  <img src={afterPhoto?.fileUrl} alt={t('photoCompareModal.after')} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                  <span style={{ position: 'absolute', top: '10px', left: '10px', background: 'rgba(0,0,0,0.7)', color: '#2dd4bf', padding: '4px 10px', borderRadius: '8px', fontSize: '11px', fontWeight: 700 }}>{t('photoCompareModal.aFTER')}</span>
-                </div>
-                <p style={{ fontSize: '13px', color: 'var(--text-main)', fontWeight: 500 }}>{afterPhoto?.caption || t('photoCompareModal.afterCaption')}</p>
-              </div>
+            <div className="compare-side">
+              <figure><img src={beforePhoto?.fileUrl} alt={t('photoCompareModal.before')} loading="lazy" decoding="async" /><figcaption>{beforePhoto?.caption || t('photoCompareModal.beforeCaption')}</figcaption></figure>
+              <figure><img src={afterPhoto?.fileUrl} alt={t('photoCompareModal.after')} loading="lazy" decoding="async" /><figcaption>{afterPhoto?.caption || t('photoCompareModal.afterCaption')}</figcaption></figure>
             </div>
           )}
         </div>

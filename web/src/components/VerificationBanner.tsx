@@ -38,22 +38,12 @@ export function VerificationBanner() {
 
   return (
     <div
-      className="glass-panel"
+      className="verification-banner"
       role="status"
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: '14px',
-        flexWrap: 'wrap',
-        padding: '14px 18px',
-        marginBottom: '20px',
-        borderRadius: '14px',
-        borderLeft: '3px solid var(--text-muted)',
-      }}
     >
       <MailCheck size={20} color="var(--text-muted)" style={{ flexShrink: 0 }} />
 
-      <div style={{ flex: 1, minWidth: '260px' }}>
+      <div className="verification-banner__copy">
         <p style={{ margin: 0, fontWeight: 600 }}>
           {t('verificationBanner.deadline', { count: daysLeft })}
         </p>
@@ -74,7 +64,7 @@ export function VerificationBanner() {
         )}
       </div>
 
-      <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
+      <div className="verification-banner__actions">
         <button
           className="btn-rose"
           onClick={recheck}

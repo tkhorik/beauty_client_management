@@ -1,5 +1,5 @@
 import { useAppTranslation } from '../i18n/LocaleProvider';
-import React, { useState } from 'react';
+import React, { useId, useState } from 'react';
 import { useDismiss } from './useDismiss';
 import type { Client, Visit } from '../types';
 import { api, writeErrorMessage } from '../services/api';
@@ -7,6 +7,7 @@ import { localDateTimeInputValue } from '../utils/localDateTime';
 import { compressImage } from '../utils/imageCompressor';
 import { PhotoSourcePicker } from './PhotoSourcePicker';
 import { X, Calendar } from 'lucide-react';
+import './ClientForms.css';
 
 interface NewVisitModalProps {
   client?: Client;
@@ -23,6 +24,7 @@ export const NewVisitModal: React.FC<NewVisitModalProps> = ({
 }) => {
   const { t } = useAppTranslation();
   const dismiss = useDismiss(onClose);
+  const id = useId();
   const [selectedClientId, setSelectedClientId] = useState(client?.id || (clientsList[0]?.id || ''));
   const [visitDateTime, setVisitDateTime] = useState(() => localDateTimeInputValue(new Date()));
   const [durationMinutes, setDurationMinutes] = useState(60);
@@ -85,68 +87,44 @@ export const NewVisitModal: React.FC<NewVisitModalProps> = ({
   };
 
   return (
-    <div style={{
-      position: 'fixed',
-      inset: 0,
-      background: 'rgba(0,0,0,0.85)',
-      backdropFilter: 'blur(10px)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      zIndex: 1000,
-      padding: '20px'
-    }} {...dismiss}>
-      <div className="glass-panel-glow" style={{
-        width: '750px',
-        maxWidth: '95vw',
-        maxHeight: '92vh',
-        borderRadius: '20px',
-        display: 'flex',
-        flexDirection: 'column',
-        overflow: 'hidden'
-      }}>
+    <div className="dialog-overlay" {...dismiss}>
+      <div role="dialog" aria-modal="true" aria-labelledby={`${id}-title`} tabIndex={-1} className="dialog-panel client-dialog client-dialog--wide">
         {/* Header */}
-        <div style={{
-          padding: '20px 24px',
-          borderBottom: '1px solid var(--border-color)',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          background: 'rgba(15, 14, 19, 0.9)'
-        }}>
-          <h2 className="text-gradient" style={{ fontSize: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div className="dialog-header">
+          <h2 id={`${id}-title`} className="dialog-title">
             <Calendar size={20} /> {t('newVisitModal.logProcedureVisitEntry')}
           </h2>
-          <button aria-label={t('common.close')} onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
+          <button type="button" aria-label={t('common.close')} onClick={onClose} className="close-button">
             <X size={22} />
           </button>
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} style={{ padding: '24px', flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '18px' }}>
+        <form onSubmit={handleSubmit} className="dialog-body dialog-form">
           
           {/* Client Select */}
-          <div>
-            <label style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px', display: 'block' }}>{t('newVisitModal.clientProfile')}</label>
+          <div className="form-field">
+            <label htmlFor={`${id}-client`}>{t('newVisitModal.clientProfile')}</label>
             <select
+              id={`${id}-client`}
               className="input-field"
               value={selectedClientId}
               onChange={(e) => setSelectedClientId(e.target.value)}
               disabled={!!client}
-              style={{ height: '42px' }}
             >
               {clientsList.map(c => (
-                <option key={c.id} value={c.id} style={{ background: '#181622', color: '#fff' }}>
+                <option key={c.id} value={c.id}>
                   {c.name} ({c.phone})
                 </option>
               ))}
             </select>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '14px' }}>
-            <div>
-              <label style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px', display: 'block' }}>{t('newVisitModal.dateAndTime')}</label>
+          <div className="form-grid form-grid--three">
+            <div className="form-field">
+              <label htmlFor={`${id}-date`}>{t('newVisitModal.dateAndTime')}</label>
               <input
+                id={`${id}-date`}
                 type="datetime-local"
                 required
                 className="input-field"
@@ -155,9 +133,10 @@ export const NewVisitModal: React.FC<NewVisitModalProps> = ({
               />
             </div>
 
-            <div>
-              <label style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px', display: 'block' }}>{t('newVisitModal.durationMins')}</label>
+            <div className="form-field">
+              <label htmlFor={`${id}-duration`}>{t('newVisitModal.durationMins')}</label>
               <input
+                id={`${id}-duration`}
                 type="number"
                 min="15"
                 step="15"
@@ -167,88 +146,74 @@ export const NewVisitModal: React.FC<NewVisitModalProps> = ({
               />
             </div>
 
-            <div>
-              <label style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px', display: 'block' }}>{t('newVisitModal.visitStatus')}</label>
+            <div className="form-field">
+              <label htmlFor={`${id}-status`}>{t('newVisitModal.visitStatus')}</label>
               <select
+                id={`${id}-status`}
                 className="input-field"
                 value={status}
                 onChange={(e) => setStatus(e.target.value as any)}
-                style={{ height: '42px' }}
               >
-                <option value="COMPLETED" style={{ background: '#181622' }}>{t('newVisitModal.cOMPLETED')}</option>
-                <option value="SCHEDULED" style={{ background: '#181622' }}>{t('newVisitModal.sCHEDULED')}</option>
-                <option value="CANCELLED" style={{ background: '#181622' }}>{t('newVisitModal.cANCELLED')}</option>
+                <option value="COMPLETED">{t('newVisitModal.cOMPLETED')}</option>
+                <option value="SCHEDULED">{t('newVisitModal.sCHEDULED')}</option>
+                <option value="CANCELLED">{t('newVisitModal.cANCELLED')}</option>
               </select>
             </div>
           </div>
 
           {/* Procedure Notes */}
-          <div>
-            <label style={{ fontSize: '12px', color: 'var(--rose-gold-primary)', fontWeight: 600, marginBottom: '6px', display: 'block' }}>
+          <div className="form-field">
+            <label htmlFor={`${id}-notes`}>
               {t('newVisitModal.procedureDetailsAndFormulaNotes')}
             </label>
             <textarea
+              id={`${id}-notes`}
               required
               rows={4}
               className="input-field"
               placeholder={t('newVisitModal.enterLashMappingSpecsHairDyeFormulaRatiosLaserIntensityLevelsOrS')}
               value={procedureNotes}
               onChange={(e) => setProcedureNotes(e.target.value)}
-              style={{ lineHeight: '1.5', fontFamily: 'inherit' }}
             />
           </div>
 
           {/* Before & After Photo Attachments */}
-          <div>
-            <label style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '8px', display: 'block', fontWeight: 600 }}>
+          <div className="form-section">
+            <p className="form-section__title">
               {t('newVisitModal.attachProcedureMediaCompressedBeforeUpload')}
-            </label>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+            </p>
+            <div className="media-grid">
               
               {/* Before Photo Box */}
-              <div style={{
-                border: '1px dashed var(--border-color)',
-                borderRadius: '12px',
-                padding: '16px',
-                textAlign: 'center',
-                background: 'rgba(15,14,19,0.5)',
-                position: 'relative'
-              }}>
-                <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--rose-gold-primary)', textTransform: 'uppercase' }}>{t('newVisitModal.bEFOREPHOTO')}</span>
+              <div className="media-slot">
+                <span className="media-slot__label">{t('newVisitModal.bEFOREPHOTO')}</span>
                 {beforePhoto ? (
-                  <div style={{ marginTop: '10px', height: '120px', borderRadius: '8px', overflow: 'hidden', position: 'relative' }}>
-                    <img src={beforePhoto} alt={t('newVisitModal.before')} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                    <button type="button" aria-label={t('common.remove')} onClick={() => setBeforePhoto(null)} style={{ position: 'absolute', top: '6px', right: '6px', background: 'rgba(0,0,0,0.7)', border: 'none', color: '#fff', borderRadius: '50%', padding: '4px', cursor: 'pointer' }}>
+                  <div className="media-preview">
+                    <img src={beforePhoto} alt={t('newVisitModal.before')} loading="lazy" decoding="async" />
+                    <button type="button" aria-label={t('common.remove')} onClick={() => setBeforePhoto(null)} className="icon-button">
                       <X size={14} />
                     </button>
                   </div>
                 ) : (
-                  <div style={{ marginTop: '12px' }}>
+                  <div>
                     <PhotoSourcePicker color="var(--rose-gold-primary)" disabled={isSubmitting} onFile={(file) => handlePhotoFile(file, 'BEFORE')} />
                   </div>
                 )}
               </div>
 
               {/* After Photo Box */}
-              <div style={{
-                border: '1px dashed var(--border-color)',
-                borderRadius: '12px',
-                padding: '16px',
-                textAlign: 'center',
-                background: 'rgba(15,14,19,0.5)',
-                position: 'relative'
-              }}>
-                <span style={{ fontSize: '11px', fontWeight: 700, color: '#2dd4bf', textTransform: 'uppercase' }}>{t('newVisitModal.aFTERPHOTO')}</span>
+              <div className="media-slot">
+                <span className="media-slot__label">{t('newVisitModal.aFTERPHOTO')}</span>
                 {afterPhoto ? (
-                  <div style={{ marginTop: '10px', height: '120px', borderRadius: '8px', overflow: 'hidden', position: 'relative' }}>
-                    <img src={afterPhoto} alt={t('newVisitModal.after')} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                    <button type="button" aria-label={t('common.remove')} onClick={() => setAfterPhoto(null)} style={{ position: 'absolute', top: '6px', right: '6px', background: 'rgba(0,0,0,0.7)', border: 'none', color: '#fff', borderRadius: '50%', padding: '4px', cursor: 'pointer' }}>
+                  <div className="media-preview">
+                    <img src={afterPhoto} alt={t('newVisitModal.after')} loading="lazy" decoding="async" />
+                    <button type="button" aria-label={t('common.remove')} onClick={() => setAfterPhoto(null)} className="icon-button">
                       <X size={14} />
                     </button>
                   </div>
                 ) : (
-                  <div style={{ marginTop: '12px' }}>
-                    <PhotoSourcePicker color="#2dd4bf" disabled={isSubmitting} onFile={(file) => handlePhotoFile(file, 'AFTER')} />
+                  <div>
+                    <PhotoSourcePicker color="var(--emerald-accent)" disabled={isSubmitting} onFile={(file) => handlePhotoFile(file, 'AFTER')} />
                   </div>
                 )}
               </div>
@@ -256,7 +221,7 @@ export const NewVisitModal: React.FC<NewVisitModalProps> = ({
             </div>
           </div>
 
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '12px', paddingTop: '16px', borderTop: '1px solid var(--border-color)' }}>
+          <div className="dialog-footer">
             <button type="button" className="btn-secondary" onClick={onClose}>{t('newVisitModal.cancel')}</button>
             <button type="submit" className="btn-rose" disabled={isSubmitting}>
               {isSubmitting ?t('newVisitModal.savingVisitRecord') :t('newVisitModal.logVisitRecord')}
