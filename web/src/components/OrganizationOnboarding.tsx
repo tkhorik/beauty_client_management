@@ -9,6 +9,7 @@ import { stripQueryString } from '../auth/route';
 import { pendingJoinSlug } from '../auth/deepLinks';
 import type { Organization } from '../types';
 import { LanguageSelector } from './LanguageSelector';
+import './AuthScreens.css';
 
 /**
  * Captured once, at module-evaluation time — not inside the component.
@@ -27,29 +28,6 @@ import { LanguageSelector } from './LanguageSelector';
 const initialCreationToken = new URLSearchParams(window.location.search).get('orgToken');
 
 type TokenStatus = 'checking' | 'valid' | 'invalid';
-
-const fieldErrorStyle = {
-  color: '#e87c8a',
-  fontSize: '12px',
-  marginTop: '5px',
-} as const;
-
-const bannerStyle = (kind: 'error' | 'success' | 'info') =>
-  ({
-    padding: '10px 14px',
-    borderRadius: '8px',
-    background:
-      kind === 'error' ? 'rgba(220, 50, 80, 0.12)'
-        : kind === 'success' ? 'rgba(45, 212, 191, 0.12)'
-          : 'rgba(148, 163, 184, 0.12)',
-    border: `1px solid ${
-      kind === 'error' ? 'rgba(220, 50, 80, 0.3)'
-        : kind === 'success' ? 'rgba(45, 212, 191, 0.35)'
-          : 'rgba(148, 163, 184, 0.3)'
-    }`,
-    color: kind === 'error' ? '#e87c8a' : kind === 'success' ? '#2dd4bf' : 'var(--text-muted)',
-    fontSize: '13px',
-  }) as const;
 
 /**
  * Shown when the signed-in user belongs to no organization.
@@ -175,25 +153,25 @@ export const OrganizationOnboarding: React.FC<OrganizationOnboardingProps> = ({ 
   }
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
-      <div className="glass-panel-glow" style={{ width: '560px', maxWidth: '95vw', borderRadius: '20px', padding: '32px' }}>
-        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '10px' }}><LanguageSelector compact /></div>
+    <main className="onboarding-screen">
+      <div className="onboarding-card">
+        <div className="onboarding-top"><span aria-hidden="true" /><LanguageSelector compact /></div>
         {onCancel && (
-          <button className="btn-secondary" onClick={onCancel} style={{ marginBottom: '16px' }}>
+          <button type="button" className="btn-secondary" onClick={onCancel} style={{ marginBottom: '16px' }}>
             {t('common.cancel')}
           </button>
         )}
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
-          <Building2 size={24} color="var(--rose-gold-primary)" />
-          <h1 className="text-gradient" style={{ fontSize: '22px' }}>{t('organizationOnboarding.chooseAnOrganization')}</h1>
+        <div className="onboarding-heading">
+          <Building2 size={24} />
+          <h1>{t('organizationOnboarding.chooseAnOrganization')}</h1>
         </div>
-        <p style={{ color: 'var(--text-muted)', fontSize: '13px', marginBottom: '24px' }}>
+        <p className="onboarding-intro">
           {t('organizationOnboarding.clientsAndVisitsBelongToAnOrganizationJoinOneThatAlreadyExistsOr')}
         </p>
 
         {pending.length > 0 && (
-          <div style={{ ...bannerStyle('info'), marginBottom: '24px', display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+          <div className="auth-alert auth-alert--info" style={{ marginBottom: '24px', display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
             <Clock size={16} style={{ flexShrink: 0, marginTop: '1px' }} />
             <div>
               {t('organizationOnboarding.waitingOnApproval')}{' '}
@@ -203,7 +181,7 @@ export const OrganizationOnboarding: React.FC<OrganizationOnboardingProps> = ({ 
         )}
 
         {declined.map(o => (
-          <div key={o.id} style={{ ...bannerStyle('error'), marginBottom: '16px' }}>
+          <div key={o.id} className="auth-alert auth-alert--error" style={{ marginBottom: '16px' }}>
             {declinedMessage(o)}
           </div>
         ))}
@@ -217,99 +195,93 @@ export const OrganizationOnboarding: React.FC<OrganizationOnboardingProps> = ({ 
           check were somehow bypassed client-side.
         */}
         {tokenStatus === 'valid' && (
-          <form onSubmit={handleCreate} style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginBottom: '32px' }}>
-            <h2 style={{ fontSize: '14px', color: 'var(--rose-gold-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <section className="onboarding-section"><form onSubmit={handleCreate}>
+            <h2>
               <Plus size={16} /> {t('organizationOnboarding.createANewOrganization')}
             </h2>
-            <div>
-              <label style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px', display: 'block' }}>
+            <div className="onboarding-field">
+              <label htmlFor="organization-name">
                 {t('organizationOnboarding.name')}
               </label>
               <input
                 className="input-field"
+                id="organization-name"
                 value={name}
                 onChange={e => setName(e.target.value)}
                 placeholder="Aura Downtown"
                 aria-invalid={!!createErrors.name}
               />
-              {createErrors.name && <div style={fieldErrorStyle}>{createErrors.name}</div>}
+              {createErrors.name && <div className="auth-field-error">{createErrors.name}</div>}
             </div>
-            <div>
-              <label style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px', display: 'block' }}>
+            <div className="onboarding-field">
+              <label htmlFor="organization-slug">
                 {t('organizationOnboarding.handleOptional')}
               </label>
               <input
                 className="input-field"
+                id="organization-slug"
                 value={slug}
                 onChange={e => setSlug(e.target.value)}
                 placeholder="aura-downtown"
                 aria-invalid={!!createErrors.slug}
               />
-              <div style={{ color: 'var(--text-muted)', fontSize: '12px', marginTop: '5px' }}>
+              <div className="auth-hint">
                 {t('organizationOnboarding.thisIsWhatColleaguesTypeToRequestAccessLowercaseLettersNumbersAn')}
               </div>
-              {createErrors.slug && <div style={fieldErrorStyle}>{createErrors.slug}</div>}
+              {createErrors.slug && <div className="auth-field-error">{createErrors.slug}</div>}
             </div>
             <button type="submit" className="btn-rose" disabled={creating || !name.trim()}>
               {creating ?t('organizationOnboarding.creating') :t('organizationOnboarding.createOrganization')}
             </button>
-          </form>
+          </form></section>
         )}
 
         {tokenStatus === 'checking' && (
-          <div style={{ ...bannerStyle('info'), marginBottom: '32px' }}>{t('organizationOnboarding.checkingYourInvitationLink')}</div>
+          <div className="auth-alert auth-alert--info" style={{ marginBottom: '32px' }}>{t('organizationOnboarding.checkingYourInvitationLink')}</div>
         )}
 
         {tokenStatus === 'invalid' && (
-          <div style={{ marginBottom: '32px' }}>
-            <h2 style={{ fontSize: '14px', color: 'var(--rose-gold-primary)', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '10px' }}>
+          <section className="onboarding-section">
+            <h2>
               <Link2Off size={16} /> {t('organizationOnboarding.createANewOrganization')}
             </h2>
-            <div style={bannerStyle(creationToken ? 'error' : 'info')}>
+            <div className={`auth-alert ${creationToken ? 'auth-alert--error' : 'auth-alert--info'}`}>
               {creationToken
                 ?t('organizationOnboarding.thisInvitationLinkIsInvalidExpiredOrHasAlreadyBeenUsedAskYourAdm')
                 :t('organizationOnboarding.creatingANewOrganizationRequiresAnInvitationLinkFromAnAdministra')}
             </div>
-          </div>
+          </section>
         )}
 
         {/* Join */}
-        <form onSubmit={handleJoin} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-          <h2 style={{ fontSize: '14px', color: 'var(--rose-gold-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+        <section className="onboarding-section"><form onSubmit={handleJoin}>
+          <h2>
             <UserPlus size={16} /> {t('organizationOnboarding.joinAnExistingOne')}
           </h2>
-          <div>
-            <label style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px', display: 'block' }}>
+          <div className="onboarding-field">
+            <label htmlFor="join-organization-slug">
               {t('organizationOnboarding.organizationHandle')}
             </label>
             <input
               className="input-field"
+              id="join-organization-slug"
               value={joinSlug}
               onChange={e => setJoinSlug(e.target.value)}
               placeholder="aura-downtown"
               aria-invalid={!!joinError}
             />
-            {joinError && <div style={fieldErrorStyle}>{joinError}</div>}
+            {joinError && <div className="auth-field-error">{joinError}</div>}
           </div>
-          {joinNotice && <div style={bannerStyle('success')}>{joinNotice}</div>}
+          {joinNotice && <div className="auth-alert auth-alert--success">{joinNotice}</div>}
           <button type="submit" className="btn-rose" disabled={joining || !joinSlug.trim()}>
             {joining ?t('organizationOnboarding.sending') :t('organizationOnboarding.requestAccess')}
           </button>
-        </form>
+        </form></section>
 
-        <div style={{ marginTop: '28px', display: 'flex', alignItems: 'center', gap: '20px' }}>
+        <div className="onboarding-footer">
           <button
             onClick={logout}
-            style={{
-              background: 'none',
-              border: 'none',
-              color: 'var(--text-muted)',
-              cursor: 'pointer',
-              fontSize: '13px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-            }}
+            className="auth-quiet-button"
           >
             <LogOut size={14} /> {t('organizationOnboarding.signOut')}
           </button>
@@ -322,22 +294,13 @@ export const OrganizationOnboarding: React.FC<OrganizationOnboardingProps> = ({ 
           {user?.globalRole === 'SUPER_ADMIN' && (
             <button
               onClick={onOpenAdmin}
-              style={{
-                background: 'none',
-                border: 'none',
-                color: 'var(--rose-gold-primary)',
-                cursor: 'pointer',
-                fontSize: '13px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-              }}
+              className="auth-quiet-button"
             >
               <ShieldCheck size={14} /> {t('organizationOnboarding.adminPanel')}
             </button>
           )}
         </div>
       </div>
-    </div>
+    </main>
   );
 };

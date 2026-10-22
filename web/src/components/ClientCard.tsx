@@ -1,7 +1,7 @@
-import React from 'react';
 import type { Client } from '../types';
-import { Phone, Calendar, Tag, ChevronRight, AlertCircle } from 'lucide-react';
+import { Phone, Calendar, ArrowUpRight, Plus } from 'lucide-react';
 import { useAppTranslation, useLocale } from '../i18n/LocaleProvider';
+import { formatPhone, phoneIssue } from './phone';
 import './ClientCard.css';
 
 interface ClientCardProps {
@@ -10,122 +10,36 @@ interface ClientCardProps {
   onLogVisit: (client: Client) => void;
 }
 
-export const ClientCard: React.FC<ClientCardProps> = ({ client, onSelect, onLogVisit }) => {
+export function ClientCard({ client, onSelect, onLogVisit }: ClientCardProps) {
   const { t } = useAppTranslation();
   const { formatDate } = useLocale();
-  const customFieldsKeys = Object.keys(client.customFields ?? {});
+  const fields = Object.entries(client.customFields ?? {}).slice(0, 3);
+  const initials = client.name.trim().split(/\s+/).slice(0, 2).map(part => part[0]).join('');
 
   return (
-    <article
-      className="glass-panel client-card"
-      style={{
-        padding: '24px',
-        display: 'flex',
-        flexDirection: 'column',
-        justifyContent: 'space-between',
-        transition: 'transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease',
-        position: 'relative',
-        overflow: 'hidden'
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.transform = 'translateY(-3px)';
-        e.currentTarget.style.borderColor = 'var(--rose-gold-primary)';
-        e.currentTarget.style.boxShadow = '0 12px 30px rgba(0,0,0,0.5), var(--shadow-glow)';
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.transform = 'translateY(0)';
-        e.currentTarget.style.borderColor = 'var(--border-color)';
-        e.currentTarget.style.boxShadow = 'var(--shadow-card)';
-      }}
-    >
-      <button
-        type="button"
-        className="client-card__open"
-        onClick={() => onSelect(client)}
-        aria-label={t('clientCard.openClient', { name: client.name })}
-      />
-      {/* Top Section */}
+    <article className="client-card">
+      <button type="button" className="client-card__open" onClick={() => onSelect(client)} aria-label={t('clientCard.openClient', { name: client.name })} />
       <div className="client-card__content">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '14px' }}>
-          <div style={{ minWidth: 0 }}>
-            <h3 style={{ fontSize: '18px', color: '#fff', marginBottom: '4px' }}>{client.name}</h3>
-            <p style={{ fontSize: '13px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <Phone size={13} color="var(--rose-gold-primary)" /> {client.phone}
-            </p>
+        <div className="client-card__heading">
+          <span className="client-card__avatar" aria-hidden="true">{initials}</span>
+          <div className="client-card__identity">
+            <h2>{client.name}</h2>
+            <p><Phone size={13} aria-hidden="true" />{phoneIssue(client.phone) ? client.phone : formatPhone(client.phone)}</p>
           </div>
-          <span style={{
-            flexShrink: 0,
-            fontSize: '11px',
-            fontWeight: 700,
-            background: 'rgba(229, 184, 153, 0.1)',
-            color: 'var(--rose-gold-primary)',
-            padding: '4px 10px',
-            borderRadius: '12px',
-            border: '1px solid rgba(229, 184, 153, 0.2)'
-          }}>
-            {t('counts.visits', { count: client.totalVisits })}
-          </span>
+          <ArrowUpRight className="client-card__arrow" size={19} aria-hidden="true" />
         </div>
-
-        {/* Tags */}
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '16px' }}>
-          {client.tags.map(tag => {
-            const isVip = tag.toLowerCase() === 'vip';
-            const isSens = tag.toLowerCase().includes('sensitive');
-            return (
-              <span 
-                key={tag} 
-                className={`tag-badge ${isVip ? 'tag-vip' : isSens ? 'tag-sensitive' : ''}`}
-              >
-                <Tag size={10} /> {tag}
-              </span>
-            );
-          })}
+        <div className="client-card__tags">
+          {client.tags.map(tag => <span key={tag} className={`tag-badge ${tag.toLowerCase() === 'vip' ? 'tag-vip' : /sensitive|чувствитель/i.test(tag) ? 'tag-sensitive' : ''}`}>{tag}</span>)}
         </div>
-
-        {/* Custom Fields Summary */}
-        {customFieldsKeys.length > 0 && (
-          <div style={{
-            background: 'rgba(15, 14, 19, 0.5)',
-            borderRadius: '10px',
-            padding: '12px 14px',
-            marginBottom: '16px',
-            border: '1px dashed var(--border-color)'
-          }}>
-            <p style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--rose-gold-primary)', fontWeight: 600, marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <AlertCircle size={12} /> {t('clientCard.customSpecsAndAttributes')}
-            </p>
-            {customFieldsKeys.slice(0, 3).map(key => (
-              <div key={key} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '4px' }}>
-                <span style={{ color: 'var(--text-muted)' }}>{key}:</span>
-                <span style={{ color: 'var(--text-main)', fontWeight: 500, maxWidth: '160px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {String(client.customFields[key])}
-                </span>
-              </div>
-            ))}
-          </div>
-        )}
+        {fields.length > 0 && <div className="client-card__notes">
+          <p>{t('clientCard.customSpecsAndAttributes')}</p>
+          <dl>{fields.map(([key, value]) => <div key={key}><dt>{key}</dt><dd>{String(value)}</dd></div>)}</dl>
+        </div>}
       </div>
-
-      {/* Footer */}
-      <div className="client-card__footer" style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        paddingTop: '12px',
-        borderTop: '1px solid rgba(255,255,255,0.05)'
-      }}>
-        <span style={{ fontSize: '12px', color: 'var(--text-dim)', display: 'flex', alignItems: 'center', gap: '4px', minWidth: 0 }}>
-          <Calendar size={12} /> {t('clients.updated', { date: formatDate(client.updatedAt) })}
-        </span>
-        <button 
-          onClick={() => onLogVisit(client)}
-          className="btn-secondary"
-          style={{ padding: '6px 12px', fontSize: '12px' }}
-        >
-          {t('clientCard.logVisit')} <ChevronRight size={14} />
-        </button>
+      <div className="client-card__footer">
+        <div className="client-card__meta"><strong>{t('counts.visits', { count: client.totalVisits })}</strong><span><Calendar size={12} aria-hidden="true" />{t('clients.updated', { date: formatDate(client.updatedAt) })}</span></div>
+        <button type="button" onClick={() => onLogVisit(client)} className="btn-secondary"><Plus size={15} aria-hidden="true" />{t('clientCard.logVisit')}</button>
       </div>
     </article>
   );
-};
+}

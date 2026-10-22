@@ -76,12 +76,12 @@ export function ForgotPasswordPage() {
   if (submitted) {
     return (
       <AuthLayout title={t('forgotPasswordPage.checkYourEmail')}>
-        <div style={{ textAlign: 'center' }}>
-          <MailCheck size={40} color="var(--rose-gold-primary)" style={{ marginBottom: '16px' }} />
-          <p style={{ color: 'var(--text-muted)', fontSize: '14px', lineHeight: 1.6 }}>
+        <div className="auth-content-center">
+          <MailCheck size={40} className="auth-status-icon" />
+          <p>
             {t('forgotPasswordPage.sentDescription', { email })}
           </p>
-          <p style={{ color: 'var(--text-muted)', fontSize: '13px', marginTop: '16px', lineHeight: 1.6 }}>
+          <p className="auth-hint" style={{ marginTop: '16px' }}>
             {t('forgotPasswordPage.nothingArrivedCheckYourSpamFolderBeforeRequestingAnotherLinkEach')}
           </p>
           <div style={{ marginTop: '24px' }}>
@@ -97,9 +97,9 @@ export function ForgotPasswordPage() {
       title={t('forgotPasswordPage.resetYourPassword')}
       subtitle={t('forgotPasswordPage.enterTheEmailAddressOnYourAccountAndWeLlSendYouALinkToChooseANew')}
     >
-      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-        <div>
-          <label htmlFor="email" style={{ display: 'block', fontSize: '13px', color: 'var(--text-muted)', marginBottom: '6px' }}>
+      <form onSubmit={handleSubmit} className="auth-form">
+        <div className="auth-field">
+          <label htmlFor="email">
             {t('forgotPasswordPage.email')}
           </label>
           <input
@@ -123,13 +123,13 @@ export function ForgotPasswordPage() {
           type="submit"
           className="btn-rose"
           disabled={loading}
-          style={{ marginTop: '4px', opacity: loading ? 0.7 : 1, cursor: loading ? 'not-allowed' : 'pointer' }}
+          style={{ opacity: loading ? 0.7 : 1 }}
         >
           {loading ?t('forgotPasswordPage.pleaseWait') :t('forgotPasswordPage.sendResetLink')}
         </button>
       </form>
 
-      <p style={{ textAlign: 'center', marginTop: '20px', fontSize: '13px', color: 'var(--text-muted)' }}>
+      <p className="auth-form-footer">
         {t('forgotPasswordPage.rememberedIt')}{' '}
         <LinkButton onClick={() => navigate('/')}>{t('forgotPasswordPage.backToSignIn')}</LinkButton>
       </p>

@@ -1,5 +1,5 @@
 import { useAppTranslation } from '../i18n/LocaleProvider';
-import React, { useState } from 'react';
+import React, { useId, useState } from 'react';
 import { useDismiss } from './useDismiss';
 import type { Client } from '../types';
 import { api, ApiError, writeErrorMessage } from '../services/api';
@@ -9,6 +9,7 @@ import { AttributeEditor } from './AttributeEditor';
 import { duplicateAttributeKey, toAttributeRecord, toAttributeRows, type AttributeRow } from './attributes';
 import { PhoneInput } from './PhoneInput';
 import { phoneIssue } from './phone';
+import './ClientForms.css';
 
 interface EditClientModalProps {
   client: Client;
@@ -19,6 +20,7 @@ interface EditClientModalProps {
 export const EditClientModal: React.FC<EditClientModalProps> = ({ client, onClose, onSuccess }) => {
   const { t } = useAppTranslation();
   const dismiss = useDismiss(onClose);
+  const id = useId();
   const [name, setName] = useState(client.name);
   const [phone, setPhone] = useState(client.phone);
   const [phoneError, setPhoneError] = useState('');
@@ -94,50 +96,26 @@ export const EditClientModal: React.FC<EditClientModalProps> = ({ client, onClos
   };
 
   return (
-    <div style={{
-      position: 'fixed',
-      inset: 0,
-      background: 'rgba(0,0,0,0.85)',
-      backdropFilter: 'blur(10px)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      zIndex: 1000,
-      padding: '20px'
-    }} {...dismiss}>
-      <div className="glass-panel-glow" style={{
-        width: '650px',
-        maxWidth: '95vw',
-        maxHeight: '90vh',
-        borderRadius: '20px',
-        display: 'flex',
-        flexDirection: 'column',
-        overflow: 'hidden'
-      }}>
+    <div className="dialog-overlay" {...dismiss}>
+      <div role="dialog" aria-modal="true" aria-labelledby={`${id}-title`} tabIndex={-1} className="dialog-panel client-dialog">
         {/* Header */}
-        <div style={{
-          padding: '20px 24px',
-          borderBottom: '1px solid var(--border-color)',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          background: 'rgba(15, 14, 19, 0.9)'
-        }}>
-          <h2 className="text-gradient" style={{ fontSize: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div className="dialog-header">
+          <h2 id={`${id}-title`} className="dialog-title">
             <Edit2 size={20} /> {t('editClientModal.editClientProfile')}
           </h2>
-          <button aria-label={t('common.close')} onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
+          <button type="button" aria-label={t('common.close')} onClick={onClose} className="close-button">
             <X size={22} />
           </button>
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} style={{ padding: '24px', flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '18px' }}>
+        <form onSubmit={handleSubmit} className="dialog-body dialog-form">
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
-            <div>
-              <label style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px', display: 'block' }}>{t('editClientModal.fullName')}</label>
+          <div className="form-grid">
+            <div className="form-field">
+              <label htmlFor={`${id}-name`}>{t('editClientModal.fullName')}</label>
               <input
+                id={`${id}-name`}
                 type="text"
                 required
                 className="input-field"
@@ -147,12 +125,13 @@ export const EditClientModal: React.FC<EditClientModalProps> = ({ client, onClos
               />
             </div>
 
-            <PhoneInput id="edit-client-phone" label={t('editClientModal.phoneNumber')} value={phone} onChange={handlePhoneChange} error={phoneError} />
+            <PhoneInput id={`${id}-phone`} label={t('editClientModal.phoneNumber')} value={phone} onChange={handlePhoneChange} error={phoneError} />
           </div>
 
-          <div>
-            <label style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px', display: 'block' }}>{t('editClientModal.emailAddressOptional')}</label>
+          <div className="form-field">
+            <label htmlFor={`${id}-email`}>{t('editClientModal.emailAddressOptional')}</label>
             <input
+              id={`${id}-email`}
               type="email"
               className="input-field"
               placeholder="client@example.com"
@@ -162,10 +141,11 @@ export const EditClientModal: React.FC<EditClientModalProps> = ({ client, onClos
           </div>
 
           {/* Client Tags */}
-          <div>
-            <label style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px', display: 'block' }}>{t('editClientModal.primaryClientTags')}</label>
-            <div style={{ display: 'flex', gap: '8px', marginBottom: '10px' }}>
+          <div className="form-section">
+            <label className="form-section__title" htmlFor={`${id}-tag`}>{t('editClientModal.primaryClientTags')}</label>
+            <div className="tags-input">
               <input
+                id={`${id}-tag`}
                 type="text"
                 className="input-field"
                 placeholder={t('editClientModal.addTagEGSensitiveSkinLashExtensions')}
@@ -175,7 +155,7 @@ export const EditClientModal: React.FC<EditClientModalProps> = ({ client, onClos
               />
               <button type="button" className="btn-secondary" onClick={handleAddTag}>{t('editClientModal.add')}</button>
             </div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+            <div className="tag-list">
               {tags.map(tag => (
                 <span key={tag} className="tag-badge" style={{ padding: '4px 10px' }}>
                   {tag}
@@ -186,26 +166,19 @@ export const EditClientModal: React.FC<EditClientModalProps> = ({ client, onClos
           </div>
 
           {/* Dynamic Custom Fields */}
-          <div>
-            <label style={{ fontSize: '12px', color: 'var(--rose-gold-primary)', fontWeight: 600, marginBottom: '8px', display: 'block' }}>{t('editClientModal.customDynamicClientAttributes')}</label>
+          <div className="form-section">
+            <p className="form-section__title">{t('editClientModal.customDynamicClientAttributes')}</p>
             <AttributeEditor rows={customFields} onChange={setCustomFields} addLabel={t('editClientModal.addField')} />
           </div>
 
           {/* Error */}
           {error && (
-            <div style={{
-              padding: '10px 14px',
-              borderRadius: '8px',
-              background: 'rgba(220, 50, 80, 0.12)',
-              border: '1px solid rgba(220, 50, 80, 0.3)',
-              color: '#e87c8a',
-              fontSize: '13px',
-            }}>
+            <div className="form-alert" role="alert">
               {error}
             </div>
           )}
 
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '12px', paddingTop: '16px', borderTop: '1px solid var(--border-color)' }}>
+          <div className="dialog-footer">
             <button type="button" className="btn-secondary" onClick={onClose}>{t('editClientModal.cancel')}</button>
             <button type="submit" className="btn-rose" disabled={isSubmitting}>
               {isSubmitting ?t('editClientModal.saving') :t('editClientModal.saveChanges')}

@@ -23,14 +23,14 @@ export function VerifyEmailPage({ status }: { status: VerificationStatus }) {
 
   return (
     <AuthLayout title={verified ?t('verifyEmailPage.emailVerified') :t('verifyEmailPage.thatLinkDidnTWork')}>
-      <div style={{ textAlign: 'center' }}>
+      <div className="auth-content-center">
         {verified ? (
-          <CheckCircle2 size={40} color="var(--rose-gold-primary)" style={{ marginBottom: '16px' }} />
+          <CheckCircle2 size={40} className="auth-status-icon" />
         ) : (
-          <XCircle size={40} color="#e87c8a" style={{ marginBottom: '16px' }} />
+          <XCircle size={40} className="auth-status-icon auth-status-icon--error" />
         )}
 
-        <p style={{ color: 'var(--text-muted)', fontSize: '14px', lineHeight: 1.6 }}>
+        <p>
           {verified
             ?t('verifyEmailPage.thanksYourEmailAddressIsConfirmedYourAccountIsNowFullyUnlocked')
             :t('verifyEmailPage.thisVerificationLinkIsInvalidHasExpiredOrHasAlreadyBeenUsedSignI')}

@@ -4,6 +4,8 @@ import { useAppTranslation } from '../i18n/LocaleProvider';
 import { api, writeErrorMessage } from '../services/api';
 import { useOrg } from '../auth/OrgContext';
 import { clearInviteToken } from '../auth/deepLinks';
+import { useDismiss } from './useDismiss';
+import './AuthScreens.css';
 
 type State =
   | { kind: 'checking' }
@@ -43,6 +45,9 @@ export function InviteAcceptDialog({ token, onDone }: { token: string; onDone: (
     onDone();
   }
 
+  // Dismissing mid-join would drop the token while the request is in flight.
+  const dismiss = useDismiss(() => { if (state.kind !== 'joining') close(); });
+
   async function join(name: string) {
     setState({ kind: 'joining', name });
     try {
@@ -63,32 +68,23 @@ export function InviteAcceptDialog({ token, onDone }: { token: string; onDone: (
       role="dialog"
       aria-modal="true"
       aria-labelledby="invite-accept-title"
-      style={{
-        position: 'fixed',
-        inset: 0,
-        background: 'rgba(0,0,0,0.85)',
-        backdropFilter: 'blur(10px)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 1100,
-        padding: '20px',
-      }}
+      className="auth-dialog-backdrop"
+      {...dismiss}
     >
-      <div className="glass-panel-glow" style={{ width: '100%', maxWidth: '440px', borderRadius: '20px', padding: '28px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-        <h2 id="invite-accept-title" className="text-gradient" style={{ fontSize: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <UserPlus size={20} color="var(--rose-gold-primary)" />
+      <div className="auth-dialog">
+        <h2 id="invite-accept-title">
+          <UserPlus size={20} />
           {state.kind === 'checking' || state.kind === 'invalid' ? t('inviteAccept.heading') : t('inviteAccept.title', { name })}
         </h2>
 
-        {state.kind === 'checking' && <p style={{ color: 'var(--text-muted)' }}>{t('inviteAccept.checking')}</p>}
-        {state.kind === 'invalid' && <p style={{ color: '#e87c8a' }}>{t('inviteAccept.invalid')}</p>}
+        {state.kind === 'checking' && <p>{t('inviteAccept.checking')}</p>}
+        {state.kind === 'invalid' && <p className="auth-field-error">{t('inviteAccept.invalid')}</p>}
         {(state.kind === 'confirm' || state.kind === 'joining' || state.kind === 'error') && (
           <p style={{ color: 'var(--text-muted)' }}>{t('inviteAccept.body', { name })}</p>
         )}
-        {state.kind === 'error' && <p role="alert" style={{ color: '#e87c8a', fontSize: '13px' }}>{state.message}</p>}
+        {state.kind === 'error' && <p role="alert" className="auth-field-error">{state.message}</p>}
 
-        <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+        <div className="auth-dialog__actions">
           {state.kind === 'invalid' || state.kind === 'error' ? (
             <button type="button" className="btn-secondary" onClick={close}>{t('inviteAccept.close')}</button>
           ) : (

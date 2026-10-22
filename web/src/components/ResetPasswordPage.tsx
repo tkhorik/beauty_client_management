@@ -4,7 +4,7 @@ import { Eye, EyeOff, ShieldCheck } from 'lucide-react';
 import { API_BASE_URL } from '../config';
 import { FORGOT_PASSWORD_PATH, navigate, stripQueryString } from '../auth/route';
 import { PASSWORD_MIN_LENGTH, validatePasswordLocally } from '../utils/passwordRules';
-import { AuthLayout, ErrorBanner, LinkButton, fieldErrorStyle } from './AuthLayout';
+import { AuthLayout, ErrorBanner, LinkButton } from './AuthLayout';
 import { translatedApiError, translatedFieldErrors } from '../i18n/errors';
 import { effectiveAcceptLanguage } from '../i18n/store';
 
@@ -71,9 +71,9 @@ export function ResetPasswordPage({ token }: { token: string }) {
   if (done) {
     return (
       <AuthLayout title={t('resetPasswordPage.passwordChanged')}>
-        <div style={{ textAlign: 'center' }}>
-          <ShieldCheck size={40} color="var(--rose-gold-primary)" style={{ marginBottom: '16px' }} />
-          <p style={{ color: 'var(--text-muted)', fontSize: '14px', lineHeight: 1.6 }}>
+        <div className="auth-content-center">
+          <ShieldCheck size={40} className="auth-status-icon" />
+          <p>
             {t('resetPasswordPage.yourPasswordHasBeenChangedAndYouVeBeenSignedOutEverywhereElseSig')}
           </p>
           <button
@@ -155,12 +155,12 @@ export function ResetPasswordPage({ token }: { token: string }) {
       title={t('resetPasswordPage.chooseANewPassword')}
       subtitle={t('resetPasswordPage.settingANewPasswordSignsYouOutOnEveryDevice')}
     >
-      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-        <div>
-          <label htmlFor="newPassword" style={{ display: 'block', fontSize: '13px', color: 'var(--text-muted)', marginBottom: '6px' }}>
+      <form onSubmit={handleSubmit} className="auth-form">
+        <div className="auth-field">
+          <label htmlFor="newPassword">
             {t('resetPasswordPage.newPassword')}
           </label>
-          <div style={{ position: 'relative' }}>
+          <div className="auth-password">
             <input
               id="newPassword"
               name="newPassword"
@@ -174,40 +174,28 @@ export function ResetPasswordPage({ token }: { token: string }) {
               required
               autoFocus
               aria-invalid={!!fieldErrors.newPassword}
-              style={{ width: '100%', paddingRight: '42px' }}
+              style={{ width: '100%' }}
             />
             <button
               type="button"
               onClick={() => setShowPassword(v => !v)}
               aria-label={showPassword ?t('resetPasswordPage.hidePassword') :t('resetPasswordPage.showPassword')}
-              style={{
-                position: 'absolute',
-                right: '10px',
-                top: '50%',
-                transform: 'translateY(-50%)',
-                background: 'none',
-                border: 'none',
-                cursor: 'pointer',
-                color: 'var(--text-muted)',
-                display: 'flex',
-                alignItems: 'center',
-                padding: 0,
-              }}
+              className="auth-icon-button"
             >
               {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
             </button>
           </div>
           {fieldErrors.newPassword ? (
-            <div style={fieldErrorStyle}>{fieldErrors.newPassword}</div>
+            <div className="auth-field-error">{fieldErrors.newPassword}</div>
           ) : (
-            <div style={{ color: 'var(--text-muted)', fontSize: '12px', marginTop: '5px' }}>
+            <div className="auth-hint">
               {t('password.guidance', { min: PASSWORD_MIN_LENGTH })}
             </div>
           )}
         </div>
 
-        <div>
-          <label htmlFor="confirmPassword" style={{ display: 'block', fontSize: '13px', color: 'var(--text-muted)', marginBottom: '6px' }}>
+        <div className="auth-field">
+          <label htmlFor="confirmPassword">
             {t('resetPasswordPage.confirmNewPassword')}
           </label>
           <input
@@ -223,7 +211,7 @@ export function ResetPasswordPage({ token }: { token: string }) {
             aria-invalid={!!fieldErrors.confirmPassword}
             style={{ width: '100%' }}
           />
-          {fieldErrors.confirmPassword && <div style={fieldErrorStyle}>{fieldErrors.confirmPassword}</div>}
+          {fieldErrors.confirmPassword && <div className="auth-field-error">{fieldErrors.confirmPassword}</div>}
         </div>
 
         {error && (
@@ -239,7 +227,7 @@ export function ResetPasswordPage({ token }: { token: string }) {
           type="submit"
           className="btn-rose"
           disabled={loading}
-          style={{ marginTop: '4px', opacity: loading ? 0.7 : 1, cursor: loading ? 'not-allowed' : 'pointer' }}
+          style={{ opacity: loading ? 0.7 : 1 }}
         >
           {loading ?t('resetPasswordPage.pleaseWait') :t('resetPasswordPage.setNewPassword')}
         </button>

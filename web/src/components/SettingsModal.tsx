@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useId, useState } from 'react';
 import { useDismiss } from './useDismiss';
 import { useAuth } from '../auth/AuthContext';
 import { api, ApiError } from '../services/api';
@@ -7,6 +7,7 @@ import { X, User, Lock, Settings as SettingsIcon } from 'lucide-react';
 import { LanguageSelector } from './LanguageSelector';
 import { useAppTranslation } from '../i18n/LocaleProvider';
 import { translatedFieldErrors, translatedApiError } from '../i18n/errors';
+import './ClientForms.css';
 
 interface SettingsModalProps {
   onClose: () => void;
@@ -15,7 +16,7 @@ interface SettingsModalProps {
 type FieldErrors = Record<string, string>;
 
 const fieldErrorStyle = {
-  color: '#e87c8a',
+  color: 'var(--danger)',
   fontSize: '12px',
   marginTop: '5px',
 } as const;
@@ -24,9 +25,9 @@ const bannerStyle = (kind: 'error' | 'success') =>
   ({
     padding: '10px 14px',
     borderRadius: '8px',
-    background: kind === 'error' ? 'rgba(220, 50, 80, 0.12)' : 'rgba(45, 212, 191, 0.12)',
-    border: `1px solid ${kind === 'error' ? 'rgba(220, 50, 80, 0.3)' : 'rgba(45, 212, 191, 0.35)'}`,
-    color: kind === 'error' ? '#e87c8a' : '#2dd4bf',
+    background: kind === 'error' ? 'var(--danger-bg)' : 'var(--success-bg)',
+    border: `1px solid ${kind === 'error' ? '#ebccc5' : '#bdcdb1'}`,
+    color: kind === 'error' ? 'var(--danger)' : 'var(--emerald-accent)',
     fontSize: '13px',
   }) as const;
 
@@ -34,6 +35,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
   const { user, updateUser, login, logout } = useAuth();
   const { t } = useAppTranslation();
   const dismiss = useDismiss(onClose);
+  const id = useId();
 
   // -- Profile (name) form --
   const [fullName, setFullName] = useState(user?.fullName ?? '');
@@ -127,78 +129,49 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
   }
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        background: 'rgba(0,0,0,0.85)',
-        backdropFilter: 'blur(10px)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 1000,
-        padding: '20px',
-      }}
-      {...dismiss}
-    >
+    <div className="dialog-overlay" {...dismiss}>
       <div
-        className="glass-panel-glow"
-        style={{
-          width: '520px',
-          maxWidth: '95vw',
-          maxHeight: '90vh',
-          borderRadius: '20px',
-          display: 'flex',
-          flexDirection: 'column',
-          overflow: 'hidden',
-        }}
+        role="dialog" aria-modal="true" aria-labelledby={`${id}-title`} tabIndex={-1}
+        className="dialog-panel client-dialog"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div
-          style={{
-            padding: '20px 24px',
-            borderBottom: '1px solid var(--border-color)',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            background: 'rgba(15, 14, 19, 0.9)',
-          }}
-        >
-          <h2 className="text-gradient" style={{ fontSize: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div className="dialog-header">
+          <h2 id={`${id}-title`} className="dialog-title">
             <SettingsIcon size={20} /> {t('settings.title')}
           </h2>
-          <button aria-label={t('common.close')} onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
+          <button type="button" aria-label={t('common.close')} onClick={onClose} className="close-button">
             <X size={22} />
           </button>
         </div>
 
-        <div style={{ padding: '24px', flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '28px' }}>
+        <div className="dialog-body dialog-stack">
 
           <LanguageSelector description={t('settings.languageDescription')} />
 
           {/* Email (read-only) */}
-          <div>
-            <label style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px', display: 'block' }}>
+          <div className="form-field">
+            <label htmlFor={`${id}-email`}>
               {t('settingsModal.email')}
             </label>
-            <input className="input-field" value={user.email} disabled style={{ opacity: 0.6, cursor: 'not-allowed' }} />
+            <input id={`${id}-email`} className="input-field" value={user.email} disabled />
             <div style={{ color: 'var(--text-muted)', fontSize: '12px', marginTop: '5px' }}>
               {t('settingsModal.emailIsYourSignInIdentifierAndCanTBeChangedHereYet')}
             </div>
           </div>
 
           {/* Profile form */}
-          <form onSubmit={handleProfileSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-            <h3 style={{ fontSize: '14px', color: 'var(--rose-gold-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <form onSubmit={handleProfileSubmit} className="settings-section">
+            <h3 className="form-section__title">
               <User size={16} /> {t('settingsModal.profile')}
             </h3>
-            <div>
-              <label style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px', display: 'block' }}>
+            <div className="form-field">
+              <label htmlFor={`${id}-name`}>
                 {t('settingsModal.fullName')}
               </label>
               <input
                 type="text"
+                id={`${id}-name`}
                 className="input-field"
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
@@ -207,7 +180,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
               {profileErrors.fullName && <div style={fieldErrorStyle}>{profileErrors.fullName}</div>}
             </div>
 
-            {profileSuccess && <div style={bannerStyle('success')}>{t('settingsModal.profileUpdated')}</div>}
+            {profileSuccess && <div style={bannerStyle('success')} role="status">{t('settingsModal.profileUpdated')}</div>}
 
             <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
               <button type="submit" className="btn-rose" disabled={profileSaving}>
@@ -216,20 +189,19 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
             </div>
           </form>
 
-          <div style={{ borderTop: '1px solid var(--border-color)' }} />
-
           {/* Password form */}
-          <form onSubmit={handlePasswordSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-            <h3 style={{ fontSize: '14px', color: 'var(--rose-gold-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <form onSubmit={handlePasswordSubmit} className="settings-section">
+            <h3 className="form-section__title">
               <Lock size={16} /> {t('settingsModal.changePassword')}
             </h3>
 
-            <div>
-              <label style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px', display: 'block' }}>
+            <div className="form-field">
+              <label htmlFor={`${id}-current-password`}>
                 {t('settingsModal.currentPassword')}
               </label>
               <input
                 type="password"
+                id={`${id}-current-password`}
                 autoComplete="current-password"
                 className="input-field"
                 value={currentPassword}
@@ -239,12 +211,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
               {passwordErrors.currentPassword && <div style={fieldErrorStyle}>{passwordErrors.currentPassword}</div>}
             </div>
 
-            <div>
-              <label style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px', display: 'block' }}>
+            <div className="form-field">
+              <label htmlFor={`${id}-new-password`}>
                 {t('settingsModal.newPassword')}
               </label>
               <input
                 type="password"
+                id={`${id}-new-password`}
                 autoComplete="new-password"
                 minLength={PASSWORD_MIN_LENGTH}
                 className="input-field"
@@ -261,12 +234,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
               )}
             </div>
 
-            <div>
-              <label style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px', display: 'block' }}>
+            <div className="form-field">
+              <label htmlFor={`${id}-confirm-password`}>
                 {t('settingsModal.confirmNewPassword')}
               </label>
               <input
                 type="password"
+                id={`${id}-confirm-password`}
                 autoComplete="new-password"
                 className="input-field"
                 value={confirmNewPassword}
@@ -288,8 +262,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
               </button>
             </div>
           </form>
-
-          <div style={{ borderTop: '1px solid var(--border-color)' }} />
 
           <button
             type="button"

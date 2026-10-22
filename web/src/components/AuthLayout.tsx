@@ -1,97 +1,39 @@
 import type { ReactNode } from 'react';
 import { Sparkles } from 'lucide-react';
 import { LanguageSelector } from './LanguageSelector';
+import { useAppTranslation } from '../i18n/LocaleProvider';
+import './AuthScreens.css';
 
-/**
- * The centred glass panel that `LoginPage` uses, extracted so the three pages
- * reachable without a session — forgot password, reset password and email
- * verification — look like the same product rather than three bare forms.
- *
- * `LoginPage` still carries its own copy of this markup: it is entangled with
- * its login/register mode toggle, and pulling it apart is a refactor with no
- * behavioural benefit and a real chance of breaking the one screen every user
- * sees.
- */
-export function AuthLayout({
-  title,
-  subtitle,
-  children,
-}: {
-  title: string;
-  subtitle?: string;
-  children: ReactNode;
-}) {
+export function AuthLayout({ title, subtitle, children }: { title: string; subtitle?: string; children: ReactNode }) {
+  const { t } = useAppTranslation();
   return (
-    <div style={{
-      minHeight: '100vh',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: '24px',
-    }}>
-      <div className="glass-panel" style={{
-        width: '100%',
-        maxWidth: '420px',
-        padding: '40px',
-        borderRadius: '20px',
-      }}>
-        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '10px' }}><LanguageSelector compact /></div>
-        <div style={{ textAlign: 'center', marginBottom: '28px' }}>
-          <Sparkles size={36} color="var(--rose-gold-primary)" style={{ marginBottom: '12px' }} />
-          <h1 className="text-gradient" style={{ fontSize: '24px', marginBottom: '6px' }}>
-            {title}
-          </h1>
-          {subtitle && (
-            <p style={{ color: 'var(--text-muted)', fontSize: '14px', lineHeight: 1.5 }}>
-              {subtitle}
-            </p>
-          )}
+    <main className="auth-screen">
+      <aside className="auth-screen__aside" aria-hidden="true">
+        <div className="auth-screen__aside-inner">
+          <div className="auth-screen__brand"><Sparkles size={22} /><span>Aura</span></div>
+          <p>{t('landingPage.heroTitle')}</p>
+          <div className="auth-screen__aside-note">{t('landingPage.studioCaption')}</div>
         </div>
-        {children}
-      </div>
-    </div>
+      </aside>
+      <section className="auth-screen__content" aria-label={title}>
+        <div className="auth-card">
+          <div className="auth-card__top"><LanguageSelector compact /></div>
+          <header className="auth-card__header">
+            <div className="auth-card__mark" aria-hidden="true"><Sparkles size={24} /></div>
+            <h1>{title}</h1>
+            {subtitle && <p>{subtitle}</p>}
+          </header>
+          {children}
+        </div>
+      </section>
+    </main>
   );
 }
 
-/** Inline error text, matching the style `LoginPage` uses for field errors. */
-export const fieldErrorStyle = {
-  color: '#e87c8a',
-  fontSize: '12px',
-  marginTop: '5px',
-} as const;
-
-/** The red banner `LoginPage` uses for form-level errors. */
 export function ErrorBanner({ children }: { children: ReactNode }) {
-  return (
-    <div style={{
-      padding: '10px 14px',
-      borderRadius: '8px',
-      background: 'rgba(220, 50, 80, 0.12)',
-      border: '1px solid rgba(220, 50, 80, 0.3)',
-      color: '#e87c8a',
-      fontSize: '13px',
-    }}>
-      {children}
-    </div>
-  );
+  return <div className="auth-alert auth-alert--error" role="alert">{children}</div>;
 }
 
-/** A text button styled as a link, for moving between the auth screens. */
 export function LinkButton({ onClick, children }: { onClick: () => void; children: ReactNode }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      style={{
-        background: 'none',
-        border: 'none',
-        color: 'var(--rose-gold-primary)',
-        cursor: 'pointer',
-        fontSize: '13px',
-        padding: 0,
-      }}
-    >
-      {children}
-    </button>
-  );
+  return <button type="button" onClick={onClick} className="auth-link">{children}</button>;
 }

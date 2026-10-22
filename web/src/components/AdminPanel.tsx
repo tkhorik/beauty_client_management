@@ -7,22 +7,13 @@ import { api, writeErrorMessage } from '../services/api';
 import { MembersModal } from './MembersModal';
 import { useAuth } from '../auth/AuthContext';
 import { useOrg } from '../auth/OrgContext';
+import './Administration.css';
 
 interface AdminPanelProps {
   onClose: () => void;
 }
 
 type Tab = 'users' | 'organizations' | 'links';
-
-const bannerStyle = (kind: 'error' | 'success') =>
-  ({
-    padding: '10px 14px',
-    borderRadius: '8px',
-    background: kind === 'error' ? 'rgba(220, 50, 80, 0.12)' : 'rgba(45, 212, 191, 0.12)',
-    border: `1px solid ${kind === 'error' ? 'rgba(220, 50, 80, 0.3)' : 'rgba(45, 212, 191, 0.35)'}`,
-    color: kind === 'error' ? '#e87c8a' : '#2dd4bf',
-    fontSize: '13px',
-  }) as const;
 
 /**
  * Global, cross-organization administration for a `SUPER_ADMIN`.
@@ -113,59 +104,35 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
 
   return (
     <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        background: 'rgba(0,0,0,0.85)',
-        backdropFilter: 'blur(10px)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 1000,
-        padding: '20px',
-      }}
+      className="dialog-overlay administration-overlay"
       {...dismiss}
     >
       <div
-        className="glass-panel-glow"
-        style={{
-          width: '820px',
-          maxWidth: '95vw',
-          maxHeight: '90vh',
-          borderRadius: '20px',
-          display: 'flex',
-          flexDirection: 'column',
-          overflow: 'hidden',
-        }}
+        className="dialog-panel administration-panel"
         onClick={e => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="admin-panel-title"
+        tabIndex={-1}
       >
-        <div
-          style={{
-            padding: '20px 24px',
-            borderBottom: '1px solid var(--border-color)',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            background: 'rgba(15, 14, 19, 0.9)',
-          }}
-        >
-          <h2 className="text-gradient" style={{ fontSize: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div className="dialog-header administration-header">
+          <h2 id="admin-panel-title" className="administration-title">
             <ShieldCheck size={20} /> {t('adminPanel.adminPanel')}
           </h2>
-          <button aria-label={t('common.close')} onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
+          <button type="button" className="icon-button" aria-label={t('common.close')} onClick={onClose}>
             <X size={22} />
           </button>
         </div>
 
-        <div style={{ display: 'flex', gap: '4px', padding: '12px 24px 0', borderBottom: '1px solid var(--border-color)' }}>
+        <nav className="administration-nav" aria-label={t('adminPanel.adminPanel')}>
           <TabButton active={tab === 'users'} onClick={() => setTab('users')} icon={<Users size={15} />} label={t('adminPanel.usersTab', { count: users.length })} />
           <TabButton active={tab === 'organizations'} onClick={() => setTab('organizations')} icon={<Building2 size={15} />} label={t('adminPanel.organizationsTab', { count: orgs.length })} />
           <TabButton active={tab === 'links'} onClick={() => setTab('links')} icon={<Link2 size={15} />} label={t('adminPanel.linksTab', { count: links.length })} />
-        </div>
+        </nav>
 
-        <div style={{ padding: '24px', flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          {error && <div style={bannerStyle('error')}>{error}</div>}
-          {notice && <div style={bannerStyle('success')}>{notice}</div>}
+        <div className="dialog-body administration-body">
+          {error && <div className="notice notice--error" role="alert">{error}</div>}
+          {notice && <div className="notice" role="status">{notice}</div>}
 
           {initialLoading ? (
             <p style={{ color: 'var(--text-muted)', fontSize: '13px' }}>{t('adminPanel.loading')}</p>
@@ -223,19 +190,9 @@ const TabButton: React.FC<{ active: boolean; onClick: () => void; icon: React.Re
 }) => (
   <button
     onClick={onClick}
-    style={{
-      display: 'flex',
-      alignItems: 'center',
-      gap: '6px',
-      padding: '10px 14px',
-      background: 'none',
-      border: 'none',
-      borderBottom: active ? '2px solid var(--rose-gold-primary)' : '2px solid transparent',
-      color: active ? 'var(--rose-gold-primary)' : 'var(--text-muted)',
-      fontSize: '13px',
-      fontWeight: 600,
-      cursor: 'pointer',
-    }}
+    type="button"
+    className="administration-nav__button"
+    aria-pressed={active}
   >
     {icon} {label}
   </button>
@@ -252,55 +209,44 @@ const UsersTab: React.FC<{
 }> = ({ users, selfId, onRun }) => {
   const { t } = useAppTranslation();
   return (
-  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+  <div className="administration-list">
     {users.map(u => (
       <div
         key={u.id}
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: '12px',
-          padding: '10px 14px',
-          borderRadius: '10px',
-          border: '1px solid var(--border-color)',
-          flexWrap: 'wrap',
-        }}
+        className="administration-row"
       >
-        <div style={{ minWidth: 0 }}>
-          <div style={{ fontSize: '14px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+        <div className="administration-row__identity">
+          <div className="administration-row__name">
             {u.fullName}
             {u.globalRole === 'SUPER_ADMIN' && (
-              <span style={{ fontSize: '10px', color: 'var(--rose-gold-primary)', border: '1px solid var(--rose-gold-primary)', borderRadius: '999px', padding: '1px 7px' }}>
+              <span className="administration-badge">
                 {t('adminPanel.sUPERADMIN')}
               </span>
             )}
             {u.suspendedAt && (
-              <span style={{ fontSize: '10px', color: '#e87c8a', border: '1px solid rgba(220,50,80,0.4)', borderRadius: '999px', padding: '1px 7px' }}>
+              <span className="administration-badge administration-badge--danger">
                 {t('adminPanel.sUSPENDED')}
               </span>
             )}
           </div>
-          <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+          <div className="administration-row__meta">
             {u.email} · {t('counts.organizations', { count: u.organizationCount })}
             {!u.emailVerified && t('adminPanel.unverified')}
           </div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div className="administration-actions">
           {u.id === selfId ? (
             <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{t('adminPanel.you')}</span>
           ) : u.suspendedAt ? (
             <button
-              className="btn-secondary"
-              style={{ padding: '6px 12px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}
+              className="btn-secondary administration-action"
               onClick={() => onRun(() => api.setUserSuspended(u.id, false), t('adminPanel.userUnsuspended', { name: u.fullName }))}
             >
               <RotateCcw size={13} /> {t('adminPanel.unsuspend')}
             </button>
           ) : (
             <button
-              className="btn-secondary"
-              style={{ padding: '6px 12px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px', color: '#e87c8a' }}
+              className="btn-secondary administration-action administration-action--danger"
               onClick={() => onRun(() => api.setUserSuspended(u.id, true), t('adminPanel.userSuspended', { name: u.fullName }))}
             >
               <Ban size={13} /> {t('adminPanel.suspend')}
@@ -327,43 +273,32 @@ const OrganizationsTab: React.FC<{
   const [confirming, setConfirming] = useState<AdminOrganization | null>(null);
   const [confirmationSlug, setConfirmationSlug] = useState('');
   return (
-  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+  <div className="administration-list">
     {orgs.map(o => (
       <div
         key={o.id}
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: '12px',
-          padding: '10px 14px',
-          borderRadius: '10px',
-          border: '1px solid var(--border-color)',
-          flexWrap: 'wrap',
-        }}
+        className="administration-row"
       >
-        <div style={{ minWidth: 0 }}>
-          <div style={{ fontSize: '14px' }}>{o.name}</div>
-          <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+        <div className="administration-row__identity">
+          <div className="administration-row__name">{o.name}</div>
+          <div className="administration-row__meta">
             {o.slug} {t('adminPanel.createdBy')} {o.createdByEmail ?? t('adminPanel.unknown')}
             {o.archivedAt && <> · {t('adminPanel.archived')}</>}
           </div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+        <div className="administration-actions">
+          <span className="administration-row__meta">
             {t('counts.activeMembers', { count: o.memberCount })}
           </span>
           <button
-            className="btn-secondary"
             disabled={!!o.archivedAt}
-            style={{ padding: '6px 12px', fontSize: '12px' }}
+            className="btn-secondary administration-action"
             onClick={() => onOpen(o)}
           >
             {t('adminPanel.openOrganization')}
           </button>
           <button
-            className="btn-secondary"
-            style={{ padding: '6px 12px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}
+            className="btn-secondary administration-action"
             disabled={!!o.archivedAt}
             onClick={() => onManageMembers(o)}
             title={t('adminPanel.manageOrganization', { name: o.name })}
@@ -371,9 +306,8 @@ const OrganizationsTab: React.FC<{
             <UserCog size={13} /> {t('adminPanel.manageMembers')}
           </button>
           <button
-            className="btn-secondary"
+            className="btn-secondary administration-action administration-action--danger"
             disabled={!!o.archivedAt}
-            style={{ padding: '6px 12px', fontSize: '12px', color: '#e87c8a' }}
             onClick={() => {
               setConfirming(o);
               setConfirmationSlug('');
@@ -385,16 +319,18 @@ const OrganizationsTab: React.FC<{
       </div>
     ))}
     {confirming && (
-      <div style={{ padding: '14px', border: '1px solid rgba(220, 50, 80, 0.35)', borderRadius: '10px' }}>
+      <section className="administration-confirm" aria-label={t('adminPanel.archiveOrganization')}>
         <strong>{t('adminPanel.archiveOrganization')}: {confirming.name}</strong>
-        <p style={{ color: 'var(--text-muted)', fontSize: '12px' }}>{t('adminPanel.archiveHelp')}</p>
+        <p>{t('adminPanel.archiveHelp')}</p>
+        <label htmlFor="archive-confirmation" className="administration-label">{t('adminPanel.archivePrompt', { slug: confirming.slug })}</label>
         <input
           className="input-field"
+          id="archive-confirmation"
           value={confirmationSlug}
           onChange={event => setConfirmationSlug(event.target.value)}
           placeholder={t('adminPanel.archivePrompt', { slug: confirming.slug })}
         />
-        <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
+        <div className="administration-actions">
           <button
             className="btn-secondary"
             onClick={() => { setConfirming(null); setConfirmationSlug(''); }}
@@ -413,7 +349,7 @@ const OrganizationsTab: React.FC<{
             {t('adminPanel.archiveOrganization')}
           </button>
         </div>
-      </div>
+      </section>
     )}
     {orgs.length === 0 && <p style={{ color: 'var(--text-muted)', fontSize: '13px' }}>{t('adminPanel.noOrganizationsYet')}</p>}
   </div>
@@ -469,20 +405,20 @@ const LinksTab: React.FC<{
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-      <form onSubmit={handleIssue} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-        <h3 style={{ fontSize: '14px', color: 'var(--rose-gold-primary)' }}>{t('adminPanel.issueANewLink')}</h3>
-        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+    <div className="administration-stack">
+      <form onSubmit={handleIssue} className="administration-section">
+        <h3>{t('adminPanel.issueANewLink')}</h3>
+        <div className="administration-form-row">
+          <label className="administration-field"><span>{t('adminPanel.labelOptionalEGQ3SalonBatch')}</span>
           <input
             className="input-field"
-            style={{ flex: '1 1 200px' }}
             value={label}
             onChange={e => setLabel(e.target.value)}
             placeholder={t('adminPanel.labelOptionalEGQ3SalonBatch')}
           />
-          <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: 'var(--text-muted)' }}>
+          </label><label className="administration-field">
             {t('adminPanel.uses')}
-            <input
+            <input aria-label={t('adminPanel.uses')}
               className="input-field"
               style={{ width: '70px' }}
               type="number"
@@ -491,9 +427,9 @@ const LinksTab: React.FC<{
               onChange={e => setMaxUses(Math.max(1, Number(e.target.value) || 1))}
             />
           </label>
-          <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: 'var(--text-muted)' }}>
+          <label className="administration-field">
             {t('adminPanel.expiresIn')}
-            <select
+            <select aria-label={t('adminPanel.expiresIn')}
               className="input-field"
               style={{ width: 'auto' }}
               value={expiresInHours}
@@ -509,19 +445,18 @@ const LinksTab: React.FC<{
             {issuing ?t('adminPanel.creating') :t('adminPanel.createLink')}
           </button>
         </div>
-        {issueError && <div style={bannerStyle('error')}>{issueError}</div>}
+        {issueError && <div className="notice notice--error" role="alert">{issueError}</div>}
       </form>
 
       {freshLink && (
-        <div style={{ ...bannerStyle('success'), display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        <div className="notice administration-fresh-link">
           <div>{t('adminPanel.thisLinkIsShownOnceCopyItNowAndHandItToWhoeverShouldCreateTheOrg')}</div>
-          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-            <code style={{ flex: 1, fontSize: '12px', wordBreak: 'break-all', background: 'rgba(0,0,0,0.3)', padding: '8px 10px', borderRadius: '6px' }}>
+          <div className="administration-code-row">
+            <code>
               {freshLink.url}
             </code>
             <button
-              className="btn-secondary"
-              style={{ padding: '8px', display: 'flex' }}
+              className="btn-secondary administration-copy"
               onClick={copyLink}
               title={t('adminPanel.copyLink')}
               aria-label={t('adminPanel.copyLink')}
@@ -532,8 +467,8 @@ const LinksTab: React.FC<{
         </div>
       )}
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-        <h3 style={{ fontSize: '14px', color: 'var(--rose-gold-primary)' }}>{t('adminPanel.allLinks')}</h3>
+      <div className="administration-section">
+        <h3>{t('adminPanel.allLinks')}</h3>
         {links.map(l => {
           const expired = new Date(l.expiresAt).getTime() < Date.now();
           const exhausted = l.usesCount >= l.maxUses;
@@ -541,29 +476,19 @@ const LinksTab: React.FC<{
           return (
             <div
               key={l.id}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                gap: '12px',
-                padding: '10px 14px',
-                borderRadius: '10px',
-                border: '1px solid var(--border-color)',
-                opacity: dead ? 0.55 : 1,
-                flexWrap: 'wrap',
-              }}
+              className="administration-row"
+              style={{ opacity: dead ? 0.55 : 1 }}
             >
-              <div style={{ minWidth: 0 }}>
-                <div style={{ fontSize: '14px' }}>{l.label || <span style={{ color: 'var(--text-muted)' }}>{t('adminPanel.noLabel')}</span>}</div>
-                <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+              <div className="administration-row__identity">
+                <div className="administration-row__name">{l.label || <span className="administration-row__meta">{t('adminPanel.noLabel')}</span>}</div>
+                <div className="administration-row__meta">
                   {l.usesCount}/{l.maxUses} {t('adminPanel.usedIssuedBy')} {l.createdByEmail} ·{' '}
                   {l.revokedAt ?t('adminPanel.revoked') : expired ?t('adminPanel.expired') : exhausted ?t('adminPanel.exhausted') : t('adminPanel.expiresOn', { date: formatDate(l.expiresAt) })}
                 </div>
               </div>
               {!l.revokedAt && !expired && !exhausted && (
                 <button
-                  className="btn-secondary"
-                  style={{ padding: '6px 12px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px', color: '#e87c8a' }}
+                  className="btn-secondary administration-action administration-action--danger"
                   onClick={() => onRun(() => api.revokeCreationLink(l.id),t('adminPanel.linkRevoked'))}
                 >
                   <Trash2 size={13} /> {t('adminPanel.revoke')}

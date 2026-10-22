@@ -8,6 +8,7 @@ import { AttributeEditor } from './AttributeEditor';
 import { duplicateAttributeKey, toAttributeRecord, type AttributeRow } from './attributes';
 import { PhoneInput } from './PhoneInput';
 import { phoneIssue } from './phone';
+import './ClientForms.css';
 
 interface NewClientModalProps {
   onClose: () => void;
@@ -16,9 +17,6 @@ interface NewClientModalProps {
 
 /** Pragmatic shape check: something@domain.tld, no whitespace. The server does not validate client emails. */
 export const EMAIL_PATTERN = /^[^\s@]+@[^\s@.]+(\.[^\s@.]+)*\.[^\s@.]{2,}$/;
-
-const labelStyle: React.CSSProperties = { fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px', display: 'block' };
-const errorStyle: React.CSSProperties = { color: '#e87c8a', fontSize: '12px', marginTop: '6px' };
 
 export const NewClientModal: React.FC<NewClientModalProps> = ({ onClose, onSuccess }) => {
   const { t } = useAppTranslation();
@@ -116,55 +114,30 @@ export const NewClientModal: React.FC<NewClientModalProps> = ({ onClose, onSucce
   };
 
   return (
-    <div style={{
-      position: 'fixed',
-      inset: 0,
-      background: 'rgba(0,0,0,0.85)',
-      backdropFilter: 'blur(10px)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      zIndex: 1000,
-      padding: '20px'
-    }} {...dismiss}>
+    <div className="dialog-overlay" {...dismiss}>
       <div
         role="dialog"
         aria-modal="true"
         aria-labelledby={`${id}-title`}
-        className="glass-panel-glow"
-        style={{
-          width: '650px',
-          maxWidth: '95vw',
-          maxHeight: '90vh',
-          borderRadius: '20px',
-          display: 'flex',
-          flexDirection: 'column',
-          overflow: 'hidden'
-        }}
+        tabIndex={-1}
+        className="dialog-panel client-dialog"
       >
         {/* Header */}
-        <div style={{
-          padding: '20px 24px',
-          borderBottom: '1px solid var(--border-color)',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          background: 'rgba(15, 14, 19, 0.9)'
-        }}>
-          <h2 id={`${id}-title`} className="text-gradient" style={{ fontSize: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div className="dialog-header">
+          <h2 id={`${id}-title`} className="dialog-title">
             <UserPlus size={20} aria-hidden="true" /> {t('newClientModal.createNewClientProfile')}
           </h2>
-          <button type="button" aria-label={t('common.close')} onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
+          <button type="button" aria-label={t('common.close')} onClick={onClose} className="close-button">
             <X size={22} />
           </button>
         </div>
 
         {/* Form: noValidate so our inline errors replace the browser's tooltips. */}
-        <form noValidate onSubmit={handleSubmit} style={{ padding: '24px', flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '18px' }}>
+        <form noValidate onSubmit={handleSubmit} className="dialog-body dialog-form">
 
-          <div className="new-client-row">
-            <div>
-              <label htmlFor={`${id}-name`} style={labelStyle}>{t('newClientModal.fullNameRequired')}</label>
+          <div className="form-grid">
+            <div className="form-field">
+              <label htmlFor={`${id}-name`}>{t('newClientModal.fullNameRequired')}</label>
               <input
                 ref={nameRef}
                 id={`${id}-name`}
@@ -178,14 +151,14 @@ export const NewClientModal: React.FC<NewClientModalProps> = ({ onClose, onSucce
                 value={name}
                 onChange={(e) => handleNameChange(e.target.value)}
               />
-              {nameError && <div id={`${id}-name-error`} role="alert" style={errorStyle}>{nameError}</div>}
+              {nameError && <div id={`${id}-name-error`} role="alert" className="field-error">{nameError}</div>}
             </div>
 
             <PhoneInput id={`${id}-phone`} label={t('newClientModal.phoneNumberRequired')} value={phone} onChange={handlePhoneChange} error={phoneError} />
           </div>
 
-          <div>
-            <label htmlFor={`${id}-email`} style={labelStyle}>{t('newClientModal.emailOptional')}</label>
+          <div className="form-field">
+            <label htmlFor={`${id}-email`}>{t('newClientModal.emailOptional')}</label>
             <input
               ref={emailRef}
               id={`${id}-email`}
@@ -200,13 +173,13 @@ export const NewClientModal: React.FC<NewClientModalProps> = ({ onClose, onSucce
               onChange={(e) => handleEmailChange(e.target.value)}
               onBlur={() => setEmailError(emailIssue(email))}
             />
-            {emailError && <div id={`${id}-email-error`} role="alert" style={errorStyle}>{emailError}</div>}
+            {emailError && <div id={`${id}-email-error`} role="alert" className="field-error">{emailError}</div>}
           </div>
 
           {/* Client Tags */}
-          <div>
-            <label htmlFor={`${id}-tag`} style={labelStyle}>{t('newClientModal.primaryTags')}</label>
-            <div style={{ display: 'flex', gap: '8px', marginBottom: '10px' }}>
+          <div className="form-section">
+            <label className="form-section__title" htmlFor={`${id}-tag`}>{t('newClientModal.primaryTags')}</label>
+            <div className="tags-input">
               <input
                 id={`${id}-tag`}
                 type="text"
@@ -219,7 +192,7 @@ export const NewClientModal: React.FC<NewClientModalProps> = ({ onClose, onSucce
               <button type="button" className="btn-secondary" onClick={handleAddTag}>{t('newClientModal.add')}</button>
             </div>
             {tags.length > 0 && (
-              <ul aria-label={t('newClientModal.primaryTags')} style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', listStyle: 'none', margin: 0, padding: 0 }}>
+              <ul aria-label={t('newClientModal.primaryTags')} className="tag-list">
                 {tags.map(tag => (
                   <li key={tag} className="tag-badge" style={{ padding: '4px 10px' }}>
                     {tag}
@@ -231,12 +204,12 @@ export const NewClientModal: React.FC<NewClientModalProps> = ({ onClose, onSucce
           </div>
 
           {/* Dynamic Custom Fields */}
-          <fieldset style={{ border: 'none', margin: 0, padding: 0, minWidth: 0 }}>
-            <legend style={{ fontSize: '12px', color: 'var(--rose-gold-primary)', fontWeight: 600, marginBottom: '8px', padding: 0 }}>{t('newClientModal.customAttributes')}</legend>
+          <fieldset className="form-section" style={{ minWidth: 0 }}>
+            <legend>{t('newClientModal.customAttributes')}</legend>
             <AttributeEditor rows={customFields} onChange={setCustomFields} addLabel={t('newClientModal.addField')} />
           </fieldset>
 
-          <div style={{ display: 'flex', justifyContent: 'flex-end', flexWrap: 'wrap', gap: '12px', marginTop: '12px', paddingTop: '16px', borderTop: '1px solid var(--border-color)' }}>
+          <div className="dialog-footer">
             <button type="button" className="btn-secondary" onClick={onClose}>{t('newClientModal.cancel')}</button>
             <button type="submit" className="btn-rose" disabled={isSubmitting}>
               {isSubmitting ? t('newClientModal.creating') : t('newClientModal.createClientProfile')}

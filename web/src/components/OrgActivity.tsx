@@ -3,6 +3,7 @@ import type { OrgAuditEvent } from '../types';
 import { api, writeErrorMessage } from '../services/api';
 import { useAppTranslation, useLocale } from '../i18n/LocaleProvider';
 import type { TranslationKey } from '../i18n/locales';
+import './Administration.css';
 
 /** Matches the backend's default page size for `GET /organizations/{id}/audit`. */
 const PAGE_SIZE = 50;
@@ -58,18 +59,18 @@ export const OrgActivity: React.FC<{ orgId: string }> = ({ orgId }) => {
     detail === 'ORG_ADMIN' ? t('membersModal.administrator') : detail === 'ORG_USER' ? t('membersModal.member') : (detail ?? '');
   const formatter = new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' });
 
-  if (error) return <p style={{ color: '#e87c8a', fontSize: '13px' }}>{error}</p>;
+  if (error) return <p className="notice notice--error" role="alert">{error}</p>;
   if (!loading && events.length === 0) {
-    return <p style={{ color: 'var(--text-muted)', fontSize: '13px' }}>{t('orgActivity.empty')}</p>;
+    return <p className="administration-row__meta">{t('orgActivity.empty')}</p>;
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-      <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+    <div className="org-activity">
+      <ul className="org-activity__list">
         {events.map(event => (
           <li
             key={event.id}
-            style={{ padding: '10px 14px', borderRadius: '10px', border: '1px solid var(--border-color)', fontSize: '13px' }}
+            className="org-activity__event"
           >
             <div>
               {t(ACTION_KEYS[event.action], {
@@ -78,13 +79,13 @@ export const OrgActivity: React.FC<{ orgId: string }> = ({ orgId }) => {
                 role: roleLabel(event.detail),
               })}
             </div>
-            <time dateTime={event.createdAt} style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+            <time dateTime={event.createdAt}>
               {formatter.format(new Date(event.createdAt))}
             </time>
           </li>
         ))}
       </ul>
-      {loading && <p style={{ color: 'var(--text-muted)', fontSize: '13px' }}>{t('common.loading')}</p>}
+      {loading && <p className="administration-row__meta">{t('common.loading')}</p>}
       {!loading && hasMore && (
         <button
           type="button"

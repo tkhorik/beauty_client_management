@@ -9,7 +9,6 @@ const PHONE_GROUPS: Record<string, number[]> = { '1': [3, 3, 4], '7': [3, 3, 2, 
 const SEPARATORS = [' (', ') ', '-', '-'];
 
 export const PHONE_DIGITS = 11;
-export const PHONE_PLACEHOLDER = '+1 (555) 000-0000';
 
 export type PhoneIssue = 'PHONE_REQUIRED' | 'PHONE_INVALID';
 

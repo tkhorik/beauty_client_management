@@ -1,5 +1,6 @@
+import { useAppTranslation } from '../i18n/LocaleProvider';
 import React, { useLayoutEffect, useRef } from 'react';
-import { formatPhone, maskedLength, phoneDigits, PHONE_PLACEHOLDER } from './phone';
+import { formatPhone, maskedLength, phoneDigits } from './phone';
 
 interface PhoneInputProps {
   id: string;
@@ -21,6 +22,7 @@ const countDigits = (s: string) => s.replace(/\D/g, '').length;
  * existed) is shown as-is until the user edits it.
  */
 export const PhoneInput: React.FC<PhoneInputProps> = ({ id, label, value, onChange, error }) => {
+  const { t } = useAppTranslation();
   const inputRef = useRef<HTMLInputElement>(null);
   // Digits that should sit before the caret once the masked value renders.
   const pendingCaret = useRef<number | null>(null);
@@ -62,7 +64,7 @@ export const PhoneInput: React.FC<PhoneInputProps> = ({ id, label, value, onChan
         inputMode="tel"
         autoComplete="tel"
         className="input-field"
-        placeholder={PHONE_PLACEHOLDER}
+        placeholder={t('phone.placeholder')}
         aria-required="true"
         aria-invalid={!!error}
         aria-describedby={error ? errorId : undefined}
@@ -70,7 +72,7 @@ export const PhoneInput: React.FC<PhoneInputProps> = ({ id, label, value, onChan
         value={value}
         onChange={handleChange}
       />
-      {error && <div id={errorId} role="alert" style={{ color: '#e87c8a', fontSize: '12px', marginTop: '6px' }}>{error}</div>}
+      {error && <div id={errorId} role="alert" style={{ color: 'var(--danger)', fontSize: '12px', marginTop: '6px' }}>{error}</div>}
     </div>
   );
 };
