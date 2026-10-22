@@ -3,8 +3,11 @@ package com.beauty.app.data.api
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
+import io.ktor.client.plugins.ClientRequestException
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.client.plugins.defaultRequest
 import io.ktor.client.plugins.expectSuccess
+import io.ktor.client.request.header
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpMethod
@@ -13,7 +16,9 @@ import io.ktor.http.headersOf
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
+import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -199,5 +204,51 @@ class KtorBeautyApiTest {
         assertEquals("tok-1", requests[0].url.parameters["token"])
         val sent = (requests[1].body as io.ktor.http.content.TextContent).text
         assertTrue(sent, sent.contains("\"creationToken\":\"tok-1\""))
+    }
+    @Test
+    fun `attachment redirect is fetched without bearer token or org header`() = runTest {
+        val photo = byteArrayOf(1, 2, 3)
+        val apiEngine = MockEngine { request ->
+            assertEquals("/api/attachments/a1/file", request.url.encodedPath)
+            respond("", HttpStatusCode.Found, headersOf(HttpHeaders.Location, "https://storage.example/a1?X-Amz-Signature=sig"))
+        }
+        val storageRequests = mutableListOf<io.ktor.client.request.HttpRequestData>()
+        val storageEngine = MockEngine { request ->
+            storageRequests += request
+            respond(photo, HttpStatusCode.OK)
+        }
+        val client = HttpClient(apiEngine) {
+            expectSuccess = true
+            followRedirects = false
+            defaultRequest { header(HttpHeaders.Authorization, "Bearer secret") }
+        }
+        val storage = HttpClient(storageEngine) { expectSuccess = true }
+
+        val bytes = KtorBeautyApi(client, storage).downloadAttachment("org-a", "a1")
+
+        assertArrayEquals(photo, bytes)
+        val fetched = storageRequests.single()
+        assertEquals("storage.example", fetched.url.host)
+        assertEquals("sig", fetched.url.parameters["X-Amz-Signature"])
+        assertNull(fetched.headers[HttpHeaders.Authorization])
+        assertNull(fetched.headers[ORG_HEADER])
+    }
+
+    @Test
+    fun `attachment served directly is returned as is`() = runTest {
+        val photo = byteArrayOf(9, 8)
+        val client = HttpClient(MockEngine { respond(photo, HttpStatusCode.OK) }) { expectSuccess = true }
+        val storage = HttpClient(MockEngine { error("storage must not be called") })
+
+        assertArrayEquals(photo, KtorBeautyApi(client, storage).downloadAttachment("org-a", "a1"))
+    }
+
+    @Test
+    fun `missing attachment still fails as a client error`() = runTest {
+        val client = HttpClient(MockEngine { respond("{}", HttpStatusCode.NotFound) }) { expectSuccess = true }
+
+        val failure = runCatching { KtorBeautyApi(client).downloadAttachment("org-a", "a1") }
+
+        assertTrue(failure.exceptionOrNull() is ClientRequestException)
     }
 }

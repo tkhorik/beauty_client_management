@@ -166,26 +166,24 @@ private fun ColumnScope.ClientForm(
         if (viewModel.tags.isNotEmpty()) {
             FlowRow(
                 modifier = Modifier.fillMaxWidth(),
-
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 viewModel.tags.forEach { tag ->
+                    // The whole chip removes the tag. A 48dp IconButton nested
+                    // in the trailing slot stretched the chip and left the label
+                    // top-aligned; the chip already has a 48dp touch target.
                     InputChip(
                         selected = false,
-                        onClick = {},
+                        onClick = { viewModel.removeTag(tag) },
                         label = { Text(tag, color = Forest, style = MaterialTheme.typography.bodyMedium) },
                         trailingIcon = {
-                            IconButton(
-                                onClick = { viewModel.removeTag(tag) },
-                                modifier = Modifier.size(48.dp)
-                            ) {
-                                Icon(
-                                    Icons.Default.Close,
-                                    contentDescription = stringResource(com.beauty.app.R.string.remove_tag),
-                                    tint = TextMuted,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                            }
+                            Icon(
+                                Icons.Default.Close,
+                                contentDescription = stringResource(com.beauty.app.R.string.remove_tag),
+                                tint = TextMuted,
+                                modifier = Modifier.size(18.dp)
+                            )
                         },
                         shape = RoundedCornerShape(8.dp),
                         colors = InputChipDefaults.inputChipColors(

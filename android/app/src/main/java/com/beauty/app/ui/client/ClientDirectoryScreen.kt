@@ -100,7 +100,9 @@ fun ClientDirectoryScreen(
                 IconButton(onClick = { menu = true }) {
                     // The dot points at "About" once an update is waiting, so the
                     // menu is discoverable even after the banner scrolls away.
-                    BadgedBox(badge = { if (hasActiveUpdate || pendingRequestCount > 0) Badge(containerColor = RoseGoldPrimary) }) {
+                    // Offset inward: IconButton clips to its circle, and the default
+                    // badge position sits on that edge, which cut the dot in half.
+                    BadgedBox(badge = { if (hasActiveUpdate || pendingRequestCount > 0) Badge(containerColor = RoseGoldPrimary, modifier = Modifier.offset(x = (-6).dp, y = 6.dp)) }) {
                         Icon(Icons.Default.MoreVert, if (hasActiveUpdate) stringResource(com.beauty.app.R.string.more_options_update_available) else stringResource(com.beauty.app.R.string.more_options))
                     }
                 }

@@ -2,7 +2,10 @@ package com.beauty.app.data.api
 
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
+import io.ktor.client.plugins.expectSuccess
+import io.ktor.client.plugins.ClientRequestException
 import io.ktor.client.plugins.ResponseException
+import io.ktor.client.plugins.ServerResponseException
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.HttpStatusCode
 import io.ktor.client.request.get
@@ -610,7 +613,17 @@ interface BeautyApi {
 // Ktor implementation
 // ──────────────────────────────────────────────
 
-class KtorBeautyApi(private val client: HttpClient) : BeautyApi {
+/**
+ * [storageClient] fetches attachment bytes from the presigned storage URL the
+ * backend redirects to. It must carry no `Auth` plugin and no default headers:
+ * a followed redirect would otherwise hand the bearer token and org id to the
+ * storage host, which also rejects a presigned request that carries a second
+ * `Authorization` header.
+ */
+class KtorBeautyApi(
+    private val client: HttpClient,
+    private val storageClient: HttpClient = client
+) : BeautyApi {
 
     override suspend fun login(request: AuthRequest): AuthResponse =
         client.post("api/auth/login") {
@@ -696,8 +709,22 @@ class KtorBeautyApi(private val client: HttpClient) : BeautyApi {
             }))
         }.body()
 
-    override suspend fun downloadAttachment(orgId: String, id: String): ByteArray =
-        client.get("api/attachments/$id/file") { header(ORG_HEADER, orgId) }.body()
+    override suspend fun downloadAttachment(orgId: String, id: String): ByteArray {
+        val response = client.get("api/attachments/$id/file") {
+            header(ORG_HEADER, orgId)
+            expectSuccess = false
+        }
+        val status = response.status.value
+        if (status in 200..299) return response.body()
+        val location = response.headers[HttpHeaders.Location]
+        if (status in 300..399 && location != null) return storageClient.get(location).body()
+        val text = response.bodyAsText()
+        throw when (status) {
+            in 400..499 -> ClientRequestException(response, text)
+            in 500..599 -> ServerResponseException(response, text)
+            else -> ResponseException(response, text)
+        }
+    }
 
     override suspend fun updateClient(orgId: String, id: String, request: UpdateClientRequest): ClientDto =
         client.put("api/clients/$id") {
