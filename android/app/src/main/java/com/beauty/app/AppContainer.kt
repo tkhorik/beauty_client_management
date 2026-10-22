@@ -69,6 +69,11 @@ object AppContainer {
 
         return HttpClient(OkHttp) {
             expectSuccess = true
+            // A followed redirect re-sends the bearer token and org header to
+            // the target. The attachment endpoint redirects to presigned
+            // storage URLs, so `KtorBeautyApi.downloadAttachment` follows those
+            // itself through [buildStorageClient] instead.
+            followRedirects = false
             install(ContentNegotiation) { json(json) }
             install(HttpTimeout) {
                 connectTimeoutMillis = 10_000
@@ -130,6 +135,19 @@ object AppContainer {
         }
     }
 
+    /**
+     * Fetches presigned storage URLs. No `Auth` plugin and no default headers:
+     * the URL carries its own signature, and the storage host must never see
+     * the user's access token.
+     */
+    private fun buildStorageClient(): HttpClient = HttpClient(OkHttp) {
+        expectSuccess = true
+        install(HttpTimeout) {
+            connectTimeoutMillis = 10_000
+            requestTimeoutMillis = 30_000
+        }
+    }
+
     fun tokenStore(context: Context): TokenStore = TokenStore(context)
 
     @Volatile private var languageManagerInstance: com.beauty.app.i18n.LanguagePreferenceManager? = null
@@ -168,7 +186,7 @@ object AppContainer {
         val database = BeautyDatabaseProvider.get(context, tokenStore.getAccountId())
         val client = buildClient(tokenStore)
         return BeautyRepository(
-            KtorBeautyApi(client), database.clientDao(), database.visitDao(), json, database.parityDao(),
+            KtorBeautyApi(client, buildStorageClient()), database.clientDao(), database.visitDao(), json, database.parityDao(),
             database.organizationCacheDao()
         )
     }
