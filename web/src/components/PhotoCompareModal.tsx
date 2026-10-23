@@ -3,6 +3,7 @@ import React, { useId, useState } from 'react';
 import { useDismiss } from './useDismiss';
 import type { Attachment } from '../types';
 import { X, Sliders, Columns } from 'lucide-react';
+import { useAttachmentImage } from './useAttachmentImage';
 import './ClientForms.css';
 
 interface PhotoCompareModalProps {
@@ -16,6 +17,8 @@ export const PhotoCompareModal: React.FC<PhotoCompareModalProps> = ({ attachment
   const id = useId();
   const beforePhoto = attachments.find(a => a.tag === 'BEFORE') || attachments[0];
   const afterPhoto = attachments.find(a => a.tag === 'AFTER') || attachments[1] || attachments[0];
+  const beforeImage = useAttachmentImage(beforePhoto?.fileUrl);
+  const afterImage = useAttachmentImage(afterPhoto?.fileUrl);
 
   const [sliderPos, setSliderPos] = useState(50);
   const [viewMode, setViewMode] = useState<'slider' | 'sideBySide'>('slider');
@@ -55,7 +58,17 @@ export const PhotoCompareModal: React.FC<PhotoCompareModalProps> = ({ attachment
 
         {/* Content Area */}
         <div className="dialog-body" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-          {viewMode === 'slider' ? (
+          {beforeImage.failed || afterImage.failed ? (
+            <div className="attachment-feedback">
+              <p>{t('attachment.unavailable')}</p>
+              <button type="button" className="btn-secondary" onClick={() => {
+                if (beforeImage.failed) beforeImage.retry();
+                if (afterImage.failed) afterImage.retry();
+              }}>{t('clientDetailModal.retryVisits')}</button>
+            </div>
+          ) : !beforeImage.src || !afterImage.src ? (
+            <p role="status">{t('common.loading')}</p>
+          ) : viewMode === 'slider' ? (
             /* Interactive Slider Comparison */
             <div style={{ width: '100%', maxWidth: '750px' }}>
               <div className="compare-stage"
@@ -73,7 +86,7 @@ export const PhotoCompareModal: React.FC<PhotoCompareModalProps> = ({ attachment
               >
                 {/* AFTER Photo (Base) */}
                 <img
-                  src={afterPhoto?.fileUrl}
+                  src={afterImage.src} onError={afterImage.onError}
                   alt={t('photoCompareModal.afterProcedure')}
                   loading="lazy" decoding="async"
                 />
@@ -89,7 +102,7 @@ export const PhotoCompareModal: React.FC<PhotoCompareModalProps> = ({ attachment
                   pointerEvents: 'none'
                 }}>
                   <img
-                    src={beforePhoto?.fileUrl}
+                    src={beforeImage.src} onError={beforeImage.onError}
                     alt={t('photoCompareModal.beforeProcedure')}
                     loading="lazy" decoding="async"
                   />
@@ -131,8 +144,8 @@ export const PhotoCompareModal: React.FC<PhotoCompareModalProps> = ({ attachment
           ) : (
             /* Side by Side Mode */
             <div className="compare-side">
-              <figure><img src={beforePhoto?.fileUrl} alt={t('photoCompareModal.before')} loading="lazy" decoding="async" /><figcaption>{beforePhoto?.caption || t('photoCompareModal.beforeCaption')}</figcaption></figure>
-              <figure><img src={afterPhoto?.fileUrl} alt={t('photoCompareModal.after')} loading="lazy" decoding="async" /><figcaption>{afterPhoto?.caption || t('photoCompareModal.afterCaption')}</figcaption></figure>
+              <figure><img src={beforeImage.src} onError={beforeImage.onError} alt={t('photoCompareModal.before')} loading="lazy" decoding="async" /><figcaption>{beforePhoto?.caption || t('photoCompareModal.beforeCaption')}</figcaption></figure>
+              <figure><img src={afterImage.src} onError={afterImage.onError} alt={t('photoCompareModal.after')} loading="lazy" decoding="async" /><figcaption>{afterPhoto?.caption || t('photoCompareModal.afterCaption')}</figcaption></figure>
             </div>
           )}
         </div>

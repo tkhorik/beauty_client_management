@@ -219,9 +219,6 @@ const INITIAL_MOCK_VISITS: Visit[] = [
 ];
 
 class ApiService {
-  /** Object URLs let `<img>` use authenticated attachment responses without putting a token in a URL. */
-  private attachmentObjectUrls = new Map<string, string>();
-
   /**
    * Older visit records may predate the attachments field.  Keep the API
    * boundary backwards-compatible so consumers can always treat it as an
@@ -332,25 +329,11 @@ class ApiService {
     if (!DEMO_MODE || err instanceof ApiError) throw err;
   }
 
-  private async hydrateAttachment(attachment: Attachment): Promise<Attachment> {
-    if (!attachment.fileUrl.startsWith('/api/attachments/')) return attachment;
-
-    const cached = this.attachmentObjectUrls.get(attachment.id);
-    if (cached) return { ...attachment, fileUrl: cached };
-
-    const res = await this.authFetch(new URL(attachment.fileUrl, API_BASE_URL).toString());
+  /** The image consumer owns (and must revoke) the returned object URL. */
+  async loadAttachmentUrl(fileUrl: string, signal?: AbortSignal): Promise<string> {
+    const res = await this.authFetch(new URL(fileUrl, API_BASE_URL).toString(), { signal });
     if (!res.ok) throw await this.apiError(res);
-    const objectUrl = URL.createObjectURL(await res.blob());
-    this.attachmentObjectUrls.set(attachment.id, objectUrl);
-    return { ...attachment, fileUrl: objectUrl };
-  }
-
-  private async hydrateVisitAttachments(visit: Visit): Promise<Visit> {
-    const normalized = this.normalizeVisit(visit);
-    return {
-      ...normalized,
-      attachments: await Promise.all(normalized.attachments.map(attachment => this.hydrateAttachment(attachment))),
-    };
+    return URL.createObjectURL(await res.blob());
   }
 
   private getLocalClients(): Client[] {
@@ -524,7 +507,9 @@ class ApiService {
       const res = await this.authFetch(url.toString());
       if (!res.ok) throw await this.apiError(res);
       const visits: Visit[] = await res.json();
-      return await Promise.all(visits.map(visit => this.hydrateVisitAttachments(visit)));
+      // Photo failures must not hide visit dates, notes, or the rest of history.
+      // Images load independently when their consumer is mounted.
+      return visits.map(visit => this.normalizeVisit(visit));
     } catch (err) {
       this.fallbackOrThrow(err);
     }
@@ -592,7 +577,8 @@ class ApiService {
         body: formData
       });
       if (!res.ok) throw await this.apiError(res);
-      return await this.hydrateAttachment(await res.json());
+      // A successful upload stays successful even if its preview cannot load.
+      return await res.json();
     } catch (err) {
       this.fallbackOrThrow(err);
     }
