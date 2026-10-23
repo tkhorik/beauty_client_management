@@ -20,6 +20,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.res.stringResource
 import com.beauty.app.ui.auth.AuthValidation
 import com.beauty.app.ui.i18n.LanguageSelector
+import com.beauty.app.ui.theme.ThemeSelector
 import com.beauty.app.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -77,6 +78,11 @@ fun SettingsScreen(
             )
 
             AuraCard {
+                Text(stringResource(com.beauty.app.R.string.appearance), color = Forest, fontWeight = FontWeight.SemiBold, fontSize = 20.sp)
+                ThemeSelector(modifier = Modifier.fillMaxWidth())
+            }
+
+            AuraCard {
                 Text(stringResource(com.beauty.app.R.string.language), color = Forest, fontWeight = FontWeight.SemiBold, fontSize = 20.sp)
                 LanguageSelector(accountId = accountId, modifier = Modifier.fillMaxWidth(), onSelected = onLanguageSelected)
                 when (languageManager.notice) {
@@ -125,12 +131,12 @@ fun SettingsScreen(
                         .fillMaxWidth()
                         .heightIn(min = 56.dp),
                     shape = RoundedCornerShape(14.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Forest)
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                 ) {
                     if (isProfileLoading) {
-                        CircularProgressIndicator(modifier = Modifier.size(18.dp), color = WhiteCard, strokeWidth = 2.dp)
+                        CircularProgressIndicator(modifier = Modifier.size(18.dp), color = MaterialTheme.colorScheme.onPrimary, strokeWidth = 2.dp)
                     } else {
-                        Text(stringResource(com.beauty.app.R.string.save_name), color = WhiteCard, fontWeight = FontWeight.Bold)
+                        Text(stringResource(com.beauty.app.R.string.save_name), color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -195,12 +201,12 @@ fun SettingsScreen(
                         .fillMaxWidth()
                         .heightIn(min = 56.dp),
                     shape = RoundedCornerShape(14.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Forest)
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                 ) {
                     if (isPasswordLoading) {
-                        CircularProgressIndicator(modifier = Modifier.size(18.dp), color = WhiteCard, strokeWidth = 2.dp)
+                        CircularProgressIndicator(modifier = Modifier.size(18.dp), color = MaterialTheme.colorScheme.onPrimary, strokeWidth = 2.dp)
                     } else {
-                        Text(stringResource(com.beauty.app.R.string.change_password), color = WhiteCard, fontWeight = FontWeight.Bold)
+                        Text(stringResource(com.beauty.app.R.string.change_password), color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.Bold)
                     }
                 }
             }

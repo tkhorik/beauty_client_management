@@ -760,7 +760,7 @@ fun BeautyAppScreen(
             FloatingActionButton(
                 onClick = { showVisitClientPicker = true },
                 containerColor = RoseGoldPrimary,
-                contentColor = Color.Black
+                contentColor = MaterialTheme.colorScheme.onPrimary
             ) {
                 Icon(Icons.Default.Add, contentDescription = stringResource(R.string.log_visit))
             }
@@ -796,7 +796,7 @@ fun BeautyAppScreen(
                         .clip(RoundedCornerShape(12.dp)),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = RoseGoldPrimary,
-                        unfocusedBorderColor = Color(0x33E5B899)
+                        unfocusedBorderColor = Border
                     )
                 )
 
@@ -880,7 +880,7 @@ fun ClientCardItem(client: DirectoryClient, onClick: () -> Unit) {
                         modifier = Modifier
                             .size(38.dp)
                             .clip(RoundedCornerShape(10.dp))
-                            .background(Color(0x22E5B899)),
+                            .background(Sage),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(Icons.Default.Person, contentDescription = null, tint = RoseGoldPrimary)
@@ -899,7 +899,7 @@ fun ClientCardItem(client: DirectoryClient, onClick: () -> Unit) {
 
                 Surface(
                     shape = RoundedCornerShape(8.dp),
-                    color = Color(0x15E5B899)
+                    color = Sage
                 ) {
                     Text(
                         pluralStringResource(com.beauty.app.R.plurals.visits_count, client.visitsCount, client.visitsCount),

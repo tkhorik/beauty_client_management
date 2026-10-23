@@ -144,18 +144,18 @@ fun LoginScreen(
                 .fillMaxWidth()
                 .heightIn(min = 56.dp),
             shape = RoundedCornerShape(14.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = Forest)
+            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
         ) {
             if (viewModel.loginState is AuthViewModel.LoginState.Loading) {
                 CircularProgressIndicator(
                     modifier = Modifier.size(20.dp),
-                    color = WhiteCard,
+                    color = MaterialTheme.colorScheme.onPrimary,
                     strokeWidth = 2.dp
                 )
             } else {
                 Text(
                     text = stringResource(com.beauty.app.R.string.sign_in),
-                    color = WhiteCard,
+                    color = MaterialTheme.colorScheme.onPrimary,
                     fontWeight = FontWeight.Bold,
                     fontSize = 15.sp
                 )

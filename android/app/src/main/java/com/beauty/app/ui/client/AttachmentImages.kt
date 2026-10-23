@@ -103,6 +103,7 @@ private fun rememberAttachmentImage(
     return state
 }
 
+@Composable
 private fun tagColor(tag: String): Color = when (tag) {
     "BEFORE" -> RoseGoldPrimary
     "AFTER" -> Clay
@@ -295,7 +296,7 @@ private fun SliderCompare(before: ImageBitmap, after: ImageBitmap) {
                     .clip(CircleShape)
                     .background(RoseGoldPrimary),
                 contentAlignment = Alignment.Center
-            ) { Text("↔", color = WhiteCard, fontWeight = FontWeight.Bold) }
+            ) { Text("↔", color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.Bold) }
         }
         Slider(value = split, onValueChange = { split = it }, modifier = Modifier.fillMaxWidth())
         Text(

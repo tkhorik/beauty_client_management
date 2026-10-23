@@ -12,6 +12,7 @@
     <!-- Client records, procedure notes, and session state must not leave
          the device through either cloud backup or device-to-device transfer. -->
     <application
+        android:name=".BeautyApplication"
         android:allowBackup="false"
         android:fullBackupContent="@xml/backup_rules"
         android:dataExtractionRules="@xml/data_extraction_rules"

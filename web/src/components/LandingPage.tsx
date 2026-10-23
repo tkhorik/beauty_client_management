@@ -3,6 +3,7 @@ import {
   CalendarClock, CheckCircle2, Images, Search, ShieldCheck, Smartphone, Sparkles,
   UserCog, UserRound, Users, WifiOff, Contact, ArrowUpRight, ArrowDown, Leaf, Check,
 } from 'lucide-react';
+import { ThemeSelector } from './ThemeSelector';
 import { LanguageSelector } from './LanguageSelector';
 import './LandingPage.css';
 import { useAppTranslation, useLocale } from '../i18n/LocaleProvider';
@@ -64,7 +65,7 @@ export function LandingPage({ onSignIn, onGetStarted }: { onSignIn: () => void; 
             <a href="#landing-android-title">Android <ArrowUpRight size={14} aria-hidden="true" /></a>
           </nav>
           <div className="landing-topbar__actions">
-            <LanguageSelector compact />
+            <div className="display-preferences"><ThemeSelector compact /><LanguageSelector compact /></div>
             <button type="button" className="btn-secondary landing-topbar__signin" onClick={onSignIn}>
               {t('landingPage.signIn')}
             </button>

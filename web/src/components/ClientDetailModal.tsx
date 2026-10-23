@@ -114,7 +114,7 @@ export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
           <div className="dialog-header__copy">
             <div className="detail-summary">
               <h2 id={`${id}-title`} className="dialog-title">{client.name}</h2>
-              <span style={{ fontSize: '12px', background: 'rgba(229,184,153,0.15)', color: 'var(--rose-gold-primary)', padding: '4px 10px', borderRadius: '12px', border: '1px solid rgba(229,184,153,0.3)', fontWeight: 600 }}>
+              <span style={{ fontSize: '12px', background: 'var(--bg-elevated)', color: 'var(--rose-gold-primary)', padding: '4px 10px', borderRadius: '12px', border: '1px solid var(--border-color)', fontWeight: 600 }}>
                 {client.totalVisits} {t('clientDetailModal.totalVisits')}
               </span>
             </div>
@@ -130,7 +130,7 @@ export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
             <button className="btn-rose" onClick={() => onOpenNewVisit(client)}>
               <Plus size={16} /> {t('clientDetailModal.logNewVisit')}
             </button>
-            <button type="button" aria-label={t('common.delete')} onClick={handleDeleteClient} className="icon-button" style={{ color: '#a9303b' }}>
+            <button type="button" aria-label={t('common.delete')} onClick={handleDeleteClient} className="icon-button" style={{ color: 'var(--theme-danger, #a9303b)' }}>
               <Trash2 size={16} />
             </button>
           </div>

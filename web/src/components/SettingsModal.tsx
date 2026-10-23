@@ -4,6 +4,7 @@ import { useAuth } from '../auth/AuthContext';
 import { api, ApiError } from '../services/api';
 import { PASSWORD_MIN_LENGTH, validatePasswordLocally } from '../utils/passwordRules';
 import { X, User, Lock, Settings as SettingsIcon } from 'lucide-react';
+import { ThemeSelector } from './ThemeSelector';
 import { LanguageSelector } from './LanguageSelector';
 import { useAppTranslation } from '../i18n/LocaleProvider';
 import { translatedFieldErrors, translatedApiError } from '../i18n/errors';
@@ -26,7 +27,7 @@ const bannerStyle = (kind: 'error' | 'success') =>
     padding: '10px 14px',
     borderRadius: '8px',
     background: kind === 'error' ? 'var(--danger-bg)' : 'var(--success-bg)',
-    border: `1px solid ${kind === 'error' ? '#ebccc5' : '#bdcdb1'}`,
+    border: `1px solid ${kind === 'error' ? 'var(--theme-danger-border, #ebccc5)' : 'var(--theme-success-border, #bdcdb1)'}`,
     color: kind === 'error' ? 'var(--danger)' : 'var(--emerald-accent)',
     fontSize: '13px',
   }) as const;
@@ -148,6 +149,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
         <div className="dialog-body dialog-stack">
 
           <LanguageSelector description={t('settings.languageDescription')} />
+          <section className="settings-section"><ThemeSelector /></section>
 
           {/* Email (read-only) */}
           <div className="form-field">

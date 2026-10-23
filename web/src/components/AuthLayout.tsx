@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { Sparkles } from 'lucide-react';
+import { ThemeSelector } from './ThemeSelector';
 import { LanguageSelector } from './LanguageSelector';
 import { useAppTranslation } from '../i18n/LocaleProvider';
 import './AuthScreens.css';
@@ -17,7 +18,7 @@ export function AuthLayout({ title, subtitle, children }: { title: string; subti
       </aside>
       <section className="auth-screen__content" aria-label={title}>
         <div className="auth-card">
-          <div className="auth-card__top"><LanguageSelector compact /></div>
+          <div className="auth-card__top"><div className="display-preferences"><ThemeSelector compact /><LanguageSelector compact /></div></div>
           <header className="auth-card__header">
             <div className="auth-card__mark" aria-hidden="true"><Sparkles size={24} /></div>
             <h1>{title}</h1>

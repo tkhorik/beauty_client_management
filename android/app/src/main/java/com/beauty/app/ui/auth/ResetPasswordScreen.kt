@@ -176,12 +176,12 @@ private fun PrimaryButton(text: String, loading: Boolean, onClick: () -> Unit) {
             .fillMaxWidth()
             .heightIn(min = 56.dp),
         shape = RoundedCornerShape(14.dp),
-        colors = ButtonDefaults.buttonColors(containerColor = Forest)
+        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
     ) {
         if (loading) {
-            CircularProgressIndicator(modifier = Modifier.size(20.dp), color = WhiteCard, strokeWidth = 2.dp)
+            CircularProgressIndicator(modifier = Modifier.size(20.dp), color = MaterialTheme.colorScheme.onPrimary, strokeWidth = 2.dp)
         } else {
-            Text(text = text, color = WhiteCard, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+            Text(text = text, color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.Bold, fontSize = 15.sp)
         }
     }
 }

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Matches the Compose dark surface during cold start and activity recreation. -->
+    <style name="Base.Theme.AuraBeauty" parent="Theme.AppCompat.DayNight.NoActionBar">
+        <item name="android:windowActionModeOverlay">true</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:statusBarColor">#121A15</item>
+        <item name="android:navigationBarColor">#121A15</item>
+        <item name="android:windowBackground">#121A15</item>
+    </style>
+</resources>

@@ -8,6 +8,7 @@ import { useOrg } from '../auth/OrgContext';
 import { stripQueryString } from '../auth/route';
 import { pendingJoinSlug } from '../auth/deepLinks';
 import type { Organization } from '../types';
+import { ThemeSelector } from './ThemeSelector';
 import { LanguageSelector } from './LanguageSelector';
 import './AuthScreens.css';
 
@@ -155,7 +156,7 @@ export const OrganizationOnboarding: React.FC<OrganizationOnboardingProps> = ({ 
   return (
     <main className="onboarding-screen">
       <div className="onboarding-card">
-        <div className="onboarding-top"><span aria-hidden="true" /><LanguageSelector compact /></div>
+        <div className="onboarding-top"><span aria-hidden="true" /><div className="display-preferences"><ThemeSelector compact /><LanguageSelector compact /></div></div>
         {onCancel && (
           <button type="button" className="btn-secondary" onClick={onCancel} style={{ marginBottom: '16px' }}>
             {t('common.cancel')}

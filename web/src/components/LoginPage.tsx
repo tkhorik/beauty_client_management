@@ -5,6 +5,7 @@ import { API_BASE_URL } from '../config';
 import { AUTH_TRANSPORT_HEADERS } from '../auth/session';
 import { PASSWORD_MIN_LENGTH, validatePasswordLocally } from '../utils/passwordRules';
 import { FORGOT_PASSWORD_PATH, navigate } from '../auth/route';
+import { ThemeSelector } from './ThemeSelector';
 import { LanguageSelector } from './LanguageSelector';
 import './AuthScreens.css';
 import { useAppTranslation, useLocale } from '../i18n/LocaleProvider';
@@ -173,7 +174,7 @@ export function LoginPage({ initialMode = 'login', onBack }: { initialMode?: Log
                 <ArrowLeft size={14} aria-hidden="true" /> {t('loginPage.back')}
               </button>
             )}
-            <LanguageSelector compact />
+            <div className="display-preferences"><ThemeSelector compact /><LanguageSelector compact /></div>
           </div>
           <div className="auth-card__mark" aria-hidden="true"><Sparkles size={24} /></div>
           <h1>
