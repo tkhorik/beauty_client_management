@@ -557,7 +557,7 @@
   .landing-editorial .landing-topbar__actions { gap: 4px; }
   .landing-editorial .landing-topbar__signin { font-size: 12px; padding-inline: 12px; }
   .landing-editorial .lang-menu__trigger { gap: 4px; padding-inline: 6px; }
-  .landing-editorial .lang-menu__trigger > svg:first-child { display: none; }
+  .landing-editorial .lang-menu:not(.theme-menu) .lang-menu__trigger > svg:first-child { display: none; }
   .landing-editorial .landing-hero { padding-top: 36px; gap: 32px; }
   .landing-editorial .landing-eyebrow { font-size: 9px; letter-spacing: .06em; gap: 8px; margin-bottom: 22px; }
   .landing-editorial .landing-hero h1, .landing-editorial:lang(en) .landing-hero h1 { font-size: 43px; line-height: 1.1; margin-bottom: 22px; }
