@@ -37,8 +37,6 @@ import com.beauty.app.ui.theme.RoseGoldPrimary
 import com.beauty.app.ui.theme.TextLight
 import com.beauty.app.ui.theme.TextMuted
 
-private val TileBorder = Border
-
 /**
  * One editable custom attribute, drawn like the read-only attribute tile: a
  * small name above a bold value, both edited in place, with a remove button.
@@ -63,7 +61,7 @@ fun AttributeTile(
     Row(
         modifier
             .fillMaxWidth()
-            .border(1.dp, if (nameFocused || valueFocused) RoseGoldPrimary else TileBorder, RoundedCornerShape(16.dp))
+            .border(1.dp, if (nameFocused || valueFocused) RoseGoldPrimary else Border, RoundedCornerShape(16.dp))
             .padding(start = 14.dp, top = 8.dp, bottom = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {

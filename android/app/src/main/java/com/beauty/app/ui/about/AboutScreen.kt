@@ -210,16 +210,16 @@ private fun UpdateAction(
         is UpdateState.Available, is UpdateState.Downloading, is UpdateState.ReadyToInstall -> {
             val (label, color) = when (state) {
                 is UpdateState.ReadyToInstall -> stringResource(com.beauty.app.R.string.install_update) to Success
-                is UpdateState.Downloading -> stringResource(com.beauty.app.R.string.view_download) to Forest
-                else -> stringResource(com.beauty.app.R.string.update_now) to Forest
+                is UpdateState.Downloading -> stringResource(com.beauty.app.R.string.view_download) to MaterialTheme.colorScheme.primary
+                else -> stringResource(com.beauty.app.R.string.update_now) to MaterialTheme.colorScheme.primary
             }
             Button(
                 onClick = onOpenUpdateDialog,
                 modifier = modifier,
                 shape = shape,
-                colors = ButtonDefaults.buttonColors(containerColor = color)
+                colors = ButtonDefaults.buttonColors(containerColor = color, contentColor = if (state is UpdateState.ReadyToInstall) OnSuccess else MaterialTheme.colorScheme.onPrimary)
             ) {
-                Text(label, color = WhiteCard, fontWeight = FontWeight.Bold)
+                Text(label, fontWeight = FontWeight.Bold)
             }
         }
         else -> OutlinedButton(

@@ -4,6 +4,10 @@
     <string name="language_system">System default</string>
     <string name="language_english">English</string>
     <string name="language_russian">Russian</string>
+    <string name="appearance">Appearance</string>
+    <string name="theme_system">System default</string>
+    <string name="theme_light">Light</string>
+    <string name="theme_dark">Dark</string>
     <string name="language_saved_offline">Language changed. It will sync when you are online.</string>
     <string name="language_conflict">Language was updated on another device.</string>
     <string name="aura_beauty_log" formatted="false">Aura Beauty Log</string>

@@ -3,6 +3,7 @@ package com.beauty.app.ui.client
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -77,7 +78,7 @@ fun initials(name: String): String =
 fun TagBadge(tag: String) {
     val (background, foreground) = when (tagTone(tag)) {
         TagTone.VIP -> Peach.copy(alpha = 0.45f) to Forest
-        TagTone.SENSITIVE -> Color(0xFFF8E4DD) to Danger
+        TagTone.SENSITIVE -> MaterialTheme.colorScheme.errorContainer to MaterialTheme.colorScheme.onErrorContainer
         TagTone.DEFAULT -> Sage to Forest
     }
     Surface(

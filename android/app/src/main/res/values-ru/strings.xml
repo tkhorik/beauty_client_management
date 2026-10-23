@@ -4,6 +4,10 @@
     <string name="language_system">Системный язык</string>
     <string name="language_english">English</string>
     <string name="language_russian">Русский</string>
+    <string name="appearance">Оформление</string>
+    <string name="theme_system">Как в системе</string>
+    <string name="theme_light">Светлая</string>
+    <string name="theme_dark">Тёмная</string>
     <string name="language_saved_offline">Язык изменён. Он синхронизируется при подключении к сети.</string>
     <string name="language_conflict">Язык был изменён на другом устройстве.</string>
     <string name="aura_beauty_log" formatted="false">Журнал Aura Beauty</string>

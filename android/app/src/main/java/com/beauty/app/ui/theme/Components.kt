@@ -46,6 +46,7 @@ fun AuraSectionLabel(text: String) {
 }
 
 /** Native single-column counterpart to the web's editorial authentication layout. */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun AuraAuthLayout(
     title: String,
@@ -63,9 +64,15 @@ fun AuraAuthLayout(
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Icon(Icons.Default.Spa, contentDescription = null, tint = Forest, modifier = Modifier.size(28.dp))
                 Text("aura", style = MaterialTheme.typography.headlineMedium, color = Forest, modifier = Modifier.weight(1f))
+            }
+            FlowRow(
+                Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End,
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                ThemeSelector(compact = true)
                 LanguageSelector(accountId = accountId, compact = true)
             }
-            Spacer(Modifier.height(32.dp))
+            Spacer(Modifier.height(24.dp))
             Surface(color = Sage, shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp, bottomStart = 14.dp, bottomEnd = 14.dp)) {
                 Icon(Icons.Default.Spa, contentDescription = null, tint = Forest, modifier = Modifier.padding(14.dp).size(28.dp))
             }

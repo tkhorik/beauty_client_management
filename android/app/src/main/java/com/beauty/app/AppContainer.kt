@@ -8,6 +8,7 @@ import com.beauty.app.data.api.RefreshRequest
 import com.beauty.app.data.local.BeautyDatabaseProvider
 import com.beauty.app.data.local.OrgStore
 import com.beauty.app.data.local.TokenStore
+import com.beauty.app.ui.theme.ThemePreferenceStore
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.engine.okhttp.OkHttp
@@ -149,6 +150,11 @@ object AppContainer {
     }
 
     fun tokenStore(context: Context): TokenStore = TokenStore(context)
+
+    @Volatile private var themeStoreInstance: ThemePreferenceStore? = null
+    fun themeStore(context: Context): ThemePreferenceStore = themeStoreInstance ?: synchronized(this) {
+        themeStoreInstance ?: ThemePreferenceStore(context.applicationContext).also { themeStoreInstance = it }
+    }
 
     @Volatile private var languageManagerInstance: com.beauty.app.i18n.LanguagePreferenceManager? = null
     fun languageManager(context: Context): com.beauty.app.i18n.LanguagePreferenceManager =

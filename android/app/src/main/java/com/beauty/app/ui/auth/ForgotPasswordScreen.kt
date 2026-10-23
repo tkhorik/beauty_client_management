@@ -90,18 +90,18 @@ fun ForgotPasswordScreen(
                     .fillMaxWidth()
                     .heightIn(min = 56.dp),
                 shape = RoundedCornerShape(14.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Forest)
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
             ) {
                 if (state is AuthViewModel.ForgotPasswordState.Loading) {
                     CircularProgressIndicator(
                         modifier = Modifier.size(20.dp),
-                        color = WhiteCard,
+                        color = MaterialTheme.colorScheme.onPrimary,
                         strokeWidth = 2.dp
                     )
                 } else {
                     Text(
                         text = stringResource(com.beauty.app.R.string.send_reset_link),
-                        color = WhiteCard,
+                        color = MaterialTheme.colorScheme.onPrimary,
                         fontWeight = FontWeight.Bold,
                         fontSize = 15.sp
                     )
@@ -162,11 +162,11 @@ private fun ColumnScope.SentConfirmation(onNavigateBackToLogin: () -> Unit, onEn
             .fillMaxWidth()
             .heightIn(min = 56.dp),
         shape = RoundedCornerShape(14.dp),
-        colors = ButtonDefaults.buttonColors(containerColor = Forest)
+        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
     ) {
         Text(
             text = stringResource(com.beauty.app.R.string.paste_reset_link),
-            color = WhiteCard,
+            color = MaterialTheme.colorScheme.onPrimary,
             fontWeight = FontWeight.Bold,
             fontSize = 15.sp
         )

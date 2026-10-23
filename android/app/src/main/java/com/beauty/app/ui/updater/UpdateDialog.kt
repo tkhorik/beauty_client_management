@@ -242,11 +242,11 @@ fun UpdateDialog(
                                     if (needsInstallPermission) onRequestPermission() else onInstall()
                                 },
                                 shape = RoundedCornerShape(10.dp),
-                                colors = ButtonDefaults.buttonColors(containerColor = Success)
+                                colors = ButtonDefaults.buttonColors(containerColor = Success, contentColor = OnSuccess)
                             ) {
                                 Text(
                                     text = if (needsInstallPermission) stringResource(com.beauty.app.R.string.grant_permission) else stringResource(com.beauty.app.R.string.install_now),
-                                    color = WhiteCard,
+                                    color = OnSuccess,
                                     fontWeight = FontWeight.Bold
                                 )
                             }
@@ -260,18 +260,18 @@ fun UpdateDialog(
                                     modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
                                     onClick = onOpenPlayStore,
                                     shape = RoundedCornerShape(10.dp),
-                                    colors = ButtonDefaults.buttonColors(containerColor = Forest)
+                                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                                 ) {
-                                    Text(stringResource(com.beauty.app.R.string.open_google_play), color = WhiteCard, fontWeight = FontWeight.Bold)
+                                    Text(stringResource(com.beauty.app.R.string.open_google_play), color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.Bold)
                                 }
                             } else {
                                 Button(
                                     modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
                                     onClick = onStartDownload,
                                     shape = RoundedCornerShape(10.dp),
-                                    colors = ButtonDefaults.buttonColors(containerColor = Forest)
+                                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                                 ) {
-                                    Text(stringResource(com.beauty.app.R.string.download_install), color = WhiteCard, fontWeight = FontWeight.Bold)
+                                    Text(stringResource(com.beauty.app.R.string.download_install), color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.Bold)
                                 }
                             }
                             TextButton(onClick = onDismiss) {
