@@ -34,6 +34,7 @@ export const featureEn = {
   "clientDetailModal.loadingVisits": "Loading visit history…",
   "clientDetailModal.failedToLoadVisits": "Could not load visit history.",
   "clientDetailModal.retryVisits": "Retry",
+  "attachment.unavailable": "Photo unavailable",
 
   'adminPanel.1Day': "1 day",
   'adminPanel.1Year': "1 year",
@@ -351,6 +352,7 @@ export const featureRu: { [K in keyof typeof featureEn]: string } = {
   "clientDetailModal.loadingVisits": "Загрузка истории процедур…",
   "clientDetailModal.failedToLoadVisits": "Не удалось загрузить историю процедур.",
   "clientDetailModal.retryVisits": "Повторить",
+  "attachment.unavailable": "Фото недоступно",
 
   'adminPanel.1Day': "1 день",
   'adminPanel.1Year': "1 год",

@@ -10,6 +10,7 @@ import { EditClientModal } from './EditClientModal';
 import { PhotoSourcePicker } from './PhotoSourcePicker';
 import { compressImage } from '../utils/imageCompressor';
 import { defaultPhotoTag } from '../utils/photoTags';
+import { AttachmentImage } from './AttachmentImage';
 import './ClientForms.css';
 
 interface ClientDetailModalProps {
@@ -245,7 +246,7 @@ export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
                           <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
                             {attachments.map(att => (
                               <div key={att.id} className="attachment">
-                                <img src={att.fileUrl} alt={att.caption || t('clientDetailModal.attachment')} loading="lazy" decoding="async" />
+                                <AttachmentImage fileUrl={att.fileUrl} alt={att.caption || t('clientDetailModal.attachment')} />
                                 <span>
                                   {t(att.tag === 'BEFORE' ? 'newVisitModal.before' : att.tag === 'AFTER' ? 'newVisitModal.after' : att.tag === 'PROCEDURE' ? 'attachment.procedure' : 'attachment.document')}
                                 </span>
