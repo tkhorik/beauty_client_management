@@ -2,18 +2,34 @@ import { useId } from 'react';
 import { SunMoon } from 'lucide-react';
 import { useAppTranslation } from '../i18n/LocaleProvider';
 import { useTheme, type ThemePreference } from '../theme/ThemeProvider';
+import { PreferenceMenu } from './PreferenceMenu';
+
+const OPTIONS: ThemePreference[] = ['system', 'light', 'dark'];
 
 export function ThemeSelector({ compact = false }: { compact?: boolean }) {
-  const { preference, setPreference } = useTheme();
+  const { preference, resolved, setPreference } = useTheme();
   const { t } = useAppTranslation();
   const id = useId();
-  return <div className={compact ? 'theme-selector theme-selector--compact' : 'theme-selector'}>
-    <label htmlFor={id} className={compact ? 'sr-only' : 'form-label'}>{t('appearance.label')}</label>
-    {compact && <SunMoon size={17} aria-hidden="true" />}
-    <select id={id} className="input-field" aria-describedby={compact ? undefined : `${id}-hint`} value={preference}
+  const label = (option: ThemePreference) => t(`appearance.${option}`);
+  if (compact) return (
+    <PreferenceMenu
+      className="theme-menu"
+      options={OPTIONS}
+      value={preference}
+      onChange={setPreference}
+      icon={<SunMoon size={15} aria-hidden="true" />}
+      triggerText={label(preference)}
+      label={t('appearance.label')}
+      optionLabel={label}
+      optionHint={option => option === 'system' ? label(resolved) : undefined}
+    />
+  );
+  return <div className="theme-selector">
+    <label htmlFor={id} className="form-label">{t('appearance.label')}</label>
+    <select id={id} className="input-field" aria-describedby={`${id}-hint`} value={preference}
       onChange={event => setPreference(event.target.value as ThemePreference)}>
-      {(['system', 'light', 'dark'] as const).map(value => <option key={value} value={value}>{t(`appearance.${value}`)}</option>)}
+      {OPTIONS.map(value => <option key={value} value={value}>{label(value)}</option>)}
     </select>
-    {!compact && <p id={`${id}-hint`} className="theme-selector__hint">{t('appearance.description')}</p>}
+    <p id={`${id}-hint`} className="theme-selector__hint">{t('appearance.description')}</p>
   </div>;
 }

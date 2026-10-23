@@ -12,13 +12,15 @@ export function readThemePreference(): ThemePreference {
 }
 function systemIsDark() { return window.matchMedia?.(THEME_QUERY).matches ?? false; }
 
-const ThemeContext = createContext({ preference: 'system' as ThemePreference, setPreference: (_next: ThemePreference) => {} });
+const ThemeContext = createContext({
+  preference: 'system' as ThemePreference, resolved: 'light' as 'light' | 'dark', setPreference: (_next: ThemePreference) => {},
+});
 
 /** Device preference, deliberately independent of authentication and account language. */
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [preference, setPreferenceState] = useState(readThemePreference);
   const [systemDark, setSystemDark] = useState(systemIsDark);
-  const resolved = preference === 'system' ? (systemDark ? 'dark' : 'light') : preference;
+  const resolved: 'light' | 'dark' = preference === 'system' ? (systemDark ? 'dark' : 'light') : preference;
   const setPreference = useCallback((next: ThemePreference) => {
     const valid = parseThemePreference(next);
     try { localStorage.setItem(THEME_STORAGE_KEY, valid); } catch { /* In-memory choice still works. */ }
@@ -46,7 +48,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     window.addEventListener('storage', sync);
     return () => window.removeEventListener('storage', sync);
   }, []);
-  const value = useMemo(() => ({ preference, setPreference }), [preference, setPreference]);
+  const value = useMemo(() => ({ preference, resolved, setPreference }), [preference, resolved, setPreference]);
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 }
 export function useTheme() { return useContext(ThemeContext); }
