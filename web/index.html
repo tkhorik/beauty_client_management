@@ -6,6 +6,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="Aura Beauty Log — карточки клиентов, история визитов и фото «до/после». Всё важное для вашего салона — в браузере и на Android." />
     <meta name="theme-color" content="#f8f7f2" />
+    <script>
+      // Blocking head bootstrap: match the provider before CSS or React can paint.
+      (() => {
+        let preference = 'system';
+        try { preference = localStorage.getItem('beauty:theme-preference'); } catch {}
+        const theme = preference === 'dark' || preference === 'light' ? preference
+          : (window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+        document.documentElement.dataset.theme = theme;
+        document.documentElement.style.colorScheme = theme;
+        document.querySelector('meta[name="theme-color"]').content = theme === 'dark' ? '#18211d' : '#f8f7f2';
+      })();
+    </script>
     <title>Aura Beauty Log</title>
   </head>
   <body>

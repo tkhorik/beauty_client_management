@@ -2,6 +2,7 @@ import { useAppTranslation } from '../i18n/LocaleProvider';
 import { Search, Plus, Sparkles, Settings, Users, ShieldCheck, ArrowUpRight } from 'lucide-react';
 import { useAuth } from '../auth/AuthContext';
 import { useOrg } from '../auth/OrgContext';
+import { ThemeSelector } from './ThemeSelector';
 import { LanguageSelector } from './LanguageSelector';
 import type { ClientTag } from '../types';
 import './Workspace.css';
@@ -45,7 +46,7 @@ export function Header({ searchQuery, onSearchChange, selectedTag, onTagSelect, 
             aria-label={t('header.activeOrganization')} disabled={activeOrganizations.length <= 1}>
             {activeOrganizations.map(org => <option key={org.id} value={org.id}>{offline ? t('header.demoOrganization') : org.name}</option>)}
           </select>}
-          <LanguageSelector compact />
+          <div className="display-preferences"><ThemeSelector compact /><LanguageSelector compact /></div>
           {(current?.role === 'ORG_ADMIN' || user?.globalRole === 'SUPER_ADMIN') && !offline && (
             <button className="icon-button workspace-members" onClick={onOpenMembers} title={t('header.manageMembers')}
               aria-label={pendingCount > 0 ? `${t('header.manageMembers')} — ${t('header.pendingRequests', { count: pendingCount })}` : t('header.manageMembers')}>

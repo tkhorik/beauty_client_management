@@ -60,7 +60,7 @@ export const AttributeEditor: React.FC<AttributeEditorProps> = ({ rows, onChange
                 disabled={disabled}
                 onClick={() => remove(row.id)}
                 className="icon-button"
-                style={{ color: '#a9303b', flexShrink: 0 }}
+                style={{ color: 'var(--theme-danger, #a9303b)', flexShrink: 0 }}
               >
                 <Trash2 size={15} />
               </button>

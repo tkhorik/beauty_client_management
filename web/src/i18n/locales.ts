@@ -4,6 +4,7 @@
  * change customer data rather than the interface around it.
  */
 export const en = {
+  appearance: { label: 'Appearance', system: 'System', light: 'Light', dark: 'Dark', description: 'Saved on this device. System follows your device’s appearance.' },
   language: { system: 'System default', en: 'English', ru: 'Русский', label: 'Language', conflict: 'A newer language setting from another device was applied.' },
   common: {
     appName: 'Aura Beauty Log', loading: 'Loading…', save: 'Save', cancel: 'Cancel', close: 'Close',
@@ -45,6 +46,7 @@ export const en = {
 type TranslationShape<T> = { [K in keyof T]: T[K] extends string ? string : TranslationShape<T[K]> };
 
 export const ru: TranslationShape<typeof en> = {
+  appearance: { label: 'Оформление', system: 'Системное', light: 'Светлое', dark: 'Тёмное', description: 'Сохраняется на этом устройстве. Системное оформление следует настройкам устройства.' },
   language: { system: 'Системный язык', en: 'English', ru: 'Русский', label: 'Язык', conflict: 'Применена более новая настройка языка с другого устройства.' },
   common: {
     appName: 'Aura Beauty Log', loading: 'Загрузка…', save: 'Сохранить', cancel: 'Отмена', close: 'Закрыть',
@@ -91,6 +93,7 @@ import type { NewClientKey } from './newClient';
 import type { AuditKey } from './audit';
 
 export type TranslationKey = AuditKey | FeatureKey | RuntimeKey | NewClientKey | `apiErrors.${ApiErrorCode}`
+  | 'appearance.label' | 'appearance.system' | 'appearance.light' | 'appearance.dark' | 'appearance.description'
   | 'language.system' | 'language.en' | 'language.ru' | 'language.label' | 'language.conflict'
   | 'common.appName' | 'common.loading' | 'common.save' | 'common.cancel' | 'common.close' | 'common.delete' | 'common.edit' | 'common.create' | 'common.error' | 'common.network'
   | 'auth.signIn' | 'auth.signOut' | 'auth.createAccount' | 'auth.createYourAccount' | 'auth.signInAccount' | 'auth.fullName' | 'auth.email' | 'auth.password' | 'auth.confirmPassword' | 'auth.forgotPassword' | 'auth.firstTime' | 'auth.alreadyAccount' | 'auth.hidePassword' | 'auth.showPassword' | 'auth.pleaseWait' | 'auth.nameRequired' | 'auth.passwordsMismatch' | 'auth.invalidCredentials' | 'auth.duplicateEmail' | 'auth.tooManyAttempts' | 'auth.checkDetails'
