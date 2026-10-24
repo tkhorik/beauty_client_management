@@ -1,274 +1,211 @@
 package com.beauty.app.ui.client
 
-import com.beauty.app.ui.i18n.localizedMessage
-import androidx.compose.ui.res.stringResource
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
-import com.beauty.app.ui.theme.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import com.beauty.app.ui.theme.RoseGoldPrimary
-import com.beauty.app.ui.theme.TextLight
-import com.beauty.app.ui.theme.TextMuted
+import com.beauty.app.R
+import com.beauty.app.ui.i18n.localizedMessage
+import com.beauty.app.ui.theme.*
 
-@OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun EditClientScreen(
-    viewModel: EditClientViewModel,
-    onBack: () -> Unit
-) {
-    var tagInput by rememberSaveable { mutableStateOf("") }
-
-    // Navigate back on success
-    LaunchedEffect(viewModel.saveState) {
-        if (viewModel.saveState is EditClientViewModel.SaveState.Success) {
-            onBack()
+fun EditClientScreen(viewModel: EditClientViewModel, onBack: () -> Unit) {
+    var showDiscard by rememberSaveable { mutableStateOf(false) }
+    val requestBack = {
+        if (!viewModel.isSaving) {
+            if (viewModel.isDirty) showDiscard = true else onBack()
         }
     }
-
+    // Always intercept while this editor is visible, including during an in-flight save.
+    BackHandler(onBack = requestBack)
+    LaunchedEffect(viewModel.saveState) {
+        if (viewModel.saveState is EditClientViewModel.SaveState.Success) onBack()
+    }
+    if (showDiscard && !viewModel.isSaving) {
+        AlertDialog(
+            onDismissRequest = { showDiscard = false },
+            title = { Text(stringResource(R.string.client_editor_discard_title)) },
+            text = { Text(stringResource(R.string.client_editor_discard_message)) },
+            confirmButton = {
+                TextButton(onClick = { showDiscard = false; onBack() }) {
+                    Text(stringResource(R.string.client_editor_discard))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDiscard = false }) {
+                    Text(stringResource(R.string.client_editor_keep_editing))
+                }
+            }
+        )
+    }
     Scaffold(
+        modifier = Modifier.imePadding(),
         topBar = {
             TopAppBar(
-                title = {
-                    Text(
-                        if (viewModel.isNewClient) stringResource(com.beauty.app.R.string.new_client) else stringResource(com.beauty.app.R.string.edit_client),
-                        style = MaterialTheme.typography.titleMedium
-                    )
-                },
+                title = { Text(stringResource(if (viewModel.isNewClient) R.string.new_client else R.string.edit_client), style = MaterialTheme.typography.titleMedium) },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            Icons.Default.ArrowBack,
-                            contentDescription = stringResource(com.beauty.app.R.string.back),
-                            tint = TextLight
-                        )
+                    IconButton(onClick = requestBack, enabled = !viewModel.isSaving) {
+                        Icon(Icons.Default.ArrowBack, stringResource(R.string.back))
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Paper
-                )
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Paper)
             )
+        },
+        bottomBar = {
+            if (viewModel.isNewClient || viewModel.existingClientState is EditClientViewModel.ExistingClientState.Ready) {
+                Surface(shadowElevation = 4.dp) {
+                    Column(
+                        Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 20.dp, vertical = 12.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        (viewModel.saveState as? EditClientViewModel.SaveState.Error)?.let { error ->
+                            Text(
+                                localizedMessage(error.message),
+                                color = MaterialTheme.colorScheme.error,
+                                modifier = Modifier.widthIn(max = 680.dp).fillMaxWidth().semantics { liveRegion = LiveRegionMode.Polite }
+                            )
+                        }
+                        Button(
+                            onClick = viewModel::save,
+                            enabled = viewModel.canEdit,
+                            modifier = Modifier.widthIn(max = 680.dp).fillMaxWidth().heightIn(min = 48.dp)
+                        ) {
+                            if (viewModel.isSaving) {
+                                CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
+                                Spacer(Modifier.width(8.dp))
+                            }
+                            Text(stringResource(when {
+                                viewModel.isSaving -> R.string.saving
+                                viewModel.isNewClient -> R.string.create_client
+                                else -> R.string.save_changes
+                            }))
+                        }
+                    }
+                }
+            }
         }
-    ) { paddingValues ->
+    ) { padding ->
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .imePadding()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp, vertical = 24.dp),
+            Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding)
+                .verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             when (viewModel.existingClientState) {
-                EditClientViewModel.ExistingClientState.Loading ->
-                    Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator(color = RoseGoldPrimary)
-                    }
-                EditClientViewModel.ExistingClientState.Missing ->
-                    Text(
-                        stringResource(com.beauty.app.R.string.ui2_this_client_is_no_longer_available_return_to_the_directory_and_re),
-                        color = MaterialTheme.colorScheme.error
-                    )
-                // Branches rather than early `return@Column`s: returning out of an
-                // inline composable lambda skips closing its group and crashes the
-                // slot table.
-                else -> Column(Modifier.widthIn(max = 680.dp).fillMaxWidth().align(Alignment.CenterHorizontally), verticalArrangement = Arrangement.spacedBy(20.dp)) {
-                    AuraPageHeader(if (viewModel.isNewClient) stringResource(com.beauty.app.R.string.new_client) else stringResource(com.beauty.app.R.string.edit_client))
-                    ClientForm(viewModel, tagInput, onTagInputChange = { tagInput = it })
+                EditClientViewModel.ExistingClientState.Loading -> CircularProgressIndicator()
+                EditClientViewModel.ExistingClientState.Missing -> Text(
+                    stringResource(R.string.ui2_this_client_is_no_longer_available_return_to_the_directory_and_re),
+                    color = MaterialTheme.colorScheme.error
+                )
+                else -> Column(Modifier.widthIn(max = 680.dp).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    ClientForm(viewModel)
                 }
             }
         }
     }
 }
 
-@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun ColumnScope.ClientForm(
-    viewModel: EditClientViewModel,
-    tagInput: String,
-    onTagInputChange: (String) -> Unit
-) {
-        AuraCard {
-        AuraSectionLabel(stringResource(com.beauty.app.R.string.client_details))
-        // Full Name
+private fun ClientForm(viewModel: EditClientViewModel) {
+    var moreDetails by rememberSaveable { mutableStateOf(false) }
+    val enabled = viewModel.canEdit
+    AuraCard {
         OutlinedTextField(
-            value = viewModel.name,
-            onValueChange = { viewModel.updateName(it) },
-            label = { Text(stringResource(com.beauty.app.R.string.full_name_2), color = TextMuted) },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth(),
-            colors = outlinedColors()
+            value = viewModel.name, onValueChange = viewModel::updateName,
+            label = { Text(stringResource(R.string.full_name_2)) },
+            enabled = enabled, singleLine = true, modifier = Modifier.fillMaxWidth(),
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next)
         )
-
-        // Phone
         OutlinedTextField(
-            value = viewModel.phone,
-            onValueChange = { viewModel.updatePhone(it) },
-            label = { Text(stringResource(com.beauty.app.R.string.phone_number), color = TextMuted) },
-            placeholder = { Text(stringResource(com.beauty.app.R.string.workspace_phone_example)) },
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth(),
-            colors = outlinedColors()
+            value = viewModel.phone, onValueChange = viewModel::updatePhone,
+            label = { Text(stringResource(R.string.phone_number)) },
+            placeholder = { Text(stringResource(R.string.workspace_phone_example)) },
+            enabled = enabled, singleLine = true, modifier = Modifier.fillMaxWidth(),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone, imeAction = ImeAction.Next)
         )
-
-        // Email
         OutlinedTextField(
-            value = viewModel.email,
-            onValueChange = { viewModel.updateEmail(it) },
-            label = { Text(stringResource(com.beauty.app.R.string.email), color = TextMuted) },
-            supportingText = { Text(stringResource(com.beauty.app.R.string.workspace_optional)) },
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth(),
-            colors = outlinedColors()
+            value = viewModel.email, onValueChange = viewModel::updateEmail,
+            label = { Text(stringResource(R.string.email)) },
+            supportingText = { Text(stringResource(R.string.workspace_optional)) },
+            enabled = enabled, singleLine = true, modifier = Modifier.fillMaxWidth(),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email)
         )
-
+    }
+    AuraCard {
+        TextButton(onClick = { moreDetails = !moreDetails }, modifier = Modifier.fillMaxWidth()) {
+            Text(stringResource(R.string.client_editor_more_details), Modifier.weight(1f))
+            Icon(if (moreDetails) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                stringResource(if (moreDetails) R.string.client_editor_collapse else R.string.client_editor_expand))
         }
-
-        AuraCard {
-        // Tags section
-        AuraSectionLabel(stringResource(com.beauty.app.R.string.tags))
-        Column(
-            modifier = Modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
+        // Counts and labels remain visible even when optional fields are collapsed.
+        Text(
+            stringResource(R.string.client_editor_details_summary, viewModel.tags.size, viewModel.customFields.size),
+            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        if (viewModel.tagInput.isNotEmpty() && !moreDetails) {
+            Text(stringResource(R.string.client_editor_pending_tag, viewModel.tagInput), style = MaterialTheme.typography.bodySmall)
+        }
+        if (moreDetails) {
+            AuraSectionLabel(stringResource(R.string.tags))
             OutlinedTextField(
-                value = tagInput,
-                onValueChange = onTagInputChange,
-                label = { Text(stringResource(com.beauty.app.R.string.add_tag), color = TextMuted) },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-                colors = outlinedColors()
+                value = viewModel.tagInput, onValueChange = viewModel::updateTagInput,
+                label = { Text(stringResource(R.string.add_tag)) },
+                enabled = enabled, singleLine = true, modifier = Modifier.fillMaxWidth(),
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                keyboardActions = KeyboardActions(onDone = { viewModel.addPendingTag() }),
+                trailingIcon = {
+                    TextButton(onClick = viewModel::addPendingTag, enabled = enabled && viewModel.tagInput.isNotBlank()) {
+                        Text(stringResource(R.string.add_action))
+                    }
+                }
             )
-            OutlinedButton(
-                onClick = { viewModel.addTag(tagInput.trim()); onTagInputChange("") },
-                border = ButtonDefaults.outlinedButtonBorder.copy(
-                    brush = androidx.compose.ui.graphics.SolidColor(RoseGoldPrimary)
-                )
-            ) { Text(stringResource(com.beauty.app.R.string.add_action), color = RoseGoldPrimary) }
-        }
-        // Existing tags as chips
-        if (viewModel.tags.isNotEmpty()) {
-            FlowRow(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 viewModel.tags.forEach { tag ->
-                    // The whole chip removes the tag. A 48dp IconButton nested
-                    // in the trailing slot stretched the chip and left the label
-                    // top-aligned; the chip already has a 48dp touch target.
                     InputChip(
-                        selected = false,
-                        onClick = { viewModel.removeTag(tag) },
-                        label = { Text(tag, color = Forest, style = MaterialTheme.typography.bodyMedium) },
-                        trailingIcon = {
-                            Icon(
-                                Icons.Default.Close,
-                                contentDescription = stringResource(com.beauty.app.R.string.remove_tag),
-                                tint = TextMuted,
-                                modifier = Modifier.size(18.dp)
-                            )
-                        },
-                        shape = RoundedCornerShape(8.dp),
-                        colors = InputChipDefaults.inputChipColors(
-                            containerColor = Sage
-                        )
+                        selected = false, enabled = enabled, onClick = { viewModel.removeTag(tag) },
+                        label = { Text(tag) },
+                        trailingIcon = { Icon(Icons.Default.Close, stringResource(R.string.remove_tag), Modifier.size(18.dp)) },
+                        shape = RoundedCornerShape(8.dp)
+                    )
+                }
+            }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(stringResource(R.string.custom_attributes), Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
+                TextButton(onClick = viewModel::addCustomField, enabled = enabled) { Text(stringResource(R.string.add)) }
+            }
+            viewModel.customFields.forEachIndexed { index, field ->
+                key(field.id) {
+                    AttributeTile(
+                        name = field.key, value = field.value, enabled = enabled,
+                        onNameChange = { viewModel.updateCustomField(index, it, field.value) },
+                        onValueChange = { viewModel.updateCustomField(index, field.key, it) },
+                        onRemove = { viewModel.removeCustomField(index) }
                     )
                 }
             }
         }
-
-        }
-
-        AuraCard {
-        // Custom fields section
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(stringResource(com.beauty.app.R.string.custom_attributes), style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-            OutlinedButton(
-                onClick = { viewModel.addCustomField() },
-                border = ButtonDefaults.outlinedButtonBorder.copy(
-                    brush = androidx.compose.ui.graphics.SolidColor(RoseGoldPrimary)
-                )
-            ) { Text(stringResource(com.beauty.app.R.string.add), color = RoseGoldPrimary, fontSize = 14.sp) }
-        }
-        viewModel.customFields.forEachIndexed { index, field ->
-            key(field.id) {
-                AttributeTile(
-                    name = field.key,
-                    value = field.value,
-                    onNameChange = { viewModel.updateCustomField(index, it, field.value) },
-                    onValueChange = { viewModel.updateCustomField(index, field.key, it) },
-                    onRemove = { viewModel.removeCustomField(index) }
-                )
-            }
-        }
-
-        }
-
-        // Error
-        if (viewModel.saveState is EditClientViewModel.SaveState.Error) {
-            Text(
-                text = localizedMessage((viewModel.saveState as EditClientViewModel.SaveState.Error).message),
-                color = MaterialTheme.colorScheme.error,
-                fontSize = 13.sp
-            )
-        }
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        // Save button
-        Button(
-            onClick = { viewModel.save() },
-            enabled = viewModel.saveState !is EditClientViewModel.SaveState.Loading,
-            modifier = Modifier
-                .fillMaxWidth()
-                .heightIn(min = 52.dp),
-            shape = RoundedCornerShape(12.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = RoseGoldPrimary)
-        ) {
-            if (viewModel.saveState is EditClientViewModel.SaveState.Loading) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(20.dp),
-                    color = MaterialTheme.colorScheme.onPrimary,
-                    strokeWidth = 2.dp
-                )
-            } else {
-                Text(
-                    text = if (viewModel.isNewClient) stringResource(com.beauty.app.R.string.create_client) else stringResource(com.beauty.app.R.string.save_changes),
-                    color = MaterialTheme.colorScheme.onPrimary,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 15.sp
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(24.dp))
+    }
 }
-
-@Composable
-private fun outlinedColors() = OutlinedTextFieldDefaults.colors(
-    focusedBorderColor = RoseGoldPrimary,
-    unfocusedBorderColor = MaterialTheme.colorScheme.outline,
-    focusedTextColor = TextLight,
-    unfocusedTextColor = TextLight
-)

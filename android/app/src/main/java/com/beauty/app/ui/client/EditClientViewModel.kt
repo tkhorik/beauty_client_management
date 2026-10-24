@@ -2,10 +2,10 @@ package com.beauty.app.ui.client
 
 import com.beauty.app.data.api.safeMessage
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
 import com.beauty.app.data.BeautyRepository
 import com.beauty.app.data.local.ClientDao
@@ -14,7 +14,10 @@ import com.beauty.app.data.toEntity
 import com.beauty.app.ui.auth.AuthValidation
 import io.ktor.client.plugins.ClientRequestException
 import kotlinx.coroutines.launch
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import java.util.UUID
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonPrimitive
@@ -32,7 +35,8 @@ class EditClientViewModel(
      */
     private val organizationId: String,
     private val repository: BeautyRepository,
-    private val clientDao: ClientDao
+    private val clientDao: ClientDao,
+    private val savedStateHandle: SavedStateHandle = SavedStateHandle()
 ) : ViewModel() {
 
     val isNewClient: Boolean get() = clientId == null
@@ -59,89 +63,93 @@ class EditClientViewModel(
     )
         private set
 
-    var name by mutableStateOf("")
-        private set
-    var phone by mutableStateOf("")
-        private set
-    var email by mutableStateOf("")
-        private set
-
-    /** The stored number; an unchanged one is not re-validated, matching the server. */
-    private var originalPhone: String? = null
-
-    val tags = mutableStateListOf<String>()
-
-    /**
-     * The editable text plus the element read from the server/cache. Keeping
-     * that element lets a no-op edit retain JSON number/boolean/string types
-     * instead of turning every value into a string on save.
-     */
+    @Serializable
     data class CustomField(
         val key: String,
         val value: String,
-        val originalValue: JsonElement? = null,
-        /** Stable row identity for Compose; survives `copy()` on every keystroke. */
-        val id: Long = nextFieldId++
-    )
+        // JSON text distinguishes an original JSON null from a newly added field.
+        val originalJson: String? = null,
+        val id: String = UUID.randomUUID().toString()
+    ) {
+        val originalValue: JsonElement? get() = originalJson?.let(Json::parseToJsonElement)
+    }
 
-    val customFields = mutableStateListOf<CustomField>()
+    private val restored = savedStateHandle.get<String>(DRAFT_KEY)?.let { raw ->
+        runCatching { Json.decodeFromString<ClientEditorSnapshot>(raw) }.getOrNull()
+            ?.takeIf { it.organizationId == organizationId && it.clientId == clientId }
+    }
+    private var baseline = restored?.baseline ?: ClientEditorDraft()
+    private var draft by mutableStateOf(restored?.draft ?: baseline)
+    val name get() = draft.name
+    val phone get() = draft.phone
+    val email get() = draft.email
+    val tags get() = draft.tags
+    val tagInput get() = draft.tagInput
+    val customFields get() = draft.customFields
+    val isDirty get() = draft != baseline
+    val isSaving get() = saveState is SaveState.Loading
+    val canEdit get() = !isSaving && saveState !is SaveState.Success &&
+        (isNewClient || existingClientState is ExistingClientState.Ready)
 
     init {
-        // Same starting values as the web app's New Client form.
-        if (clientId == null) {
-            tags.addAll(NEW_CLIENT_DEFAULT_TAGS)
-            customFields.addAll(NEW_CLIENT_DEFAULT_FIELDS.map { (key, value) -> CustomField(key, value) })
-        }
         clientId?.let { existingClientId -> viewModelScope.launch {
             val entity: ClientEntity? = clientDao.getClientById(existingClientId, organizationId)
-            entity?.let { e ->
-                name = e.name
-                phone = e.phone
-                originalPhone = e.phone
-                email = e.email ?: ""
-
-                val parsedTags = runCatching {
-                    Json.decodeFromString<List<String>>(e.tagsJson)
-                }.getOrDefault(emptyList())
-                tags.addAll(parsedTags)
-
-                runCatching {
-                    Json.parseToJsonElement(e.customFieldsJson).jsonObject
-                }.getOrNull()?.forEach { (k, v) ->
-                    // JsonPrimitive.content decodes escaped JSON strings (for
-                    // example, `\"A\\nB\"` becomes a real newline), unlike
-                    // `toString().removeSurrounding(\"\\\"\")`.
-                    val display = (v as? JsonPrimitive)?.content ?: v.toString()
-                    customFields.add(CustomField(k, display, v))
-                }
+            if (entity != null && restored == null) {
+                baseline = ClientEditorDraft(
+                    name = entity.name,
+                    phone = entity.phone,
+                    email = entity.email.orEmpty(),
+                    tags = runCatching { Json.decodeFromString<List<String>>(entity.tagsJson) }
+                        .getOrDefault(emptyList()),
+                    customFields = runCatching { Json.parseToJsonElement(entity.customFieldsJson).jsonObject }
+                        .getOrNull()?.map { (key, value) -> CustomField(key, displayValue(value), value.toString()) }
+                        .orEmpty()
+                )
+                draft = baseline
             }
             existingClientState = if (entity == null) ExistingClientState.Missing else ExistingClientState.Ready
+            persistDraft()
         } }
     }
 
-    fun updateName(v: String) { name = v }
-    fun updatePhone(v: String) { phone = v }
-    fun updateEmail(v: String) { email = v }
-    fun addTag(tag: String) { if (tag.isNotBlank() && !tags.contains(tag)) tags.add(tag) }
-    fun removeTag(tag: String) { tags.remove(tag) }
-    fun addCustomField() { customFields.add(CustomField("", "")) }
-    fun updateCustomField(index: Int, key: String, value: String) {
-        if (index in customFields.indices) {
-            customFields[index] = customFields[index].copy(key = key, value = value)
-        }
+    private fun persistDraft() {
+        savedStateHandle[DRAFT_KEY] = Json.encodeToString(ClientEditorSnapshot(organizationId, clientId, baseline, draft))
     }
-    fun removeCustomField(index: Int) {
-        if (index in customFields.indices) customFields.removeAt(index)
+
+    private fun edit(transform: (ClientEditorDraft) -> ClientEditorDraft) {
+        if (!canEdit) return
+        draft = transform(draft)
+        persistDraft()
+    }
+
+    fun updateName(v: String) = edit { it.copy(name = v) }
+    fun updatePhone(v: String) = edit { it.copy(phone = v) }
+    fun updateEmail(v: String) = edit { it.copy(email = v) }
+    fun updateTagInput(v: String) = edit { it.copy(tagInput = v) }
+    fun addPendingTag() = edit { it.withPendingTag() }
+    fun removeTag(tag: String) = edit { it.copy(tags = it.tags - tag) }
+    fun addCustomField() = edit { it.copy(customFields = it.customFields + CustomField("", "")) }
+    fun updateCustomField(index: Int, key: String, value: String) = edit { current ->
+        current.copy(customFields = current.customFields.mapIndexed { i, field ->
+            if (i == index) field.copy(key = key, value = value) else field
+        })
+    }
+    fun removeCustomField(index: Int) = edit { current ->
+        current.copy(customFields = current.customFields.filterIndexed { i, _ -> i != index })
     }
 
     fun save() {
-        if (saveState is SaveState.Loading) return
-        if (!isNewClient && existingClientState !is ExistingClientState.Ready) return
+        if (!canEdit) return
+        // Save includes the tag still in the input; it must not disappear when the form closes.
+        draft = draft.withPendingTag()
+        persistDraft()
+        // Lock synchronously: a second tap or Back must not race coroutine dispatch.
+        saveState = SaveState.Loading
         viewModelScope.launch {
             val trimmedName = name.trim()
             // Clients saved before phone validation existed keep their number
             // until someone changes it, exactly as the server allows.
-            val phoneChanged = phone.trim() != originalPhone?.trim()
+            val phoneChanged = isNewClient || phone.trim() != baseline.phone.trim()
             val phoneIssue = if (phoneChanged) AuthValidation.phoneError(phone) else null
             val trimmedPhone = if (phoneChanged && phoneIssue == null) AuthValidation.formatPhone(phone) else phone.trim()
             val normalizedEmail = email.trim().takeIf { it.isNotEmpty() }?.let(AuthValidation::normaliseEmail)
@@ -179,8 +187,9 @@ class EditClientViewModel(
             saveState = try {
                 val cfJsonObject = JsonObject(
                     nonBlankCustomFields.associate { field ->
-                        field.key.trim() to if (field.originalValue != null && field.value == displayValue(field.originalValue)) {
-                            field.originalValue
+                        val original = field.originalValue
+                        field.key.trim() to if (original != null && field.value == displayValue(original)) {
+                            original
                         } else {
                             JsonPrimitive(field.value)
                         }
@@ -223,10 +232,6 @@ class EditClientViewModel(
         (element as? JsonPrimitive)?.content ?: element.toString()
 
     companion object {
-        private var nextFieldId = 0L
-
-        /** Mirrors `NewClientModal.tsx`'s initial state. */
-        val NEW_CLIENT_DEFAULT_TAGS = listOf("VIP")
-        val NEW_CLIENT_DEFAULT_FIELDS = listOf("Skin Type" to "Sensitive", "Allergies" to "None")
+        internal const val DRAFT_KEY = "client_editor_draft"
     }
 }

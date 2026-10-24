@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="client_editor_discard_title">Discard changes?</string>
+    <string name="client_editor_discard_message">Your unsaved changes will be lost.</string>
+    <string name="client_editor_discard">Discard</string>
+    <string name="client_editor_keep_editing">Keep editing</string>
+    <string name="client_editor_more_details">More details</string>
+    <string name="client_editor_collapse">Collapse details</string>
+    <string name="client_editor_expand">Expand details</string>
+    <string name="client_editor_details_summary">Tags: %1$d · Custom attributes: %2$d</string>
+    <string name="client_editor_pending_tag">Tag ready to save: %1$s</string>
+</resources>
