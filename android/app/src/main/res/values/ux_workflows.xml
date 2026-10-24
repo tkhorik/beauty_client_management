@@ -1,0 +1,12 @@
+<resources>
+    <string name="ux_client_preferences">Client details &amp; preferences</string>
+    <string name="ux_visit_history">Visit history</string>
+    <string name="ux_new_visit">New visit</string>
+    <string name="ux_save_visit">Save visit</string>
+    <string name="ux_treatment_notes">Treatment notes *</string>
+    <string name="ux_visit_photos">Photos (optional)</string>
+    <string name="ux_discard_visit_title">Discard this visit?</string>
+    <string name="ux_discard_visit_message">Your unsaved notes and selected photos will be lost.</string>
+    <string name="ux_discard">Discard</string>
+    <string name="ux_keep_editing">Keep editing</string>
+</resources>

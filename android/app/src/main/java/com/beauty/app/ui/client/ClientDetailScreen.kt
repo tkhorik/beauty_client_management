@@ -3,6 +3,12 @@ package com.beauty.app.ui.client
 import androidx.compose.ui.res.pluralStringResource
 import com.beauty.app.ui.i18n.localizedMessage
 import androidx.compose.ui.res.stringResource
+import androidx.activity.compose.BackHandler
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.ExpandLess
 import android.app.DatePickerDialog
 import android.app.TimePickerDialog
 import android.net.Uri
@@ -79,6 +85,8 @@ fun ClientDetailScreen(
     var showVisitForm by rememberSaveable { mutableStateOf(openVisitForm) }
     var savedMessage by rememberSaveable { mutableStateOf(false) }
     var confirmDelete by rememberSaveable { mutableStateOf(false) }
+    var clientMenu by remember { mutableStateOf(false) }
+    var detailsExpanded by rememberSaveable { mutableStateOf(false) }
     val attributeEditor = rememberSaveable(
         viewModel.organizationId, viewModel.clientId,
         saver = AttributeEditorState.saver(viewModel.organizationId, viewModel.clientId)
@@ -120,26 +128,40 @@ fun ClientDetailScreen(
                 IconButton(onClick = { viewModel.refresh(); SyncWorker.enqueue(context) }, enabled = !viewModel.loading) {
                     Icon(Icons.Default.Refresh, stringResource(com.beauty.app.R.string.refresh_visit_history))
                 }
+                if (client != null) Box {
+                    IconButton(onClick = { clientMenu = true }) {
+                        Icon(Icons.Default.MoreVert, stringResource(com.beauty.app.R.string.more_options))
+                    }
+                    DropdownMenu(expanded = clientMenu, onDismissRequest = { clientMenu = false }) {
+                        DropdownMenuItem(text = { Text(stringResource(com.beauty.app.R.string.edit_client)) },
+                            onClick = { clientMenu = false; onEdit() })
+                        DropdownMenuItem(text = { Text(stringResource(com.beauty.app.R.string.delete_client), color = Danger) },
+                            enabled = !viewModel.deleting,
+                            onClick = { clientMenu = false; confirmDelete = true })
+                    }
+                }
             }
         )
     }) { padding ->
         Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.TopCenter) {
         LazyColumn(
             modifier = Modifier.widthIn(max = 760.dp).fillMaxSize().imePadding(),
-            contentPadding = PaddingValues(horizontal = 20.dp, vertical = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(20.dp)
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             if (viewModel.loading) item { LinearProgressIndicator(Modifier.fillMaxWidth()) }
             if (client != null) {
                 item {
-                    AuraCard {
+                    Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp),
+                        colors = CardDefaults.cardColors(containerColor = WhiteCard), border = BorderStroke(1.dp, Border)) {
+                      Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Row(horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.Top) {
-                            Box(Modifier.size(56.dp).background(Sage, CircleShape), contentAlignment = Alignment.Center) {
+                            Box(Modifier.size(44.dp).background(Sage, CircleShape), contentAlignment = Alignment.Center) {
                                 Text(remember(client.name) { initials(client.name) },
                                     style = MaterialTheme.typography.titleLarge, color = Forest)
                             }
                             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                Text(client.name, style = MaterialTheme.typography.headlineMedium)
+                                Text(client.name, style = MaterialTheme.typography.titleLarge)
                                 Text(pluralStringResource(com.beauty.app.R.plurals.total_visits, client.totalVisits, client.totalVisits),
                                     color = Muted, style = MaterialTheme.typography.bodyMedium)
                             }
@@ -157,18 +179,21 @@ fun ClientDetailScreen(
                         Button(onClick = openVisit, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) {
                             Text(stringResource(com.beauty.app.R.string.log_new_visit))
                         }
-                        OutlinedButton(onClick = onEdit, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
-                            Text(stringResource(com.beauty.app.R.string.edit_client))
-                        }
-                        TextButton(onClick = { confirmDelete = true }, enabled = !viewModel.deleting,
-                            colors = ButtonDefaults.textButtonColors(contentColor = Danger), modifier = Modifier.align(Alignment.CenterHorizontally).heightIn(min = 48.dp)) {
-                            Text(stringResource(com.beauty.app.R.string.delete_client))
-                        }
                         viewModel.deleteError?.let { Text(localizedMessage(it), color = MaterialTheme.colorScheme.error) }
+                      }
                     }
                 }
                 item {
-                    AttributesCard(
+                    TextButton(
+                        enabled = attributeEditor.rows == null,
+                        onClick = { detailsExpanded = !detailsExpanded },
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
+                    ) {
+                        Text(stringResource(com.beauty.app.R.string.ux_client_preferences), modifier = Modifier.weight(1f))
+                        Icon(if (detailsExpanded || attributeEditor.rows != null) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                            contentDescription = null)
+                    }
+                    if (detailsExpanded || attributeEditor.rows != null) AttributesCard(
                         customFieldsJson = client.customFieldsJson,
                         editor = attributeEditor,
                         saving = viewModel.savingAttributes,
@@ -181,7 +206,7 @@ fun ClientDetailScreen(
                     )
                 }
             } else if (!viewModel.loading) item { Text(stringResource(com.beauty.app.R.string.ui2_this_client_is_no_longer_available_return_to_the_directory_and_re)) }
-            item { AuraPageHeader(stringResource(com.beauty.app.R.string.visit_history_procedure_timeline)) }
+            item { Text(stringResource(com.beauty.app.R.string.ux_visit_history), style = MaterialTheme.typography.titleLarge) }
             if (savedMessage) item {
                 Text(stringResource(com.beauty.app.R.string.ui2_visit_saved_on_this_device_it_will_upload_when_connected), color = MaterialTheme.colorScheme.primary)
             }
@@ -269,6 +294,7 @@ fun ClientDetailScreen(
     }
     if (showVisitForm) {
         VisitForm(
+            clientName = client?.name.orEmpty(),
             saving = viewModel.saving,
             error = viewModel.saveError,
             onDismiss = { if (!viewModel.saving) showVisitForm = false },
@@ -451,89 +477,147 @@ private fun formatVisitDate(value: String): String = runCatching {
     SimpleDateFormat("EEE, d MMM yyyy • HH:mm", Locale.getDefault()).format(requireNotNull(parsed))
 }.getOrDefault(value)
 
-@OptIn(ExperimentalLayoutApi::class)
+@OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
 private fun VisitForm(
+    clientName: String,
     saving: Boolean,
     error: String?,
     onDismiss: () -> Unit,
     onSave: (String, String, String, String, List<Pair<String, Uri>>) -> Unit
 ) {
     val context = LocalContext.current
-    var timestamp by rememberSaveable { mutableLongStateOf(System.currentTimeMillis()) }
+    val initialTimestamp = rememberSaveable { System.currentTimeMillis() }
+    var timestamp by rememberSaveable { mutableLongStateOf(initialTimestamp) }
     var duration by rememberSaveable { mutableStateOf("60") }
     var notes by rememberSaveable { mutableStateOf("") }
     var status by rememberSaveable { mutableStateOf("COMPLETED") }
     var before by rememberSaveable { mutableStateOf<Uri?>(null) }
     var after by rememberSaveable { mutableStateOf<Uri?>(null) }
+    var photosExpanded by rememberSaveable { mutableStateOf(false) }
+    var confirmDiscard by rememberSaveable { mutableStateOf(false) }
     val beforeSource = rememberPhotoSource { before = it }
     val afterSource = rememberPhotoSource { after = it }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(com.beauty.app.R.string.log_procedure_visit_entry)) },
-        text = {
-            Column(Modifier.imePadding().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                Text(stringResource(com.beauty.app.R.string.date_time), color = TextMuted, fontSize = 14.sp)
-                Text(SimpleDateFormat("d MMM yyyy, HH:mm", Locale.getDefault()).format(Date(timestamp)), fontWeight = FontWeight.SemiBold)
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    OutlinedButton(
-                        enabled = !saving,
-                        modifier = Modifier.weight(1f),
-                        onClick = {
-                        val calendar = Calendar.getInstance().apply { timeInMillis = timestamp }
-                        DatePickerDialog(context, { _, year, month, day ->
-                            calendar.set(year, month, day)
-                            timestamp = calendar.timeInMillis
-                        }, calendar.get(Calendar.YEAR), calendar.get(Calendar.MONTH), calendar.get(Calendar.DAY_OF_MONTH)).show()
+    val hasChanges = timestamp != initialTimestamp || duration != "60" || notes.isNotEmpty() ||
+        status != "COMPLETED" || before != null || after != null
+    val requestClose = {
+        if (!saving) {
+            if (hasChanges) confirmDiscard = true else onDismiss()
+        }
+    }
+    Dialog(
+        onDismissRequest = requestClose,
+        properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false,
+            dismissOnBackPress = false, dismissOnClickOutside = false)
+    ) {
+        BackHandler { requestClose() }
+        Scaffold(
+            modifier = Modifier.fillMaxSize().imePadding(),
+            topBar = {
+                TopAppBar(
+                    title = {
+                        Column {
+                            Text(stringResource(com.beauty.app.R.string.ux_new_visit))
+                            Text(clientName, style = MaterialTheme.typography.bodySmall,
+                                maxLines = 1, overflow = TextOverflow.Ellipsis)
                         }
-                    ) { Text(stringResource(com.beauty.app.R.string.date)) }
-                    OutlinedButton(
-                        enabled = !saving,
-                        modifier = Modifier.weight(1f),
-                        onClick = {
-                        val calendar = Calendar.getInstance().apply { timeInMillis = timestamp }
-                        TimePickerDialog(context, { _, hour, minute ->
-                            calendar.set(Calendar.HOUR_OF_DAY, hour)
-                            calendar.set(Calendar.MINUTE, minute)
-                            timestamp = calendar.timeInMillis
-                        }, calendar.get(Calendar.HOUR_OF_DAY), calendar.get(Calendar.MINUTE), true).show()
+                    },
+                    navigationIcon = {
+                        IconButton(enabled = !saving, onClick = requestClose) {
+                            Icon(Icons.Default.Close, stringResource(com.beauty.app.R.string.cancel))
                         }
-                    ) { Text(stringResource(com.beauty.app.R.string.time)) }
-                }
-                OutlinedTextField(value = duration, onValueChange = { duration = it }, enabled = !saving,
-                    label = { Text(stringResource(com.beauty.app.R.string.duration_mins)) }, singleLine = true,
-                    supportingText = { Text(stringResource(com.beauty.app.R.string.in_15_minute_steps)) },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
-                Text(stringResource(com.beauty.app.R.string.visit_status), color = TextMuted, fontSize = 14.sp)
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    listOf("COMPLETED", "SCHEDULED", "CANCELLED").forEach { option ->
-                        FilterChip(selected = status == option, onClick = { status = option }, enabled = !saving,
-                            label = { Text(com.beauty.app.ui.i18n.statusLabel(option), fontSize = 14.sp) })
+                    }
+                )
+            },
+            bottomBar = {
+                Surface(tonalElevation = 3.dp) {
+                    Column(Modifier.navigationBarsPadding().padding(horizontal = 16.dp, vertical = 8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        error?.let { Text(localizedMessage(it), color = MaterialTheme.colorScheme.error) }
+                        Button(enabled = !saving, onClick = {
+                            val date = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:00", Locale.US).format(Date(timestamp))
+                            onSave(date, duration, notes, status,
+                                listOfNotNull(before?.let { "BEFORE" to it }, after?.let { "AFTER" to it }))
+                        }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+                            if (saving) {
+                                CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp,
+                                    color = MaterialTheme.colorScheme.onPrimary)
+                                Spacer(Modifier.width(8.dp))
+                            }
+                            Text(stringResource(if (saving) com.beauty.app.R.string.saving else com.beauty.app.R.string.ux_save_visit))
+                        }
                     }
                 }
-                OutlinedTextField(value = notes, onValueChange = { notes = it }, enabled = !saving,
-                    label = { Text(stringResource(com.beauty.app.R.string.procedure_details_formula_notes)) },
-                    placeholder = { Text(stringResource(com.beauty.app.R.string.lash_mapping_dye_formula_ratios_laser_intensity_skin_tr)) },
-                    minLines = 3)
-                error?.let { Text(localizedMessage(it), color = MaterialTheme.colorScheme.error) }
-                Text(stringResource(com.beauty.app.R.string.attach_procedure_media_compressed_before_upload), fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    PhotoSlot("BEFORE", RoseGoldPrimary, before, !saving, Modifier.fillMaxWidth(),
-                        source = beforeSource, onRemove = { before = null })
-                    PhotoSlot("AFTER", Clay, after, !saving, Modifier.fillMaxWidth(),
-                        source = afterSource, onRemove = { after = null })
+            }
+        ) { padding ->
+            Box(Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding), contentAlignment = Alignment.TopCenter) {
+                Column(Modifier.widthIn(max = 680.dp).fillMaxSize().verticalScroll(rememberScrollState())
+                    .padding(horizontal = 16.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    Text(stringResource(com.beauty.app.R.string.date_time), style = MaterialTheme.typography.titleMedium)
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        OutlinedButton(enabled = !saving, onClick = {
+                            val calendar = Calendar.getInstance().apply { timeInMillis = timestamp }
+                            DatePickerDialog(context, { _, year, month, day ->
+                                calendar.set(year, month, day)
+                                timestamp = calendar.timeInMillis
+                            }, calendar.get(Calendar.YEAR), calendar.get(Calendar.MONTH), calendar.get(Calendar.DAY_OF_MONTH)).show()
+                        }) { Text(SimpleDateFormat("d MMM yyyy", Locale.getDefault()).format(Date(timestamp))) }
+                        OutlinedButton(enabled = !saving, onClick = {
+                            val calendar = Calendar.getInstance().apply { timeInMillis = timestamp }
+                            TimePickerDialog(context, { _, hour, minute ->
+                                calendar.set(Calendar.HOUR_OF_DAY, hour)
+                                calendar.set(Calendar.MINUTE, minute)
+                                timestamp = calendar.timeInMillis
+                            }, calendar.get(Calendar.HOUR_OF_DAY), calendar.get(Calendar.MINUTE), true).show()
+                        }) { Text(SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(timestamp))) }
+                    }
+                    OutlinedTextField(value = duration, onValueChange = { duration = it }, enabled = !saving,
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text(stringResource(com.beauty.app.R.string.duration_mins)) }, singleLine = true,
+                        supportingText = { Text(stringResource(com.beauty.app.R.string.in_15_minute_steps)) },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
+                    Column {
+                        Text(stringResource(com.beauty.app.R.string.visit_status), style = MaterialTheme.typography.titleMedium)
+                        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            listOf("COMPLETED", "SCHEDULED", "CANCELLED").forEach { option ->
+                                FilterChip(selected = status == option, onClick = { status = option }, enabled = !saving,
+                                    label = { Text(com.beauty.app.ui.i18n.statusLabel(option)) })
+                            }
+                        }
+                    }
+                    OutlinedTextField(value = notes, onValueChange = { notes = it }, enabled = !saving,
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text(stringResource(com.beauty.app.R.string.ux_treatment_notes)) },
+                        placeholder = { Text(stringResource(com.beauty.app.R.string.lash_mapping_dye_formula_ratios_laser_intensity_skin_tr)) },
+                        minLines = 3)
+                    HorizontalDivider()
+                    TextButton(onClick = { photosExpanded = !photosExpanded }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+                        Text(stringResource(com.beauty.app.R.string.ux_visit_photos), modifier = Modifier.weight(1f))
+                        val photoCount = listOfNotNull(before, after).size
+                        if (photoCount > 0) Text(photoCount.toString(), modifier = Modifier.padding(horizontal = 8.dp))
+                        Icon(if (photosExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore, null)
+                    }
+                    if (photosExpanded) {
+                        PhotoSlot("BEFORE", RoseGoldPrimary, before, !saving, Modifier.fillMaxWidth(),
+                            source = beforeSource, onRemove = { before = null })
+                        PhotoSlot("AFTER", Clay, after, !saving, Modifier.fillMaxWidth(),
+                            source = afterSource, onRemove = { after = null })
+                    }
                 }
             }
-        },
-        confirmButton = { TextButton(enabled = !saving, onClick = {
-            val date = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:00", Locale.US).format(Date(timestamp))
-            onSave(date, duration, notes, status, listOfNotNull(before?.let { "BEFORE" to it }, after?.let { "AFTER" to it }))
-        }) { Text(if (saving) stringResource(com.beauty.app.R.string.saving_visit_record) else stringResource(com.beauty.app.R.string.log_visit_record)) } },
-        dismissButton = { TextButton(enabled = !saving, onClick = onDismiss) { Text(stringResource(com.beauty.app.R.string.cancel)) } }
-    )
+        }
+        if (confirmDiscard) AlertDialog(
+            onDismissRequest = { confirmDiscard = false },
+            title = { Text(stringResource(com.beauty.app.R.string.ux_discard_visit_title)) },
+            text = { Text(stringResource(com.beauty.app.R.string.ux_discard_visit_message)) },
+            confirmButton = { TextButton(onClick = { confirmDiscard = false; onDismiss() }) {
+                Text(stringResource(com.beauty.app.R.string.ux_discard))
+            } },
+            dismissButton = { TextButton(onClick = { confirmDiscard = false }) {
+                Text(stringResource(com.beauty.app.R.string.ux_keep_editing))
+            } }
+        )
+    }
 }
 
 /** One of the web form's BEFORE/AFTER boxes: camera and gallery buttons until chosen, then a preview with a remove button. */

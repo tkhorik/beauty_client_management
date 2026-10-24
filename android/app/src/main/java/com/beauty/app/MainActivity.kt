@@ -44,6 +44,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.createSavedStateHandle
+import androidx.lifecycle.viewmodel.CreationExtras
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -534,8 +536,8 @@ internal fun AppNavHost(links: AppLinkViewModel) {
                 key = "new_${createOrgId}_${accountId}",
                 factory = object : ViewModelProvider.Factory {
                     @Suppress("UNCHECKED_CAST")
-                    override fun <T : ViewModel> create(modelClass: Class<T>): T =
-                        EditClientViewModel(null, createOrgId, repository, database.clientDao()) as T
+                    override fun <T : ViewModel> create(modelClass: Class<T>, extras: CreationExtras): T =
+                        EditClientViewModel(null, createOrgId, repository, database.clientDao(), extras.createSavedStateHandle()) as T
                 }
             )
             EditClientScreen(viewModel = createVm, onBack = { navController.popBackStack() })
@@ -554,8 +556,8 @@ internal fun AppNavHost(links: AppLinkViewModel) {
                 key = "edit_${editOrgId}_$clientId",
                 factory = object : ViewModelProvider.Factory {
                     @Suppress("UNCHECKED_CAST")
-                    override fun <T : ViewModel> create(modelClass: Class<T>): T =
-                        EditClientViewModel(clientId, editOrgId, repository, clientDao) as T
+                    override fun <T : ViewModel> create(modelClass: Class<T>, extras: CreationExtras): T =
+                        EditClientViewModel(clientId, editOrgId, repository, clientDao, extras.createSavedStateHandle()) as T
                 }
             )
             EditClientScreen(
