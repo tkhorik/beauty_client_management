@@ -1,3 +1,5 @@
+import { webUxEn, webUxRu } from './webUx';
+import { visitUxEn, visitUxRu } from './visitUx';
 import { createInstance } from 'i18next';
 import { describe, expect, it } from 'vitest';
 import { en, ru } from './locales';
@@ -8,8 +10,8 @@ import { auditEn, auditRu } from './audit';
 import { apiErrorEn, apiErrorRu } from './apiErrors';
 import { resolveSystemLocale } from './store';
 
-const english = { ...en, ...featureEn, ...runtimeEn, ...newClientEn, ...auditEn, apiErrors: apiErrorEn };
-const russian = { ...ru, ...featureRu, ...runtimeRu, ...newClientRu, ...auditRu, apiErrors: apiErrorRu };
+const english = { ...en, ...featureEn, ...runtimeEn, ...newClientEn, ...auditEn, ...webUxEn, ...visitUxEn, apiErrors: apiErrorEn };
+const russian = { ...ru, ...featureRu, ...runtimeRu, ...newClientRu, ...auditRu, ...webUxRu, ...visitUxRu, apiErrors: apiErrorRu };
 function flatten(input: object, prefix = ''): Record<string, string> {
   return Object.fromEntries(Object.entries(input).flatMap(([key, value]) => typeof value === 'string' ? [[prefix + key, value]] : Object.entries(flatten(value, `${prefix}${key}.`))));
 }

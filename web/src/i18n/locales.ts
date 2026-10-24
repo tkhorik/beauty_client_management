@@ -92,7 +92,10 @@ import type { NewClientKey } from './newClient';
 
 import type { AuditKey } from './audit';
 
-export type TranslationKey = AuditKey | FeatureKey | RuntimeKey | NewClientKey | `apiErrors.${ApiErrorCode}`
+import type { WebUxKey } from './webUx';
+import type { VisitUxKey } from './visitUx';
+
+export type TranslationKey = WebUxKey | VisitUxKey | AuditKey | FeatureKey | RuntimeKey | NewClientKey | `apiErrors.${ApiErrorCode}`
   | 'appearance.label' | 'appearance.system' | 'appearance.light' | 'appearance.dark' | 'appearance.description'
   | 'language.system' | 'language.en' | 'language.ru' | 'language.label' | 'language.conflict'
   | 'common.appName' | 'common.loading' | 'common.save' | 'common.cancel' | 'common.close' | 'common.delete' | 'common.edit' | 'common.create' | 'common.error' | 'common.network'

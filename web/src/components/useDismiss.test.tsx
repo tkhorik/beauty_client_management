@@ -109,3 +109,23 @@ it('restores focus to the parent dialog while a nested dialog closes', async () 
   expect(document.activeElement).toBe(el('parent-last'));
   expect(document.body.style.overflow).toBe('hidden');
 });
+
+function DisclosureDialog() {
+  const dismiss = useDismiss(() => {});
+  return <div {...dismiss}><section role="dialog" tabIndex={-1}>
+    <button data-testid="first">Close</button>
+    <details><summary data-testid="summary">Optional fields</summary><button data-testid="hidden">Add field</button></details>
+  </section></div>;
+}
+
+it('traps focus through disclosure summaries and skips controls inside closed details', async () => {
+  await act(async () => root.render(<DisclosureDialog />));
+  el('first').focus();
+  el('first').dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', shiftKey: true, bubbles: true, cancelable: true }));
+  expect(document.activeElement).toBe(el('summary'));
+  el('summary').dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true }));
+  expect(document.activeElement).toBe(el('first'));
+  host.querySelector('details')!.open = true;
+  el('first').dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', shiftKey: true, bubbles: true, cancelable: true }));
+  expect(document.activeElement).toBe(el('hidden'));
+});

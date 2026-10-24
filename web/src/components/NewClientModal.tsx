@@ -1,6 +1,7 @@
 import { useAppTranslation } from '../i18n/LocaleProvider';
 import React, { useId, useRef, useState } from 'react';
 import { useDismiss } from './useDismiss';
+import { useDraftGuard } from './useDraftGuard';
 import { api, ApiError, writeErrorMessage } from '../services/api';
 import { translatedFieldErrors } from '../i18n/errors';
 import { X, UserPlus } from 'lucide-react';
@@ -20,7 +21,6 @@ export const EMAIL_PATTERN = /^[^\s@]+@[^\s@.]+(\.[^\s@.]+)*\.[^\s@.]{2,}$/;
 
 export const NewClientModal: React.FC<NewClientModalProps> = ({ onClose, onSuccess }) => {
   const { t } = useAppTranslation();
-  const dismiss = useDismiss(onClose);
   const id = useId();
   const nameRef = useRef<HTMLInputElement>(null);
   const emailRef = useRef<HTMLInputElement>(null);
@@ -34,6 +34,13 @@ export const NewClientModal: React.FC<NewClientModalProps> = ({ onClose, onSucce
   const [tags, setTags] = useState<string[]>([]);
   const [customFields, setCustomFields] = useState<AttributeRow[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const submitting = useRef(false);
+  const draft = JSON.stringify({ name, phone, email, tags, customFields, tagInput });
+  const baseline = useRef(draft);
+  const guardedClose = useDraftGuard(draft !== baseline.current, isSubmitting, onClose, t('webUx.discardDraft'));
+  const requestClose = () => { if (!submitting.current) guardedClose(); };
+  const dismiss = useDismiss(requestClose);
+  const [error, setError] = useState('');
 
 
   const nameIssue = (value: string) => (value.trim() ? '' : t('newClientModal.nameRequired'));
@@ -72,6 +79,8 @@ export const NewClientModal: React.FC<NewClientModalProps> = ({ onClose, onSucce
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (submitting.current) return;
+    setError('');
     const nextNameError = nameIssue(name);
     const issue = phoneIssue(phone);
     const nextPhoneError = issue ? t(`apiErrors.${issue}`) : '';
@@ -87,19 +96,20 @@ export const NewClientModal: React.FC<NewClientModalProps> = ({ onClose, onSucce
     }
     const duplicate = duplicateAttributeKey(customFields);
     if (duplicate) {
-      alert(t('attributes.duplicateKey', { key: duplicate }));
+      setError(t('attributes.duplicateKey', { key: duplicate }));
       return;
     }
 
     const fieldsMap = toAttributeRecord(customFields);
 
+    submitting.current = true;
     setIsSubmitting(true);
     try {
       await api.createClient({
         name: name.trim(),
         phone,
         email: email.trim() || undefined,
-        tags,
+        tags: [...new Set([...tags, tagInput.trim()].filter(Boolean))],
         customFields: fieldsMap
       });
       onSuccess();
@@ -107,8 +117,9 @@ export const NewClientModal: React.FC<NewClientModalProps> = ({ onClose, onSucce
     } catch (err) {
       const serverPhoneError = err instanceof ApiError ? translatedFieldErrors(err.body).phone : undefined;
       if (serverPhoneError) setPhoneError(serverPhoneError);
-      else alert(writeErrorMessage(err, t('newClientModal.failedToCreateClientProfile')));
+      else setError(writeErrorMessage(err, t('newClientModal.failedToCreateClientProfile')));
     } finally {
+      submitting.current = false;
       setIsSubmitting(false);
     }
   };
@@ -120,20 +131,21 @@ export const NewClientModal: React.FC<NewClientModalProps> = ({ onClose, onSucce
         aria-modal="true"
         aria-labelledby={`${id}-title`}
         tabIndex={-1}
-        className="dialog-panel client-dialog"
+        className="dialog-panel client-dialog client-dialog--form"
       >
         {/* Header */}
         <div className="dialog-header">
           <h2 id={`${id}-title`} className="dialog-title">
             <UserPlus size={20} aria-hidden="true" /> {t('newClientModal.createNewClientProfile')}
           </h2>
-          <button type="button" aria-label={t('common.close')} onClick={onClose} className="close-button">
+          <button type="button" aria-label={t('common.close')} onClick={requestClose} disabled={isSubmitting} className="close-button">
             <X size={22} />
           </button>
         </div>
 
         {/* Form: noValidate so our inline errors replace the browser's tooltips. */}
-        <form noValidate onSubmit={handleSubmit} className="dialog-body dialog-form">
+        <form noValidate onSubmit={handleSubmit} className="dialog-body dialog-form" aria-busy={isSubmitting}>
+          <fieldset disabled={isSubmitting} className="dialog-form-content">
 
           <div className="form-grid">
             <div className="form-field">
@@ -204,13 +216,19 @@ export const NewClientModal: React.FC<NewClientModalProps> = ({ onClose, onSucce
           </div>
 
           {/* Dynamic Custom Fields */}
+          <details className="optional-details">
+            <summary>{t('webUx.optionalDetails')}</summary>
           <fieldset className="form-section" style={{ minWidth: 0 }}>
             <legend>{t('newClientModal.customAttributes')}</legend>
             <AttributeEditor rows={customFields} onChange={setCustomFields} addLabel={t('newClientModal.addField')} />
           </fieldset>
 
+          </details>
+          </fieldset>
+
           <div className="dialog-footer">
-            <button type="button" className="btn-secondary" onClick={onClose}>{t('newClientModal.cancel')}</button>
+            {error && <div className="form-alert" role="alert">{error}</div>}
+            <button type="button" className="btn-secondary" onClick={requestClose} disabled={isSubmitting}>{t('newClientModal.cancel')}</button>
             <button type="submit" className="btn-rose" disabled={isSubmitting}>
               {isSubmitting ? t('newClientModal.creating') : t('newClientModal.createClientProfile')}
             </button>
