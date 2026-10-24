@@ -13,7 +13,8 @@ interface ClientCardProps {
 export function ClientCard({ client, onSelect, onLogVisit }: ClientCardProps) {
   const { t } = useAppTranslation();
   const { formatDate } = useLocale();
-  const fields = Object.entries(client.customFields ?? {}).slice(0, 3);
+  const visibleTags = client.tags.slice(0, 2);
+  const remainingTags = client.tags.slice(2);
   const initials = client.name.trim().split(/\s+/).slice(0, 2).map(part => part[0]).join('');
 
   return (
@@ -29,12 +30,9 @@ export function ClientCard({ client, onSelect, onLogVisit }: ClientCardProps) {
           <ArrowUpRight className="client-card__arrow" size={19} aria-hidden="true" />
         </div>
         <div className="client-card__tags">
-          {client.tags.map(tag => <span key={tag} className={`tag-badge ${tag.toLowerCase() === 'vip' ? 'tag-vip' : /sensitive|чувствитель/i.test(tag) ? 'tag-sensitive' : ''}`}>{tag}</span>)}
+          {visibleTags.map(tag => <span key={tag} className={`tag-badge ${tag.toLowerCase() === 'vip' ? 'tag-vip' : /sensitive|чувствитель/i.test(tag) ? 'tag-sensitive' : ''}`}>{tag}</span>)}
+          {remainingTags.length > 0 && <span className="client-card__tag-overflow"><span aria-hidden="true">+{remainingTags.length}</span><span className="sr-only">{remainingTags.join(', ')}</span></span>}
         </div>
-        {fields.length > 0 && <div className="client-card__notes">
-          <p>{t('clientCard.customSpecsAndAttributes')}</p>
-          <dl>{fields.map(([key, value]) => <div key={key}><dt>{key}</dt><dd>{String(value)}</dd></div>)}</dl>
-        </div>}
       </div>
       <div className="client-card__footer">
         <div className="client-card__meta"><strong>{t('counts.visits', { count: client.totalVisits })}</strong><span><Calendar size={12} aria-hidden="true" />{t('clients.updated', { date: formatDate(client.updatedAt) })}</span></div>

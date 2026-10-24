@@ -1,8 +1,9 @@
 import { useAppTranslation, useLocale } from '../i18n/LocaleProvider';
-import React, { useId, useState } from 'react';
+import React, { useId, useRef, useState } from 'react';
 import { useDismiss } from './useDismiss';
+import { useDraftGuard } from './useDraftGuard';
 import type { Client, Visit, Attachment } from '../types';
-import { X, Calendar, Clock, Plus, Trash2, Edit3, Edit2, Camera, FileText, Sliders, ImagePlus } from 'lucide-react';
+import { X, Calendar, Clock, Plus, Trash2, Edit3, Edit2, Camera, FileText, Sliders, ImagePlus, MoreHorizontal } from 'lucide-react';
 import { AttributeEditor } from './AttributeEditor';
 import { duplicateAttributeKey, toAttributeRecord, toAttributeRows, type AttributeRow } from './attributes';
 import { api, writeErrorMessage } from '../services/api';
@@ -35,7 +36,6 @@ export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
   onOpenPhotoCompare
 }) => {
   const { t } = useAppTranslation();
-  const dismiss = useDismiss(onClose);
   const id = useId();
   const { formatDate } = useLocale();
   // Null while viewing. The draft is seeded from the current record each time
@@ -50,13 +50,39 @@ export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
   const [photoVisitId, setPhotoVisitId] = useState<string | null>(null);
   const [photoTag, setPhotoTag] = useState<Attachment['tag']>('BEFORE');
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [error, setError] = useState('');
+  const busyRef = useRef(false);
+  const fieldsBaseline = useRef('');
+  const fieldsDirty = draftFields !== null && JSON.stringify(draftFields) !== fieldsBaseline.current;
+  const busy = isSaving || uploadingPhoto || isDeleting;
+  const guardedClose = useDraftGuard(fieldsDirty, busy, onClose, t('webUx.discardDraft'));
+  const requestClose = () => { if (!busyRef.current) guardedClose(); };
+  const dismiss = useDismiss(requestClose);
+  const cancelFields = () => {
+    if (!busyRef.current && (!fieldsDirty || window.confirm(t('webUx.discardDraft')))) {
+      setDraftFields(null);
+      setError('');
+    }
+  };
+  const startFields = () => {
+    if (busyRef.current) return;
+    const rows = toAttributeRows(client.customFields);
+    fieldsBaseline.current = JSON.stringify(rows);
+    setDraftFields(rows);
+    setError('');
+  };
 
   const openAddPhoto = (visitId: string, attachments: Attachment[]) => {
+    if (busyRef.current || isEditingFields) return;
     setPhotoVisitId(visitId);
     setPhotoTag(defaultPhotoTag(attachments));
   };
 
   const handleAddPhoto = async (visitId: string, file: File) => {
+    if (busyRef.current || isEditingFields) return;
+    busyRef.current = true;
+    setError('');
     setUploadingPhoto(true);
     try {
       const compressedDataUrl = await compressImage(file, 1200, 0.85);
@@ -64,45 +90,49 @@ export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
       setPhotoVisitId(null);
       onRefresh();
     } catch (err) {
-      alert(writeErrorMessage(err, t('photoPicker.failedToAddPhoto')));
+      setError(writeErrorMessage(err, t('photoPicker.failedToAddPhoto')));
     } finally {
+      busyRef.current = false;
       setUploadingPhoto(false);
     }
   };
 
   const handleSaveFields = async () => {
-    if (!draftFields) return;
+    if (!draftFields || busyRef.current) return;
     const duplicate = duplicateAttributeKey(draftFields);
     if (duplicate) {
-      alert(t('attributes.duplicateKey', { key: duplicate }));
+      setError(t('attributes.duplicateKey', { key: duplicate }));
       return;
     }
+    busyRef.current = true;
+    setError('');
     setIsSaving(true);
     try {
       await api.updateClient(client.id, { customFields: toAttributeRecord(draftFields) });
       setDraftFields(null);
       onRefresh();
     } catch (err) {
-      alert(writeErrorMessage(err,t('clientDetailModal.failedToSaveCustomFields')));
+      setError(writeErrorMessage(err,t('clientDetailModal.failedToSaveCustomFields')));
     } finally {
+      busyRef.current = false;
       setIsSaving(false);
     }
   };
 
   const handleDeleteClient = async () => {
-    if (confirm(t('clientDetailModal.confirmDelete', { name: client.name }))) {
-      try {
-        await api.deleteClient(client.id);
-      } catch (err) {
-        // Previously unguarded, which was survivable only while every failure
-        // fell back to localStorage and "succeeded". A refused delete now
-        // throws, and without this the modal would close as if the record were
-        // gone while the server still has it.
-        alert(writeErrorMessage(err,t('clientDetailModal.failedToDeleteThisClient')));
-        return;
-      }
+    if (busyRef.current || isEditingFields || !window.confirm(t('clientDetailModal.confirmDelete', { name: client.name }))) return;
+    busyRef.current = true;
+    setIsDeleting(true);
+    setError('');
+    try {
+      await api.deleteClient(client.id);
       onRefresh();
       onClose();
+    } catch (err) {
+      setError(writeErrorMessage(err, t('clientDetailModal.failedToDeleteThisClient')));
+    } finally {
+      busyRef.current = false;
+      setIsDeleting(false);
     }
   };
 
@@ -124,32 +154,39 @@ export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
           </div>
 
           <div className="detail-actions">
-            <button type="button" className="btn-secondary" onClick={() => setIsEditClientOpen(true)}>
+            <button type="button" className="btn-secondary" disabled={busy || isEditingFields} onClick={() => setIsEditClientOpen(true)}>
               <Edit2 size={16} /> {t('clientDetailModal.editClient')}
             </button>
-            <button className="btn-rose" onClick={() => onOpenNewVisit(client)}>
+            <button className="btn-rose" disabled={busy || isEditingFields} onClick={() => onOpenNewVisit(client)}>
               <Plus size={16} /> {t('clientDetailModal.logNewVisit')}
             </button>
-            <button type="button" aria-label={t('common.delete')} onClick={handleDeleteClient} className="icon-button" style={{ color: 'var(--theme-danger, #a9303b)' }}>
-              <Trash2 size={16} />
-            </button>
+            <details className="profile-menu">
+              <summary aria-label={t('webUx.moreActions')}><MoreHorizontal size={20} /></summary>
+              <div className="profile-menu__items">
+                <button type="button" disabled={busy || isEditingFields} onClick={handleDeleteClient} className="btn-secondary">
+                  <Trash2 size={16} /> {isDeleting ? t('webUx.deleting') : t('common.delete')}
+                </button>
+              </div>
+            </details>
           </div>
-          <button type="button" aria-label={t('common.close')} onClick={onClose} className="close-button">
+          <button type="button" aria-label={t('common.close')} onClick={requestClose} disabled={busy} className="close-button">
             <X size={24} />
           </button>
         </div>
 
         {/* Modal Body */}
-        <div className="dialog-body dialog-stack">
+        {error && <div className="form-alert profile-feedback" role="alert">{error}</div>}
+        <div className="dialog-body dialog-stack" aria-busy={busy}>
           
           {/* Custom Client Fields Section (JSONB dynamic fields) */}
-          <section className="detail-card">
+          <details className="detail-card optional-details" onToggle={(event) => { if (isEditingFields) event.currentTarget.open = true; }}>
+            <summary><Sliders size={18} /> {t('webUx.clientDetails')}</summary>
             <div className="attribute-section-head">
               <h3 style={{ fontSize: '16px', color: 'var(--rose-gold-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <Sliders size={18} /> {t('clientDetailModal.dynamicCustomClientAttributesJSONB')}
               </h3>
               {!isEditingFields ? (
-                <button className="btn-secondary" style={{ padding: '4px 10px', fontSize: '12px' }} onClick={() => setDraftFields(toAttributeRows(client.customFields))}>
+                <button className="btn-secondary" style={{ padding: '4px 10px', fontSize: '12px' }} disabled={busy} onClick={startFields}>
                   <Edit3 size={14} /> {t('clientDetailModal.editAttributes')}
                 </button>
               ) : (
@@ -157,7 +194,7 @@ export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
                   <button className="btn-rose" style={{ padding: '4px 12px', fontSize: '12px' }} onClick={handleSaveFields} disabled={isSaving}>
                     {isSaving ?t('clientDetailModal.saving') :t('clientDetailModal.saveChanges')}
                   </button>
-                  <button className="btn-secondary" style={{ padding: '4px 10px', fontSize: '12px' }} disabled={isSaving} onClick={() => setDraftFields(null)}>
+                  <button className="btn-secondary" style={{ padding: '4px 10px', fontSize: '12px' }} disabled={isSaving} onClick={cancelFields}>
                     {t('clientDetailModal.cancel')}
                   </button>
                 </div>
@@ -180,7 +217,7 @@ export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
                 ))}
               </div>
             )}
-          </section>
+          </details>
 
           {/* Chronological Visit History Timeline */}
           <div>
@@ -199,7 +236,7 @@ export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
               <div className="glass-panel" style={{ padding: '30px', textAlign: 'center', color: 'var(--text-muted)' }}>
                 <FileText size={32} style={{ marginBottom: '10px', opacity: 0.5 }} />
                 <p>{t('clientDetailModal.noVisitLogsFoundForThisClientYet')}</p>
-                <button className="btn-rose" style={{ marginTop: '14px' }} onClick={() => onOpenNewVisit(client)}>
+                <button className="btn-rose" style={{ marginTop: '14px' }} disabled={busy || isEditingFields} onClick={() => onOpenNewVisit(client)}>
                   <Plus size={16} /> {t('clientDetailModal.logFirstVisit')}
                 </button>
               </div>
@@ -228,7 +265,7 @@ export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
                         </div>
 
                         {hasBeforeAfter && (
-                          <button className="btn-rose" style={{ padding: '6px 12px', fontSize: '12px' }} onClick={() => onOpenPhotoCompare(attachments)}>
+                          <button className="btn-rose" style={{ padding: '6px 12px', fontSize: '12px' }} disabled={busy || isEditingFields} onClick={() => onOpenPhotoCompare(attachments)}>
                             <Camera size={14} /> {t('clientDetailModal.compareBeforeAfter')}
                           </button>
                         )}
@@ -267,7 +304,7 @@ export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
                                 aria-pressed={photoTag === tag}
                                 className={photoTag === tag ? 'btn-rose' : 'btn-secondary'}
                                 style={{ padding: '6px 12px', fontSize: '12px' }}
-                                disabled={uploadingPhoto}
+                                disabled={busy || isEditingFields}
                                 onClick={() => setPhotoTag(tag)}
                               >
                                 {t(tag === 'BEFORE' ? 'newVisitModal.before' : tag === 'AFTER' ? 'newVisitModal.after' : 'attachment.procedure')}
@@ -290,7 +327,7 @@ export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
                           type="button"
                           className="btn-secondary"
                           style={{ marginTop: '14px', padding: '6px 12px', fontSize: '12px' }}
-                          disabled={uploadingPhoto}
+                          disabled={busy || isEditingFields}
                           onClick={() => openAddPhoto(visit.id, attachments)}
                         >
                           <ImagePlus size={14} /> {t('photoPicker.addPhoto')}

@@ -5,7 +5,7 @@ type DialogEntry = { close: React.MutableRefObject<() => void>; root: React.RefO
 // Mount order defines the active dialog, including forms opened over a profile.
 const stack: DialogEntry[] = [];
 let originalOverflow = '';
-const focusSelector = 'button:not(:disabled),a[href],input:not(:disabled):not([type="hidden"]),select:not(:disabled),textarea:not(:disabled),[tabindex]:not([tabindex="-1"])';
+const focusSelector = 'summary,button:not(:disabled),a[href],input:not(:disabled):not([type="hidden"]),select:not(:disabled),textarea:not(:disabled),[tabindex]:not([tabindex="-1"])';
 
 function panel(entry: DialogEntry) {
   const root = entry.root.current;
@@ -13,6 +13,12 @@ function panel(entry: DialogEntry) {
 }
 function focusables(container: HTMLElement) {
   return [...container.querySelectorAll<HTMLElement>(focusSelector)].filter(element => {
+    // Closed details keep their descendants in the DOM, but only the summary
+    // participates in keyboard navigation. Include summaries in the focus trap.
+    for (let parent = element.parentElement; parent && parent !== container; parent = parent.parentElement) {
+      if (parent instanceof HTMLDetailsElement && !parent.open
+        && !parent.querySelector(':scope > summary')?.contains(element)) return false;
+    }
     const style = getComputedStyle(element);
     return element.tabIndex >= 0 && !element.closest('[hidden],[inert],[aria-hidden="true"]') && style.display !== 'none' && style.visibility !== 'hidden';
   });

@@ -1,0 +1,43 @@
+export const visitUxEn = {
+  'visitUx.title': 'New visit',
+  'visitUx.selectClient': 'Choose a client',
+  'visitUx.notes': 'Procedure notes *',
+  'visitUx.notesPlaceholder': 'Procedure, products, formula and results…',
+  'visitUx.photos': 'Photos (optional)',
+  'visitUx.save': 'Save visit',
+  'visitUx.saving': 'Saving…',
+  'visitUx.compressing': 'Preparing photo…',
+  'visitUx.retry': 'Retry remaining photos',
+  'visitUx.finish': 'Finish without remaining photos',
+  'visitUx.partial': 'Visit saved. {{saved}} of {{total}} photos uploaded. Retry the remaining photos or finish without them.',
+  'visitUx.uploaded': 'Uploaded',
+  'visitUx.pending': 'Not uploaded',
+  'visitUx.discard': 'Discard this unsaved visit?',
+  'visitUx.leavePartial': 'The visit is saved. Finish without uploading the remaining photos?',
+  'visitUx.invalidDate': 'Choose a valid date and time.',
+  'visitUx.invalidDuration': 'Enter a duration of at least 15 minutes, in 15-minute steps.',
+  'visitUx.uploadFailed': 'Some photos could not be uploaded. Your visit is saved.',
+} as const;
+
+export const visitUxRu: { [K in keyof typeof visitUxEn]: string } = {
+  'visitUx.title': 'Новый визит',
+  'visitUx.selectClient': 'Выберите клиента',
+  'visitUx.notes': 'Заметки о процедуре *',
+  'visitUx.notesPlaceholder': 'Процедура, средства, формула и результат…',
+  'visitUx.photos': 'Фото (необязательно)',
+  'visitUx.save': 'Сохранить визит',
+  'visitUx.saving': 'Сохранение…',
+  'visitUx.compressing': 'Подготовка фото…',
+  'visitUx.retry': 'Повторить загрузку оставшихся фото',
+  'visitUx.finish': 'Завершить без оставшихся фото',
+  'visitUx.partial': 'Визит сохранён. Загружено фото: {{saved}} из {{total}}. Повторите загрузку оставшихся фото или завершите без них.',
+  'visitUx.uploaded': 'Загружено',
+  'visitUx.pending': 'Не загружено',
+  'visitUx.discard': 'Отменить несохранённый визит?',
+  'visitUx.leavePartial': 'Визит сохранён. Завершить без загрузки оставшихся фото?',
+  'visitUx.invalidDate': 'Укажите корректные дату и время.',
+  'visitUx.invalidDuration': 'Укажите длительность от 15 минут с шагом 15 минут.',
+  'visitUx.uploadFailed': 'Не удалось загрузить часть фото. Визит сохранён.',
+};
+
+export type VisitUxKey = keyof typeof visitUxEn;

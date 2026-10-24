@@ -51,7 +51,7 @@ const cases: [string, () => ReactElement, string, string][] = [
   ['client details', () => <ClientDetailModal client={client} visits={visits} onClose={noop} onRefresh={noop} onOpenNewVisit={noop} onOpenPhotoCompare={noop} />, 'COMPLETED', 'ЗАВЕРШЕНА'],
   ['new client', () => <NewClientModal onClose={noop} onSuccess={noop} />, 'Create New Client Profile', 'Создать карточку клиента'],
   ['edit client', () => <EditClientModal client={client} onClose={noop} onSuccess={noop} />, 'Edit Client Profile', 'Изменить карточку клиента'],
-  ['new procedure', () => <NewVisitModal client={client} clientsList={[client]} onClose={noop} onSuccess={noop} />, 'Log Procedure Visit Entry', 'Записать процедуру'],
+  ['new procedure', () => <NewVisitModal client={client} clientsList={[client]} onClose={noop} onSuccess={noop} />, 'New visit', 'Новый визит'],
   ['photo comparison', () => <PhotoCompareModal attachments={attachments} onClose={noop} />, 'Procedure Before &amp; After Comparison', 'Сравнение до и после процедуры'],
   ['organization members', () => <MembersModal orgId="org" orgName="Customer Salon" onClose={noop} />, 'Invite someone', 'Пригласить участника'],
   ['administration', () => <AdminPanel onClose={noop} />, 'Users (0)', 'Пользователи (0)'],
@@ -69,10 +69,14 @@ for (const language of ['en', 'ru'] as const) {
         const markup = renderToStaticMarkup(<LocaleProvider>{element()}</LocaleProvider>);
         expect(markup).toContain(language === 'ru' ? russian : english);
         expect(markup).not.toMatch(/(?:newClientModal|runtime|apiErrors|verificationBanner)\.[A-Za-z]/);
-        if (name === 'client details' || name === 'edit client' || name === 'client directory card') {
+        if (name === 'client details' || name === 'edit client') {
           expect(markup).toContain('Customer field');
           expect(markup).toContain('Customer value');
           if (name !== 'client details') expect(markup).toContain('Customer tag');
+        }
+        if (name === 'client directory card') {
+          expect(markup).not.toContain('Customer field');
+          expect(markup).toContain('Customer tag');
         }
         if (name === 'client directory card') expect(markup).toContain(new Intl.DateTimeFormat(language).format(new Date(client.updatedAt)));
         if (name === 'client details') expect(markup).toContain(language === 'ru' ? '21 минута' : '21 minutes');

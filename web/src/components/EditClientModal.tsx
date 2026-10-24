@@ -1,6 +1,7 @@
 import { useAppTranslation } from '../i18n/LocaleProvider';
-import React, { useId, useState } from 'react';
+import React, { useId, useRef, useState } from 'react';
 import { useDismiss } from './useDismiss';
+import { useDraftGuard } from './useDraftGuard';
 import type { Client } from '../types';
 import { api, ApiError, writeErrorMessage } from '../services/api';
 import { translatedFieldErrors } from '../i18n/errors';
@@ -19,7 +20,6 @@ interface EditClientModalProps {
 
 export const EditClientModal: React.FC<EditClientModalProps> = ({ client, onClose, onSuccess }) => {
   const { t } = useAppTranslation();
-  const dismiss = useDismiss(onClose);
   const id = useId();
   const [name, setName] = useState(client.name);
   const [phone, setPhone] = useState(client.phone);
@@ -30,6 +30,12 @@ export const EditClientModal: React.FC<EditClientModalProps> = ({ client, onClos
 
   const [customFields, setCustomFields] = useState<AttributeRow[]>(() => toAttributeRows(client.customFields));
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const submitting = useRef(false);
+  const draft = JSON.stringify({ name, phone, email, tags, customFields, tagInput });
+  const baseline = useRef(draft);
+  const guardedClose = useDraftGuard(draft !== baseline.current, isSubmitting, onClose, t('webUx.discardDraft'));
+  const requestClose = () => { if (!submitting.current) guardedClose(); };
+  const dismiss = useDismiss(requestClose);
   const [error, setError] = useState('');
 
   const handleAddTag = () => {
@@ -55,6 +61,8 @@ export const EditClientModal: React.FC<EditClientModalProps> = ({ client, onClos
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (submitting.current) return;
+    setError('');
     if (!name.trim()) {
       setError(t('editClientModal.pleaseFillInClientNameAndPhoneNumber'));
       return;
@@ -75,13 +83,14 @@ export const EditClientModal: React.FC<EditClientModalProps> = ({ client, onClos
 
     const fieldsMap = toAttributeRecord(customFields);
 
+    submitting.current = true;
     setIsSubmitting(true);
     try {
       await api.updateClient(client.id, {
         name,
         phone,
         email: email || undefined,
-        tags,
+        tags: [...new Set([...tags, tagInput.trim()].filter(Boolean))],
         customFields: fieldsMap,
       });
       onSuccess();
@@ -91,25 +100,27 @@ export const EditClientModal: React.FC<EditClientModalProps> = ({ client, onClos
       if (serverPhoneError) setPhoneError(serverPhoneError);
       else setError(writeErrorMessage(err,t('editClientModal.failedToSaveChangesPleaseTryAgain')));
     } finally {
+      submitting.current = false;
       setIsSubmitting(false);
     }
   };
 
   return (
     <div className="dialog-overlay" {...dismiss}>
-      <div role="dialog" aria-modal="true" aria-labelledby={`${id}-title`} tabIndex={-1} className="dialog-panel client-dialog">
+      <div role="dialog" aria-modal="true" aria-labelledby={`${id}-title`} tabIndex={-1} className="dialog-panel client-dialog client-dialog--form">
         {/* Header */}
         <div className="dialog-header">
           <h2 id={`${id}-title`} className="dialog-title">
             <Edit2 size={20} /> {t('editClientModal.editClientProfile')}
           </h2>
-          <button type="button" aria-label={t('common.close')} onClick={onClose} className="close-button">
+          <button type="button" aria-label={t('common.close')} onClick={requestClose} disabled={isSubmitting} className="close-button">
             <X size={22} />
           </button>
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="dialog-body dialog-form">
+        <form onSubmit={handleSubmit} className="dialog-body dialog-form" aria-busy={isSubmitting}>
+          <fieldset disabled={isSubmitting} className="dialog-form-content">
 
           <div className="form-grid">
             <div className="form-field">
@@ -166,20 +177,19 @@ export const EditClientModal: React.FC<EditClientModalProps> = ({ client, onClos
           </div>
 
           {/* Dynamic Custom Fields */}
+          <details className="optional-details">
+            <summary>{t('webUx.optionalDetails')}</summary>
           <div className="form-section">
             <p className="form-section__title">{t('editClientModal.customDynamicClientAttributes')}</p>
             <AttributeEditor rows={customFields} onChange={setCustomFields} addLabel={t('editClientModal.addField')} />
           </div>
 
-          {/* Error */}
-          {error && (
-            <div className="form-alert" role="alert">
-              {error}
-            </div>
-          )}
+          </details>
+          </fieldset>
 
           <div className="dialog-footer">
-            <button type="button" className="btn-secondary" onClick={onClose}>{t('editClientModal.cancel')}</button>
+            {error && <div className="form-alert" role="alert">{error}</div>}
+            <button type="button" className="btn-secondary" onClick={requestClose} disabled={isSubmitting}>{t('editClientModal.cancel')}</button>
             <button type="submit" className="btn-rose" disabled={isSubmitting}>
               {isSubmitting ?t('editClientModal.saving') :t('editClientModal.saveChanges')}
             </button>
