@@ -5,7 +5,6 @@ import com.beauty.app.ui.i18n.localizedMessage
 import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
@@ -20,22 +19,20 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material.pullrefresh.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.layout.layout
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -130,22 +127,20 @@ fun ClientDirectoryScreen(
         })
     }) { padding ->
         Box(Modifier.fillMaxSize().padding(padding).pullRefresh(pull)) {
-            LazyColumn(contentPadding = PaddingValues(horizontal = 20.dp, vertical = 24.dp), verticalArrangement = Arrangement.spacedBy(16.dp), modifier = Modifier.widthIn(max = 760.dp).fillMaxSize().align(Alignment.TopCenter)) {
+            LazyColumn(contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.widthIn(max = 760.dp).fillMaxSize().align(Alignment.TopCenter)) {
                 item { VerificationBanner(repository = repository) }
-                if (hasActiveUpdate) {
+                // An available update remains discoverable through the overflow-menu
+                // badge. Keep progress and install-ready states in the content so a
+                // download never disappears below the first viewport.
+                if (updateState is com.beauty.app.updater.UpdateState.Downloading || updateState is com.beauty.app.updater.UpdateState.ReadyToInstall) {
                     item {
-                        com.beauty.app.ui.updater.UpdateBanner(
+                        CompactUpdateStatus(
                             state = updateState,
                             onTap = onOpenUpdateDialog
                         )
                     }
                 }
                 item {
-                    AuraPageHeader(
-                        title = stringResource(com.beauty.app.R.string.workspace_clients),
-                        subtitle = stringResource(com.beauty.app.R.string.workspace_clients_subtitle)
-                    )
-                    Spacer(Modifier.height(20.dp))
                     val fontScale = LocalDensity.current.fontScale
                     BoxWithConstraints(Modifier.fillMaxWidth()) {
                         if (maxWidth >= 340.dp && fontScale <= 1.15f) {
@@ -212,14 +207,17 @@ fun ClientDirectoryScreen(
                 }
                 if (viewModel.searching || viewModel.refreshing) item { LinearProgressIndicator(Modifier.fillMaxWidth()) }
                 item {
-                    Text(stringResource(com.beauty.app.R.string.client_directory_count, viewModel.filtered.size), style = MaterialTheme.typography.titleLarge)
-                    Spacer(Modifier.height(6.dp))
-                    Text(
-                        viewModel.message?.let { localizedMessage(it) } ?: if (viewModel.lastRefresh == 0L) stringResource(com.beauty.app.R.string.loading_saved_clients) else stringResource(com.beauty.app.R.string.synced_with_web),
-                        color = if (viewModel.message != null) MaterialTheme.colorScheme.error else TextMuted,
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                    if (viewModel.message != null) TextButton(onClick = refresh) { Text(stringResource(com.beauty.app.R.string.ui2_retry)) }
+                    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(stringResource(com.beauty.app.R.string.client_directory_count, viewModel.filtered.size), style = MaterialTheme.typography.titleMedium)
+                        Column {
+                            Text(
+                                viewModel.message?.let { localizedMessage(it) } ?: if (viewModel.lastRefresh == 0L) stringResource(com.beauty.app.R.string.loading_saved_clients) else stringResource(com.beauty.app.R.string.synced_with_web),
+                                color = if (viewModel.message != null) MaterialTheme.colorScheme.error else TextMuted,
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                            if (viewModel.message != null) TextButton(onClick = refresh, modifier = Modifier.heightIn(min = 48.dp)) { Text(stringResource(com.beauty.app.R.string.ui2_retry)) }
+                        }
+                    }
                 }
                 if (viewModel.filtered.isEmpty() && !viewModel.refreshing && !viewModel.searching && !viewModel.blocked) item {
                     Text(if (viewModel.query.isNotBlank() || viewModel.tag.isNotEmpty()) stringResource(com.beauty.app.R.string.no_clients_match_these_filters)
@@ -258,61 +256,70 @@ fun ClientDirectoryScreen(
     })
 }
 
-/** Mirrors `ClientCard.tsx`. */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun ClientCard(client: ClientEntity, logVisitEnabled: Boolean, onClick: () -> Unit, onLogVisit: () -> Unit) {
     val tags = remember(client.tagsJson) { decodeTags(client.tagsJson) }
-    val attributes = remember(client.customFieldsJson) { attributeSummary(client.customFieldsJson) }
     Card(
-        onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(24.dp),
+        shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(containerColor = WhiteCard),
         border = BorderStroke(1.dp, Border)
     ) {
-        Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Box(Modifier.size(48.dp).background(Sage, CircleShape), contentAlignment = Alignment.Center) {
+        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+          Column(Modifier.fillMaxWidth().heightIn(min = 48.dp).clickable(
+              role = Role.Button, onClickLabel = stringResource(com.beauty.app.R.string.client_details), onClick = onClick
+          ), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Box(Modifier.size(40.dp).background(Sage, CircleShape), contentAlignment = Alignment.Center) {
                     Text(remember(client.name) { initials(client.name) },
-                        color = Forest, style = MaterialTheme.typography.titleMedium)
+                        color = Forest, style = MaterialTheme.typography.titleSmall)
                 }
-                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                    Text(client.name, style = MaterialTheme.typography.titleLarge)
-                    Text(client.phone, color = Muted, style = MaterialTheme.typography.bodyMedium)
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(client.name, style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    Text(client.phone, color = Muted, style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
                 Icon(Icons.Default.ChevronRight, null, tint = Muted, modifier = Modifier.size(20.dp))
             }
             if (tags.isNotEmpty()) FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                tags.forEach { TagBadge(it) }
+                tags.take(2).forEach { TagBadge(it) }
+                if (tags.size > 2) Text(
+                    stringResource(com.beauty.app.R.string.client_directory_tag_overflow, tags.size - 2),
+                    color = Muted,
+                    style = MaterialTheme.typography.labelMedium,
+                    modifier = Modifier.padding(vertical = 5.dp)
+                )
             }
-            if (attributes.isNotEmpty()) {
-                Surface(color = Paper, shape = RoundedCornerShape(16.dp)) {
-                    Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
-                        Text(stringResource(com.beauty.app.R.string.workspace_client_details), color = Muted, style = MaterialTheme.typography.labelMedium)
-                        attributes.forEach { (key, value) ->
-                            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                                Text(key, color = Muted, style = MaterialTheme.typography.bodySmall)
-                                Text(value, color = Forest, style = MaterialTheme.typography.bodyMedium, maxLines = 3, overflow = TextOverflow.Ellipsis)
-                            }
-                        }
-                    }
-                }
-            }
-            HorizontalDivider(color = Border)
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text(pluralStringResource(com.beauty.app.R.plurals.visits_count, client.totalVisits, client.totalVisits),
-                        style = MaterialTheme.typography.labelLarge, color = Forest)
-                    Text(stringResource(com.beauty.app.R.string.updated_date, formatUpdatedDate(client.updatedAt)),
-                        color = Muted, style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f), textAlign = TextAlign.End)
-                }
-                OutlinedButton(onClick = onLogVisit, enabled = logVisitEnabled, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+          }
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(pluralStringResource(com.beauty.app.R.plurals.visits_count, client.totalVisits, client.totalVisits),
+                    style = MaterialTheme.typography.labelLarge, color = Forest, modifier = Modifier.weight(1f))
+                OutlinedButton(onClick = onLogVisit, enabled = logVisitEnabled, modifier = Modifier.heightIn(min = 48.dp)) {
                     Text(stringResource(com.beauty.app.R.string.log_visit))
-                    Spacer(Modifier.width(8.dp))
-                    Icon(Icons.Default.ChevronRight, null, Modifier.size(18.dp))
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun CompactUpdateStatus(state: com.beauty.app.updater.UpdateState, onTap: () -> Unit) {
+    val message = when (state) {
+        is com.beauty.app.updater.UpdateState.Downloading -> stringResource(com.beauty.app.R.string.update_banner_downloading, (state.progress * 100).toInt())
+        is com.beauty.app.updater.UpdateState.ReadyToInstall -> stringResource(com.beauty.app.R.string.update_banner_ready, state.release.versionName)
+        else -> return
+    }
+    Surface(
+        onClick = onTap,
+        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+        shape = RoundedCornerShape(14.dp),
+        color = WhiteCard,
+        border = BorderStroke(1.dp, Border)
+    ) {
+        Row(Modifier.padding(horizontal = 14.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Icon(Icons.Default.SystemUpdate, contentDescription = null, tint = Forest, modifier = Modifier.size(20.dp))
+            Text(message, color = Forest, style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
+            Icon(Icons.Default.ChevronRight, contentDescription = null, tint = Forest, modifier = Modifier.size(18.dp))
         }
     }
 }

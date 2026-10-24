@@ -1,0 +1,12 @@
+<resources>
+    <string name="ux_client_preferences">Данные и предпочтения клиента</string>
+    <string name="ux_visit_history">История визитов</string>
+    <string name="ux_new_visit">Новый визит</string>
+    <string name="ux_save_visit">Сохранить визит</string>
+    <string name="ux_treatment_notes">Заметки о процедуре *</string>
+    <string name="ux_visit_photos">Фото (необязательно)</string>
+    <string name="ux_discard_visit_title">Отменить создание визита?</string>
+    <string name="ux_discard_visit_message">Несохранённые заметки и выбранные фото будут потеряны.</string>
+    <string name="ux_discard">Не сохранять</string>
+    <string name="ux_keep_editing">Продолжить редактирование</string>
+</resources>
