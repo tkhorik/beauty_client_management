@@ -128,3 +128,67 @@ it('does not report a successful photo upload as failed because of its preview',
   await expect(api.addAttachment('visit', 'data:image/jpeg;base64,aQ==', 'BEFORE')).resolves.toEqual(photo('uploaded'));
   expect(fetchMock).toHaveBeenCalledTimes(2);
 });
+
+it('opens each individual photo, restores focus and visit scroll, and leaves comparison independent', async () => {
+  const compare = vi.fn();
+  const closeProfile = vi.fn();
+  vi.spyOn(api, 'loadAttachmentUrl').mockImplementation(async url => `blob:${url}`);
+  await act(async () => root.render(<LocaleProvider><ClientDetailModal client={client} visits={[visit]}
+    onClose={closeProfile} onRefresh={() => {}} onOpenNewVisit={() => {}} onOpenPhotoCompare={compare} />
+  </LocaleProvider>));
+  const profile = host.querySelector('[role="dialog"]')!;
+  const scroll = host.querySelector<HTMLElement>('.dialog-body')!;
+  scroll.scrollTop = 180;
+  const buttons = [...host.querySelectorAll<HTMLButtonElement>('.attachment-open')];
+  expect(buttons).toHaveLength(2);
+  for (const [index, button] of buttons.entries()) {
+    button.focus();
+    await act(async () => button.click());
+    const viewer = host.querySelector('.photo-viewer')!;
+    expect(viewer.querySelector('img')?.getAttribute('src')).toBe(`blob:${visit.attachments[index].fileUrl}`);
+    expect(viewer.querySelector('input[type="range"]')).toBeNull();
+    expect(document.activeElement).toBe(viewer);
+    await act(async () => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', cancelable: true })));
+    expect(host.querySelector('.photo-viewer')).toBeNull();
+    expect(document.activeElement).toBe(button);
+    expect(host.querySelector('[role="dialog"]')).toBe(profile);
+    expect(scroll.scrollTop).toBe(180);
+    expect(closeProfile).not.toHaveBeenCalled();
+  }
+  expect(compare).not.toHaveBeenCalled();
+  await act(async () => [...host.querySelectorAll('button')].find(button => button.textContent?.includes('Compare Before/After'))!.click());
+  expect(compare).toHaveBeenCalledWith(visit.attachments);
+});
+
+it('opens a lone failed thumbnail, retries without nested buttons, and can close and reopen', async () => {
+  const attachment = { ...photo('solo', 'PROCEDURE'), caption: 'Portrait treatment' };
+  const load = vi.spyOn(api, 'loadAttachmentUrl').mockRejectedValue(new Error('offline'));
+  await act(async () => root.render(<LocaleProvider><ClientDetailModal client={client} visits={[{ ...visit, attachments: [attachment] }]}
+    onClose={() => {}} onRefresh={() => {}} onOpenNewVisit={() => {}} onOpenPhotoCompare={() => {}} />
+  </LocaleProvider>));
+  expect(host.querySelector('button button')).toBeNull();
+  expect(host.textContent).not.toContain('Compare Before/After');
+  const trigger = host.querySelector<HTMLButtonElement>('.attachment-open')!;
+  expect(trigger.getAttribute('aria-label')).toBe('Open photo: Portrait treatment');
+  // The thumbnail retry is an independent action, not a photo-open click.
+  await act(async () => host.querySelector<HTMLButtonElement>('.attachment-feedback button')!.click());
+  expect(host.querySelector('.photo-viewer')).toBeNull();
+  trigger.focus();
+  let resolve!: (url: string) => void;
+  load.mockImplementationOnce(() => new Promise(done => { resolve = done; }));
+  await act(async () => trigger.click());
+  expect(host.querySelector('.photo-viewer [role="status"]')?.textContent).toContain('Loading');
+  await act(async () => resolve('blob:solo'));
+  const viewer = host.querySelector('.photo-viewer')!;
+  expect(viewer.textContent).toContain('Portrait treatment');
+  expect(viewer.textContent).toContain('Procedure');
+  await act(async () => viewer.querySelector('img')!.dispatchEvent(new Event('error')));
+  expect(viewer.textContent).toContain('Photo unavailable');
+  load.mockResolvedValue('blob:retry');
+  await act(async () => viewer.querySelector<HTMLButtonElement>('.attachment-feedback button')!.click());
+  expect(viewer.querySelector('img')?.getAttribute('src')).toBe('blob:retry');
+  await act(async () => viewer.querySelector<HTMLButtonElement>('[aria-label="Close"]')!.click());
+  expect(document.activeElement).toBe(trigger);
+  await act(async () => trigger.click());
+  expect(host.querySelector('.photo-viewer img')?.getAttribute('src')).toBe('blob:retry');
+});

@@ -95,6 +95,7 @@ fun ClientDetailScreen(
         attributeEditor.clearIfSaved(viewModel.savedAttributesDraftId)
     }
     var compareAttachments by remember { mutableStateOf<List<VisitAttachmentDto>?>(null) }
+    var selectedAttachment by remember { mutableStateOf<VisitAttachmentDto?>(null) }
     // The visit a new photo is for. Saved, along with the source below, because the
     // system may reclaim the app while its camera is in the foreground.
     var photoTargetKey by rememberSaveable { mutableStateOf<String?>(null) }
@@ -258,7 +259,7 @@ fun ClientDetailScreen(
                             ) {
                                 row.attachments.forEach { attachment ->
                                     AttachmentThumbnail(repository, viewModel.organizationId, attachment) {
-                                        compareAttachments = listOf(attachment)
+                                        selectedAttachment = attachment
                                     }
                                 }
                             }
@@ -331,6 +332,9 @@ fun ClientDetailScreen(
     }
     compareAttachments?.let { attachments ->
         PhotoCompareDialog(repository, viewModel.organizationId, attachments, onDismiss = { compareAttachments = null })
+    }
+    selectedAttachment?.let { attachment ->
+        PhotoViewerDialog(repository, viewModel.organizationId, attachment, onDismiss = { selectedAttachment = null })
     }
 }
 

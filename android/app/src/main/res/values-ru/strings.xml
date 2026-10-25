@@ -495,6 +495,8 @@
     <string name="photo_tag_before">До</string>
     <string name="photo_tag_after">После</string>
     <string name="photo_tag_procedure">Процедура</string>
+    <string name="photo_tag_document">Документ</string>
+    <string name="photo_unavailable">Фото недоступно</string>
     <string name="uploading_photo">Загрузка фото…</string>
     <string name="no_camera_app">На этом устройстве нет приложения камеры.</string>
     <string name="photo_saved_upload_pending">Фото сохранено на устройстве и загрузится при подключении.</string>

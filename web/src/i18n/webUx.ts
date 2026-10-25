@@ -1,4 +1,6 @@
 export const webUxEn = {
+  'webUx.photoViewer': 'Photo',
+  'webUx.openPhoto': 'Open photo: {{caption}}',
   'webUx.discardDraft': 'Discard unsaved changes? Choose Cancel to keep editing.',
   'webUx.optionalDetails': 'Additional details (optional)',
   'webUx.clientDetails': 'Client details',
@@ -6,6 +8,8 @@ export const webUxEn = {
   'webUx.deleting': 'Deleting…',
 } as const;
 export const webUxRu: { [K in keyof typeof webUxEn]: string } = {
+  'webUx.photoViewer': 'Фото',
+  'webUx.openPhoto': 'Открыть фото: {{caption}}',
   'webUx.discardDraft': 'Удалить несохранённые изменения? Нажмите «Отмена», чтобы продолжить редактирование.',
   'webUx.optionalDetails': 'Дополнительные сведения (необязательно)',
   'webUx.clientDetails': 'Сведения о клиенте',

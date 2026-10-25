@@ -479,6 +479,8 @@
     <string name="photo_tag_before">Before</string>
     <string name="photo_tag_after">After</string>
     <string name="photo_tag_procedure">Procedure</string>
+    <string name="photo_tag_document">Document</string>
+    <string name="photo_unavailable">Photo unavailable</string>
     <string name="uploading_photo">Uploading photo…</string>
     <string name="no_camera_app">No camera app is available on this device.</string>
     <string name="photo_saved_upload_pending">Photo saved on this device. It will upload when connected.</string>

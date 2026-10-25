@@ -1,5 +1,6 @@
 package com.beauty.app.ui.client
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.ui.res.stringResource
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -31,6 +32,8 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -93,21 +96,34 @@ private fun rememberAttachmentImage(
     repository: BeautyRepository,
     organizationId: String,
     attachmentId: String?
-): ImageLoad {
+): AttachmentImageState {
+    var retryAttempt by remember(organizationId, attachmentId) { mutableIntStateOf(0) }
     var state by remember(organizationId, attachmentId) { mutableStateOf<ImageLoad>(ImageLoad.Loading) }
-    LaunchedEffect(organizationId, attachmentId) {
+    LaunchedEffect(organizationId, attachmentId, retryAttempt) {
         if (attachmentId == null) { state = ImageLoad.Failed; return@LaunchedEffect }
+        state = ImageLoad.Loading
         state = loadAttachmentBitmap(repository, organizationId, attachmentId)
             ?.let { ImageLoad.Ready(it) } ?: ImageLoad.Failed
     }
-    return state
+    return AttachmentImageState(state) { retryAttempt++ }
 }
+
+private data class AttachmentImageState(val load: ImageLoad, val retry: () -> Unit)
 
 @Composable
 private fun tagColor(tag: String): Color = when (tag) {
     "BEFORE" -> RoseGoldPrimary
     "AFTER" -> Clay
     else -> Forest
+}
+
+@Composable
+private fun photoTagLabel(tag: String): String = when (tag) {
+    "BEFORE" -> stringResource(com.beauty.app.R.string.photo_tag_before)
+    "AFTER" -> stringResource(com.beauty.app.R.string.photo_tag_after)
+    "PROCEDURE" -> stringResource(com.beauty.app.R.string.photo_tag_procedure)
+    "DOCUMENT" -> stringResource(com.beauty.app.R.string.photo_tag_document)
+    else -> tag
 }
 
 /** The 100×100 tile the web client's visit timeline shows for each attachment. */
@@ -118,7 +134,7 @@ fun AttachmentThumbnail(
     attachment: VisitAttachmentDto,
     onClick: () -> Unit
 ) {
-    val load = rememberAttachmentImage(repository, organizationId, attachment.id)
+    val imageState = rememberAttachmentImage(repository, organizationId, attachment.id)
     Box(
         Modifier
             .size(96.dp)
@@ -127,10 +143,10 @@ fun AttachmentThumbnail(
             .background(Paper)
             .clickable(onClick = onClick)
     ) {
-        when (load) {
+        when (val load = imageState.load) {
             is ImageLoad.Ready -> Image(
                 load.image,
-                contentDescription = attachment.caption ?: if (attachment.tag == "BEFORE") stringResource(com.beauty.app.R.string.photo_before) else stringResource(com.beauty.app.R.string.photo_after),
+                contentDescription = attachment.caption ?: photoTagLabel(attachment.tag),
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop
             )
@@ -141,7 +157,7 @@ fun AttachmentThumbnail(
             )
             ImageLoad.Failed -> Text(stringResource(com.beauty.app.R.string.unavailable), fontSize = 14.sp, color = TextMuted, modifier = Modifier.align(Alignment.Center))
         }
-        PhotoLabel(if (attachment.tag == "BEFORE") stringResource(com.beauty.app.R.string.photo_before) else stringResource(com.beauty.app.R.string.photo_after), modifier = Modifier.align(Alignment.BottomStart).padding(4.dp), small = true, tag = attachment.tag)
+        PhotoLabel(photoTagLabel(attachment.tag), modifier = Modifier.align(Alignment.BottomStart).padding(4.dp), small = true, tag = attachment.tag)
     }
 }
 
@@ -177,8 +193,8 @@ fun PhotoCompareDialog(
     onDismiss: () -> Unit
 ) {
     val (before, after) = remember(attachments) { pickComparePair(attachments) }
-    val beforeLoad = rememberAttachmentImage(repository, organizationId, before?.id)
-    val afterLoad = rememberAttachmentImage(repository, organizationId, after?.id)
+    val beforeLoad = rememberAttachmentImage(repository, organizationId, before?.id).load
+    val afterLoad = rememberAttachmentImage(repository, organizationId, after?.id).load
     var sideBySide by rememberSaveable { mutableStateOf(false) }
 
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
@@ -226,6 +242,69 @@ fun PhotoCompareDialog(
                         }
                     }
                     else -> SliderCompare(beforeImage, afterImage)
+                }
+            }
+        }
+    }
+}
+
+/** A single saved photo at its complete aspect ratio, without comparison controls. */
+@Composable
+fun PhotoViewerDialog(
+    repository: BeautyRepository,
+    organizationId: String,
+    attachment: VisitAttachmentDto,
+    onDismiss: () -> Unit
+) {
+    val imageState = rememberAttachmentImage(repository, organizationId, attachment.id)
+    BackHandler(onBack = onDismiss)
+
+    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        Surface(color = CardSurface, modifier = Modifier.fillMaxSize()) {
+            BoxWithConstraints(Modifier.fillMaxSize().padding(16.dp)) {
+                val headerMaxHeight = maxHeight * 0.25f
+                Column(Modifier.fillMaxSize()) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(
+                            Modifier.weight(1f).heightIn(max = headerMaxHeight).verticalScroll(rememberScrollState()),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            PhotoLabel(photoTagLabel(attachment.tag), tag = attachment.tag)
+                            attachment.caption?.takeIf { it.isNotBlank() }?.let {
+                                Text(it, color = TextMuted, fontSize = 16.sp)
+                            }
+                        }
+                        IconButton(onClick = onDismiss) {
+                            Icon(Icons.Default.Close, contentDescription = stringResource(com.beauty.app.R.string.close), tint = TextMuted)
+                        }
+                    }
+                    Box(
+                        Modifier.weight(1f).fillMaxWidth().padding(vertical = 16.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        val loadingDescription = stringResource(com.beauty.app.R.string.loading)
+                        when (val load = imageState.load) {
+                            ImageLoad.Loading -> CircularProgressIndicator(
+                                modifier = Modifier.semantics {
+                                    contentDescription = loadingDescription
+                                },
+                                color = RoseGoldPrimary
+                            )
+                            ImageLoad.Failed -> Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                Text(stringResource(com.beauty.app.R.string.photo_unavailable), color = TextMuted)
+                                OutlinedButton(onClick = imageState.retry) { Text(stringResource(com.beauty.app.R.string.ui2_retry)) }
+                            }
+                            is ImageLoad.Ready -> Image(
+                                load.image,
+                                contentDescription = attachment.caption ?: photoTagLabel(attachment.tag),
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Fit
+                            )
+                        }
+                    }
                 }
             }
         }

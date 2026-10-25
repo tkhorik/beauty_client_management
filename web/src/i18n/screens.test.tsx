@@ -17,6 +17,7 @@ import { NewClientModal } from '../components/NewClientModal';
 import { EditClientModal } from '../components/EditClientModal';
 import { NewVisitModal } from '../components/NewVisitModal';
 import { PhotoCompareModal } from '../components/PhotoCompareModal';
+import { PhotoViewerModal } from '../components/PhotoViewerModal';
 import { MembersModal } from '../components/MembersModal';
 import { AdminPanel } from '../components/AdminPanel';
 import { VerificationWall } from '../components/VerificationWall';
@@ -53,6 +54,7 @@ const cases: [string, () => ReactElement, string, string][] = [
   ['edit client', () => <EditClientModal client={client} onClose={noop} onSuccess={noop} />, 'Edit Client Profile', 'Изменить карточку клиента'],
   ['new procedure', () => <NewVisitModal client={client} clientsList={[client]} onClose={noop} onSuccess={noop} />, 'New visit', 'Новый визит'],
   ['photo comparison', () => <PhotoCompareModal attachments={attachments} onClose={noop} />, 'Procedure Before &amp; After Comparison', 'Сравнение до и после процедуры'],
+  ['photo viewer', () => <PhotoViewerModal attachment={attachments[0]} onClose={noop} />, 'Photo', 'Фото'],
   ['organization members', () => <MembersModal orgId="org" orgName="Customer Salon" onClose={noop} />, 'Invite someone', 'Пригласить участника'],
   ['administration', () => <AdminPanel onClose={noop} />, 'Users (0)', 'Пользователи (0)'],
   ['verification wall', () => <VerificationWall />, 'Confirm your email', 'Подтвердите адрес'],
