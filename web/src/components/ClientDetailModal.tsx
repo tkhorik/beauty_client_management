@@ -12,6 +12,7 @@ import { PhotoSourcePicker } from './PhotoSourcePicker';
 import { compressImage } from '../utils/imageCompressor';
 import { defaultPhotoTag } from '../utils/photoTags';
 import { AttachmentImage } from './AttachmentImage';
+import { PhotoViewerModal } from './PhotoViewerModal';
 import './ClientForms.css';
 
 interface ClientDetailModalProps {
@@ -45,6 +46,7 @@ export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
   const isEditingFields = draftFields !== null;
   const [isSaving, setIsSaving] = useState(false);
   const [isEditClientOpen, setIsEditClientOpen] = useState(false);
+  const [selectedPhoto, setSelectedPhoto] = useState<Attachment | null>(null);
   const savedFields = Object.entries(client.customFields ?? {});
   // Adding a photo to a visit that was already logged, e.g. the AFTER shot once the procedure is done.
   const [photoVisitId, setPhotoVisitId] = useState<string | null>(null);
@@ -283,7 +285,9 @@ export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
                           <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
                             {attachments.map(att => (
                               <div key={att.id} className="attachment">
-                                <AttachmentImage fileUrl={att.fileUrl} alt={att.caption || t('clientDetailModal.attachment')} />
+                                <AttachmentImage fileUrl={att.fileUrl} alt={att.caption || t('clientDetailModal.attachment')}
+                                  onOpen={() => setSelectedPhoto(att)}
+                                  openLabel={t('webUx.openPhoto', { caption: att.caption || t(att.tag === 'BEFORE' ? 'newVisitModal.before' : att.tag === 'AFTER' ? 'newVisitModal.after' : att.tag === 'PROCEDURE' ? 'attachment.procedure' : 'attachment.document') })} />
                                 <span>
                                   {t(att.tag === 'BEFORE' ? 'newVisitModal.before' : att.tag === 'AFTER' ? 'newVisitModal.after' : att.tag === 'PROCEDURE' ? 'attachment.procedure' : 'attachment.document')}
                                 </span>
@@ -344,6 +348,7 @@ export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
       </div>
 
       {/* Edit Client Modal */}
+      {selectedPhoto && <PhotoViewerModal key={selectedPhoto.id} attachment={selectedPhoto} onClose={() => setSelectedPhoto(null)} />}
       {isEditClientOpen && (
         <EditClientModal
           client={client}
