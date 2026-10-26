@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act } from 'react';
+import { act, useLayoutEffect } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AuthProvider } from '../auth/AuthContext';
@@ -25,9 +25,13 @@ function profile(id = 'a', preference: LanguagePreference = 'en', revision = 0):
 let auth: ReturnType<typeof useAuth>;
 let locale: ReturnType<typeof useLocale>;
 function Probe() {
-  auth = useAuth();
-  locale = useLocale();
-  return <output>{auth.user?.id}:{locale.locale}:{auth.user?.languageRevision}</output>;
+  const currentAuth = useAuth();
+  const currentLocale = useLocale();
+  useLayoutEffect(() => {
+    auth = currentAuth;
+    locale = currentLocale;
+  });
+  return <output>{currentAuth.user?.id}:{currentLocale.locale}:{currentAuth.user?.languageRevision}</output>;
 }
 let root: Root;
 let host: HTMLDivElement;

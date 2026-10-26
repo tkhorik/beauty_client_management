@@ -38,21 +38,37 @@ export const OrgActivity: React.FC<{ orgId: string }> = ({ orgId }) => {
   const [hasMore, setHasMore] = useState(false);
   const [error, setError] = useState('');
 
+  // Showing is split from fetching so the first-page effect below can apply
+  // the result from its own callbacks, and drop it once the tab has closed.
+  const showPage = useCallback((page: OrgAuditEvent[], before?: string) => {
+    setEvents(prev => (before ? [...prev, ...page] : page));
+    setHasMore(page.length === PAGE_SIZE);
+  }, []);
+  const showLoadError = useCallback(
+    (err: unknown) => setError(writeErrorMessage(err, t('orgActivity.couldNotLoad'))),
+    [t],
+  );
+
   const loadPage = useCallback(async (before?: string) => {
     setLoading(true);
     setError('');
     try {
-      const page = await api.getOrganizationAudit(orgId, before);
-      setEvents(prev => (before ? [...prev, ...page] : page));
-      setHasMore(page.length === PAGE_SIZE);
+      showPage(await api.getOrganizationAudit(orgId, before), before);
     } catch (err) {
-      setError(writeErrorMessage(err, t('orgActivity.couldNotLoad')));
+      showLoadError(err);
     } finally {
       setLoading(false);
     }
-  }, [orgId, t]);
+  }, [orgId, showPage, showLoadError]);
 
-  useEffect(() => { void loadPage(); }, [loadPage]);
+  useEffect(() => {
+    let active = true;
+    void api.getOrganizationAudit(orgId).then(
+      page => { if (active) showPage(page); },
+      err => { if (active) showLoadError(err); },
+    ).finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, [orgId, showPage, showLoadError]);
 
   const unknown = t('orgActivity.unknownUser');
   const roleLabel = (detail?: string) =>

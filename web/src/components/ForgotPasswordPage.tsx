@@ -1,5 +1,5 @@
 import { useAppTranslation, useLocale } from '../i18n/useLocale';
-import { useEffect, useState, type FormEvent } from 'react';
+import { useState, type FormEvent } from 'react';
 import { MailCheck } from 'lucide-react';
 import { API_BASE_URL } from '../config';
 import { navigate } from '../auth/route';
@@ -39,7 +39,13 @@ export function ForgotPasswordPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => setError(''), [locale]);
+  // A message rendered in the previous language would now read as stale; drop
+  // it during render rather than in an effect that paints it once more first.
+  const [errorLocale, setErrorLocale] = useState(locale);
+  if (errorLocale !== locale) {
+    setErrorLocale(locale);
+    setError('');
+  }
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();

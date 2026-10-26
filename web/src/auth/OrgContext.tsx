@@ -31,60 +31,81 @@ export function OrgProvider({ children }: { children: ReactNode }) {
   const { token } = useAuth();
   const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [currentId, setCurrentId] = useState<string | null>(getActiveOrgId());
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(Boolean(token));
   const [offline, setOffline] = useState(false);
 
-  const load = useCallback(async () => {
-    if (!token) {
-      setOrganizations([]);
-      setLoading(false);
-      return;
-    }
+  // Signing in or out changes what there is to load. Reset during render, so
+  // the gate never paints the previous account's list, or an empty one, before
+  // the effect below has started the request.
+  const [loadedToken, setLoadedToken] = useState(token);
+  if (loadedToken !== token) {
+    setLoadedToken(token);
+    setLoading(Boolean(token));
+    if (!token) setOrganizations([]);
+  }
 
+  // Fetching and showing are split so the effect below can apply a result
+  // from its own callbacks, and drop it if the account changed meanwhile.
+  const showOrganizations = useCallback((list: Organization[]) => {
+    setOrganizations(list);
+    setOffline(false);
+
+    const active = list.filter(o => o.status === 'ACTIVE');
+    const stored = getActiveOrgId();
+
+    // Re-validate the stored choice against what the server just said. A user
+    // removed from an organization since their last visit still has its id in
+    // localStorage, and silently keeping it selected would leave the app
+    // firing requests that all come back 403 with no explanation.
+    const stillValid = stored && active.some(o => o.id === stored);
+    const next = stillValid ? stored : (active[0]?.id ?? null);
+
+    setActiveOrgId(next);
+    setCurrentId(next);
+  }, []);
+
+  const showLoadFailure = useCallback((err: unknown) => {
+    if (err instanceof ApiError) {
+      // A real answer from a reachable server: the user genuinely has no
+      // organizations, or is not allowed to ask. Show the onboarding screen,
+      // not the demo.
+      setOrganizations([]);
+      clearActiveOrgId();
+      setCurrentId(null);
+      setOffline(false);
+    } else {
+      // Network failure. Mirror the mock-data fallback in `api.ts` so the
+      // offline demo keeps working — but label it, so nobody mistakes it for
+      // their real data.
+      setOrganizations([DEMO_ORG]);
+      setActiveOrgId(DEMO_ORG.id);
+      setCurrentId(DEMO_ORG.id);
+      setOffline(true);
+    }
+  }, []);
+
+  const load = useCallback(async () => {
+    if (!token) return;
     setLoading(true);
     try {
-      const list = await api.getOrganizations();
-      setOrganizations(list);
-      setOffline(false);
-
-      const active = list.filter(o => o.status === 'ACTIVE');
-      const stored = getActiveOrgId();
-
-      // Re-validate the stored choice against what the server just said. A user
-      // removed from an organization since their last visit still has its id in
-      // localStorage, and silently keeping it selected would leave the app
-      // firing requests that all come back 403 with no explanation.
-      const stillValid = stored && active.some(o => o.id === stored);
-      const next = stillValid ? stored : (active[0]?.id ?? null);
-
-      setActiveOrgId(next);
-      setCurrentId(next);
+      showOrganizations(await api.getOrganizations());
     } catch (err) {
-      if (err instanceof ApiError) {
-        // A real answer from a reachable server: the user genuinely has no
-        // organizations, or is not allowed to ask. Show the onboarding screen,
-        // not the demo.
-        setOrganizations([]);
-        clearActiveOrgId();
-        setCurrentId(null);
-        setOffline(false);
-      } else {
-        // Network failure. Mirror the mock-data fallback in `api.ts` so the
-        // offline demo keeps working — but label it, so nobody mistakes it for
-        // their real data.
-        setOrganizations([DEMO_ORG]);
-        setActiveOrgId(DEMO_ORG.id);
-        setCurrentId(DEMO_ORG.id);
-        setOffline(true);
-      }
+      showLoadFailure(err);
     } finally {
       setLoading(false);
     }
-  }, [token]);
+  }, [token, showOrganizations, showLoadFailure]);
 
+  // `loading` was already raised by the token reset above.
   useEffect(() => {
-    void load();
-  }, [load]);
+    if (!token) return;
+    let active = true;
+    void api.getOrganizations().then(
+      list => { if (active) showOrganizations(list); },
+      err => { if (active) showLoadFailure(err); },
+    ).finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, [token, showOrganizations, showLoadFailure]);
 
   // Removed or revoked while this tab was open: the next scoped request comes
   // back NOT_A_MEMBER. Re-reading the list drops that organization (see the

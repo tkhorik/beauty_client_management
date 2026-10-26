@@ -55,8 +55,8 @@ export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
   const [isDeleting, setIsDeleting] = useState(false);
   const [error, setError] = useState('');
   const busyRef = useRef(false);
-  const fieldsBaseline = useRef('');
-  const fieldsDirty = draftFields !== null && JSON.stringify(draftFields) !== fieldsBaseline.current;
+  const [fieldsBaseline, setFieldsBaseline] = useState('');
+  const fieldsDirty = draftFields !== null && JSON.stringify(draftFields) !== fieldsBaseline;
   const busy = isSaving || uploadingPhoto || isDeleting;
   const guardedClose = useDraftGuard(fieldsDirty, busy, onClose, t('webUx.discardDraft'));
   const requestClose = () => { if (!busyRef.current) guardedClose(); };
@@ -70,7 +70,7 @@ export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
   const startFields = () => {
     if (busyRef.current) return;
     const rows = toAttributeRows(client.customFields);
-    fieldsBaseline.current = JSON.stringify(rows);
+    setFieldsBaseline(JSON.stringify(rows));
     setDraftFields(rows);
     setError('');
   };

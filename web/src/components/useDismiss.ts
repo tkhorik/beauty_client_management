@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useLayoutEffect, useRef } from 'react';
 import type React from 'react';
 
 type DialogEntry = { close: React.MutableRefObject<() => void>; root: React.RefObject<HTMLDivElement | null> };
@@ -59,7 +59,10 @@ function onFocusIn(event: FocusEvent) {
 /** Escape/backdrop dismissal, focus containment and restoration, and scroll lock. */
 export function useDismiss(onClose: () => void) {
   const close = useRef(onClose);
-  close.current = onClose;
+  // Refreshed after commit so rendering stays pure; see useDraftGuard.
+  useLayoutEffect(() => {
+    close.current = onClose;
+  });
   const root = useRef<HTMLDivElement>(null);
   const pressedOnBackdrop = useRef(false);
 

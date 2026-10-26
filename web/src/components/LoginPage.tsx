@@ -36,10 +36,10 @@ export function LoginPage({ initialMode = 'login', onBack }: { initialMode?: Log
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    setError('');
-    setFieldErrors({});
-  }, [locale]);
+  const [errorLocale, setErrorLocale] = useState(locale); // see ResetPasswordPage
+  if (errorLocale !== locale) {
+    setErrorLocale(locale); setError(''); setFieldErrors({});
+  }
 
   useEffect(() => { stripDeepLinkParams(); }, []);
 
