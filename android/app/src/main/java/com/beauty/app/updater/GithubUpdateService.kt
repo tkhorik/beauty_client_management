@@ -15,8 +15,7 @@ import io.ktor.http.contentLength
 import io.ktor.http.isSuccess
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.utils.io.ByteReadChannel
-import io.ktor.utils.io.core.isEmpty
-import io.ktor.utils.io.core.readBytes
+import io.ktor.utils.io.readAvailable
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
@@ -99,13 +98,14 @@ class GithubUpdateService(
                     var downloaded = 0L
                     val buffer = ByteArray(16 * 1024)
 
-                    while (!channel.isClosedForRead) {
-                        val packet = channel.readRemaining(buffer.size.toLong())
-                        if (packet.isEmpty) break
-                        val bytes = packet.readBytes()
-                        output.write(bytes)
-                        downloaded += bytes.size
-                        onProgress(downloaded, if (totalLength > 0) totalLength else downloaded)
+                    var read = channel.readAvailable(buffer, 0, buffer.size)
+                    while (read != -1) {
+                        if (read > 0) {
+                            output.write(buffer, 0, read)
+                            downloaded += read
+                            onProgress(downloaded, if (totalLength > 0) totalLength else downloaded)
+                        }
+                        read = channel.readAvailable(buffer, 0, buffer.size)
                     }
                     output.flush()
                 }

@@ -3,10 +3,10 @@ import java.net.URI
 
 plugins {
     id("com.android.application")
-    id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.serialization")
+    id("org.jetbrains.kotlin.plugin.compose")
+    id("com.google.devtools.ksp")
     id("io.gitlab.arturbosch.detekt")
-    id("kotlin-kapt")
 }
 
 // Release signing material never lives in git. Locally, a developer copies
@@ -46,13 +46,12 @@ tasks.configureEach {
 
 android {
     namespace = "com.beauty.app"
-    compileSdk = 34
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "com.beauty.app"
         minSdk = 24
         targetSdk = 34
-        resourceConfigurations += listOf("en", "ru")
         // versionCode must strictly increase on every published release —
         // Android refuses to install an APK whose versionCode is <= the one
         // already on the device, so a stale value silently blocks upgrades.
@@ -175,19 +174,23 @@ android {
             }
         }
     }
+    androidResources {
+        localeFilters += listOf("en", "ru")
+    }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
-    kotlinOptions {
-        jvmTarget = "17"
-    }
     buildFeatures {
         compose = true
         buildConfig = true
+        resValues = true
     }
-    composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.8"
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
     }
 }
 
@@ -204,7 +207,13 @@ dependencyLocking {
 dependencies {
     constraints {
         // Room's annotation processor resolves Guava; keep the update off the APK runtime graph.
-        kapt("com.google.guava:guava:32.0.1-jre")
+        ksp("com.google.guava:guava:32.0.1-jre")
+        // AGP's bundled lint tool resolves these with known advisories; patch the
+        // build-time classpath only, never the APK runtime graph.
+        add("androidLintTool", "org.bouncycastle:bcprov-jdk18on:1.85")
+        add("androidLintTool", "org.bouncycastle:bcpkix-jdk18on:1.85")
+        add("androidLintTool", "org.apache.commons:commons-lang3:3.18.0")
+        add("androidLintTool", "org.apache.httpcomponents:httpclient:4.5.14")
     }
 
     implementation("androidx.core:core-ktx:1.12.0")
@@ -224,30 +233,30 @@ dependencies {
     implementation("androidx.compose.material:material-icons-extended")
 
     // Room DB Offline Caching
-    val roomVersion = "2.6.1"
+    val roomVersion = "2.8.5"
     implementation("androidx.room:room-runtime:$roomVersion")
     implementation("androidx.room:room-ktx:$roomVersion")
-    kapt("androidx.room:room-compiler:$roomVersion")
+    ksp("androidx.room:room-compiler:$roomVersion")
 
     // WorkManager Background Sync
     implementation("androidx.work:work-runtime-ktx:2.9.0")
 
     // Ktor Client for Android
-    implementation("io.ktor:ktor-client-core:2.3.13")
-    implementation("io.ktor:ktor-client-okhttp:2.3.13")
-    implementation("io.ktor:ktor-client-content-negotiation:2.3.13")
-    implementation("io.ktor:ktor-serialization-kotlinx-json:2.3.13")
-    implementation("io.ktor:ktor-client-auth:2.3.13")
+    implementation("io.ktor:ktor-client-core:3.6.0")
+    implementation("io.ktor:ktor-client-okhttp:3.6.0")
+    implementation("io.ktor:ktor-client-content-negotiation:3.6.0")
+    implementation("io.ktor:ktor-serialization-kotlinx-json:3.6.0")
+    implementation("io.ktor:ktor-client-auth:3.6.0")
 
     // Jetpack Security — EncryptedSharedPreferences for JWT token storage
     implementation("androidx.security:security-crypto:1.1.0-alpha06")
 
     // Jetpack Navigation — NavHost for screen routing
-    implementation("androidx.navigation:navigation-compose:2.7.6")
+    implementation("androidx.navigation:navigation-compose:2.10.2")
 
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.3")
-    testImplementation("io.ktor:ktor-client-mock:2.3.13")
+    testImplementation("io.ktor:ktor-client-mock:3.6.0")
     testImplementation("org.mockito.kotlin:mockito-kotlin:5.2.1")
 
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")

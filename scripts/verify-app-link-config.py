@@ -11,7 +11,7 @@ expected = urlsplit(origin)
 api_origin = sys.argv[2] if len(sys.argv) > 2 else 'https://api.independent.example/'
 root = Path(__file__).resolve().parents[1] / 'android/app/build'
 android = '{http://schemas.android.com/apk/res/android}'
-manifest = ET.parse(root / 'intermediates/merged_manifest/release/AndroidManifest.xml')
+manifest = ET.parse(root / 'intermediates/merged_manifest/release/processReleaseMainManifest/AndroidManifest.xml')
 filters = [node for node in manifest.findall('.//intent-filter') if node.get(android + 'autoVerify') == 'true']
 assert len(filters) == 1, 'Exactly one verified release link filter is required'
 data = filters[0].find('data')
