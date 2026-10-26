@@ -1,20 +1,12 @@
-# Pull-request checks.
-#
-# These are the jobs you mark as "Required status checks" in the branch
-# protection rule for `main`. Nothing can be merged until they pass, which is
-# what makes the deploy workflow safe: by the time code reaches main it has
-# already compiled and linted.
-
+# All gate commands live in scripts/quality/check.py; local: mise run check.
 name: CI
 
 on:
   pull_request:
     branches: [main]
-  # Also run on main so the badge reflects the state of the released branch.
   push:
     branches: [main]
 
-# A new push to the same PR cancels the previous run instead of queueing.
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -22,113 +14,85 @@ concurrency:
 permissions:
   contents: read
 
+defaults:
+  run:
+    shell: bash
+
 jobs:
+  quality:
+    name: Repository quality
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: jdx/mise-action@5228313ee0372e111a38da051671ca30fc5a96db # v3
+        with:
+          version: '2026.10.19'
+      - name: Run shared gate
+        run: mise run check -- quality
+
   backend:
     name: Backend (Ktor / JDK 17)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
     steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-java@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
-          distribution: temurin
-          java-version: '17'
-          cache: gradle
-
-      - name: Build and test
-        # Retries the whole step (compile + test) up to 8 times before failing
-        # the job. This masks a known, pre-existing test-isolation flake in
-        # the backend suite — a shared, JVM-wide "current database" that a
-        # handful of integration tests can reassign out from under each
-        # other when many run in one Gradle test worker (tracked separately,
-        # not something a retry fixes). A genuine compile error or a real
-        # assertion failure still fails every attempt identically and fails
-        # the job — this only rescues a run that hits the flake. 3 attempts
-        # observed 10, then 9, then 1 failing test — trending down, not stuck,
-        # so more attempts is the right lever until the real fix lands.
-        uses: nick-fields/retry@v3
+          persist-credentials: false
+      - uses: jdx/mise-action@5228313ee0372e111a38da051671ca30fc5a96db # v3
         with:
-          timeout_minutes: 10
-          max_attempts: 8
-          command: cd backend && chmod +x gradlew && ./gradlew --no-daemon build
+          version: '2026.10.19'
+      - name: Run shared gate
+        run: mise run check -- backend
 
   web:
     name: Web (React / Vite)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
-          node-version: '26'
-          cache: npm
-          cache-dependency-path: web/package-lock.json
-
-      - name: Install dependencies
-        working-directory: web
-        run: npm ci
-
-      - name: Lint
-        working-directory: web
-        run: npm run lint
-
-      - name: Localization and synchronization tests
-        working-directory: web
-        run: npm test
-
-      - name: Type-check and build
-        working-directory: web
-        run: npm run build
+          persist-credentials: false
+      - uses: jdx/mise-action@5228313ee0372e111a38da051671ca30fc5a96db # v3
+        with:
+          version: '2026.10.19'
+      - name: Run shared gate
+        run: mise run check -- web
 
   android:
     name: Android (Compose)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
     steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-java@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
-          distribution: temurin
-          java-version: '17'
-          cache: gradle
+          persist-credentials: false
+      - uses: jdx/mise-action@5228313ee0372e111a38da051671ca30fc5a96db # v3
+        with:
+          version: '2026.10.19'
+      - name: Run shared gate
+        run: mise run check -- android
 
-      - name: Assemble debug and run unit tests
-        working-directory: android
-        run: |
-          chmod +x gradlew
-          ./gradlew --no-daemon assembleDebug testDebugUnitTest
-
-      - name: Verify configurable release link origins
-        working-directory: android
-        run: |
-          for origin in https://one.example:8443 https://two.example; do
-            ./gradlew --no-daemon processReleaseMainManifest generateReleaseBuildConfig \
-              "-PappWebBaseUrl=$origin" -PreleaseApiBaseUrl=https://api.independent.example/
-            python3 ../scripts/verify-app-link-config.py "$origin"
-          done
-          if ./gradlew --no-daemon generateReleaseBuildConfig > /tmp/missing-origin.log 2>&1; then
-            echo "Release metadata accepted a missing website origin" >&2
-            exit 1
-          fi
-          grep -q 'Release builds require -PappWebBaseUrl' /tmp/missing-origin.log
-          if ./gradlew --no-daemon generateReleaseBuildConfig -PappWebBaseUrl=http://site.example > /tmp/invalid-origin.log 2>&1; then
-            echo "Release metadata accepted an HTTP website origin" >&2
-            exit 1
-          fi
-          grep -q 'appWebBaseUrl must be an HTTPS origin' /tmp/invalid-origin.log
-
-      # Keep the APK that CI just built, so any change can be installed and
-      # tried on a real device without cutting a public release or building
-      # locally. This is a *debug* build: it points at http://10.0.2.2:8080/
-      # (the emulator's alias for the host), so it is for emulator testing, not
-      # for handing to anyone. Signed release builds come from tags only —
-      # see android-release.yml.
       - name: Upload debug APK
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: app-debug-${{ github.sha }}
           path: android/app/build/outputs/apk/debug/app-debug.apk
-          # Long enough to be useful while reviewing a PR, short enough that
-          # stale builds are not mistaken for current ones.
           retention-days: 14
           if-no-files-found: error
+
+  security:
+    name: Dependency vulnerabilities
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: jdx/mise-action@5228313ee0372e111a38da051671ca30fc5a96db # v3
+        with:
+          version: '2026.10.19'
+      - name: Run shared gate
+        run: mise run check -- security

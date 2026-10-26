@@ -85,7 +85,13 @@ def staged():
             run([str(ROOT / "web/node_modules/.bin/oxlint"), "--deny-warnings", "--", *web],
                 cwd=directory / "web")
         if any(name.startswith(".github/") and name.endswith((".yml", ".yaml")) for name in files):
-            workflows(directory)
+            # The index snapshot deliberately has no .git directory. Pass the
+            # workflow paths explicitly instead of relying on Git discovery.
+            workflow_files = sorted(str(path.relative_to(directory))
+                                    for path in (directory / ".github/workflows").glob("*")
+                                    if path.suffix in {".yml", ".yaml"})
+            if workflow_files:
+                workflows(directory, workflow_files)
         if "docker-compose.yml" in files or any(name.startswith("config/schemas/") for name in files):
             compose(directory)
 
