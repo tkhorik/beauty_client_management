@@ -1,10 +1,10 @@
-import { useAppTranslation, useLocale } from '../i18n/LocaleProvider';
+import { useAppTranslation, useLocale } from '../i18n/useLocale';
 import React, { useEffect, useState } from 'react';
 import { Building2, LogOut, Plus, UserPlus, Clock, Link2Off, ShieldCheck } from 'lucide-react';
 import { api, ApiError, writeErrorMessage } from '../services/api';
 import { translatedFieldErrors } from '../i18n/errors';
-import { useAuth } from '../auth/AuthContext';
-import { useOrg } from '../auth/OrgContext';
+import { useAuth } from '../auth/useAuth';
+import { useOrg } from '../auth/useOrg';
 import { stripQueryString } from '../auth/route';
 import { pendingJoinSlug } from '../auth/deepLinks';
 import type { Organization } from '../types';

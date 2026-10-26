@@ -1,15 +1,16 @@
 import { webUxEn, webUxRu } from './webUx';
 import { visitUxEn, visitUxRu } from './visitUx';
 import i18n from 'i18next';
-import { initReactI18next, useTranslation } from 'react-i18next';
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { en, ru, type TranslationKey } from './locales';
+import { initReactI18next } from 'react-i18next';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { en, ru } from './locales';
 import { featureEn, featureRu } from './features';
 import { apiErrorEn, apiErrorRu } from './apiErrors';
 import { runtimeEn, runtimeRu } from './runtimeFeatures';
 import { auditEn, auditRu } from './audit';
 import { newClientEn, newClientRu } from './newClient';
-import { getStoredLanguagePreference, LOCALE_CHANGED_EVENT, resolveLocale, saveLanguagePreference, setActiveLanguagePreference, type LanguagePreference, type SupportedLocale } from './store';
+import { getStoredLanguagePreference, LOCALE_CHANGED_EVENT, resolveLocale, saveLanguagePreference, setActiveLanguagePreference, type LanguagePreference } from './store';
+import { LocaleContext } from './LocaleContext';
 
 i18n.use(initReactI18next).init({
   resources: { en: { translation: { ...en, ...featureEn, ...runtimeEn, ...newClientEn, ...auditEn, ...webUxEn, ...visitUxEn, apiErrors: apiErrorEn } }, ru: { translation: { ...ru, ...featureRu, ...runtimeRu, ...newClientRu, ...auditRu, ...webUxRu, ...visitUxRu, apiErrors: apiErrorRu } } },
@@ -19,16 +20,6 @@ i18n.use(initReactI18next).init({
   interpolation: { escapeValue: false },
 });
 
-type LocaleContextValue = {
-  preference: LanguagePreference;
-  locale: SupportedLocale;
-  setPreference: (preference: LanguagePreference) => void;
-  /** Applies an account value without turning a server read into a server write. */
-  applyAccountPreference: (preference: LanguagePreference) => void;
-  restoreGuestPreference: () => void;
-  formatDate: (value: Date | string, options?: Intl.DateTimeFormatOptions) => string;
-};
-const LocaleContext = createContext<LocaleContextValue | null>(null);
 
 export function LocaleProvider({ children }: { children: ReactNode }) {
   const [preference, setPreferenceState] = useState<LanguagePreference>(() => getStoredLanguagePreference());
@@ -79,17 +70,4 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
     formatDate: (date: Date | string, options?: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat(locale, options).format(typeof date === 'string' ? new Date(date) : date),
   }), [preference, locale, setPreference, applyAccountPreference, restoreGuestPreference]);
   return <LocaleContext.Provider value={value}>{children}</LocaleContext.Provider>;
-}
-
-export function useLocale(): LocaleContextValue {
-  const value = useContext(LocaleContext);
-  if (!value) throw new Error('useLocale must be used inside LocaleProvider');
-  return value;
-}
-
-/** A typed façade keeps feature code from inventing arbitrary catalog keys. */
-export function useAppTranslation() {
-  const { t: rawT } = useTranslation();
-  const t = useCallback((key: TranslationKey, values?: Record<string, string | number>) => rawT(key, values), [rawT]);
-  return { t };
 }

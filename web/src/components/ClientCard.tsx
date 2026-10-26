@@ -1,6 +1,6 @@
 import type { Client } from '../types';
 import { Phone, Calendar, ArrowUpRight, Plus } from 'lucide-react';
-import { useAppTranslation, useLocale } from '../i18n/LocaleProvider';
+import { useAppTranslation, useLocale } from '../i18n/useLocale';
 import { formatPhone, phoneIssue } from './phone';
 import './ClientCard.css';
 

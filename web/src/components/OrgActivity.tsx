@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import type { OrgAuditEvent } from '../types';
 import { api, writeErrorMessage } from '../services/api';
-import { useAppTranslation, useLocale } from '../i18n/LocaleProvider';
+import { useAppTranslation, useLocale } from '../i18n/useLocale';
 import type { TranslationKey } from '../i18n/locales';
 import './Administration.css';
 

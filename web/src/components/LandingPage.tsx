@@ -6,7 +6,7 @@ import {
 import { ThemeSelector } from './ThemeSelector';
 import { LanguageSelector } from './LanguageSelector';
 import './LandingPage.css';
-import { useAppTranslation, useLocale } from '../i18n/LocaleProvider';
+import { useAppTranslation, useLocale } from '../i18n/useLocale';
 import type { TranslationKey } from '../i18n/locales';
 import { ANDROID_DOWNLOAD_URL } from '../nativeAppBanner';
 

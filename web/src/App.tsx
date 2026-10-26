@@ -2,8 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { lazyOverlay } from './components/lazyOverlay';
 import type { Client, Visit, Attachment, Organization, ClientTag } from './types';
 import { api } from './services/api';
-import { useAuth } from './auth/AuthContext';
-import { useOrg } from './auth/OrgContext';
+import { useAuth } from './auth/useAuth';
+import { useOrg } from './auth/useOrg';
 import { LoginPage, type LoginMode } from './components/LoginPage';
 import { LandingPage } from './components/LandingPage';
 import { OrganizationOnboarding } from './components/OrganizationOnboarding';
@@ -18,7 +18,7 @@ const PhotoCompareModal = lazyOverlay(async () => { const module = await import(
 const SettingsModal = lazyOverlay(async () => { const module = await import('./components/SettingsModal'); return { default: module.SettingsModal }; });
 import { VerificationBanner } from './components/VerificationBanner';
 import { Users, Sparkles } from 'lucide-react';
-import { useAppTranslation } from './i18n/LocaleProvider';
+import { useAppTranslation } from './i18n/useLocale';
 import { arrivedWithCreationLink, clearMembersDeepLink, membersDeepLink, pendingInviteToken, pendingJoinSlug, stripDeepLinkParams } from './auth/deepLinks';
 import { InviteAcceptDialog } from './components/InviteAcceptDialog';
 

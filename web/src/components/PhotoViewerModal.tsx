@@ -1,7 +1,7 @@
 import { useId } from 'react';
 import { X } from 'lucide-react';
 import type { Attachment } from '../types';
-import { useAppTranslation } from '../i18n/LocaleProvider';
+import { useAppTranslation } from '../i18n/useLocale';
 import { useAttachmentImage } from './useAttachmentImage';
 import { useDismiss } from './useDismiss';
 import './ClientForms.css';

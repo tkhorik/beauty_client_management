@@ -1,12 +1,12 @@
 import React, { useId, useState } from 'react';
 import { useDismiss } from './useDismiss';
-import { useAuth } from '../auth/AuthContext';
+import { useAuth } from '../auth/useAuth';
 import { api, ApiError } from '../services/api';
 import { PASSWORD_MIN_LENGTH, validatePasswordLocally } from '../utils/passwordRules';
 import { X, User, Lock, Settings as SettingsIcon } from 'lucide-react';
 import { ThemeSelector } from './ThemeSelector';
 import { LanguageSelector } from './LanguageSelector';
-import { useAppTranslation } from '../i18n/LocaleProvider';
+import { useAppTranslation } from '../i18n/useLocale';
 import { translatedFieldErrors, translatedApiError } from '../i18n/errors';
 import './ClientForms.css';
 

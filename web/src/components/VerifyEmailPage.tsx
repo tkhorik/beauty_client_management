@@ -1,4 +1,4 @@
-import { useAppTranslation } from '../i18n/LocaleProvider';
+import { useAppTranslation } from '../i18n/useLocale';
 import { CheckCircle2, XCircle } from 'lucide-react';
 import { navigate, type VerificationStatus } from '../auth/route';
 import { AuthLayout } from './AuthLayout';

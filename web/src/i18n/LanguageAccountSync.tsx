@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useAuth } from '../auth/AuthContext';
+import { useAuth } from '../auth/useAuth';
 import { api, ApiError } from '../services/api';
-import { useAppTranslation, useLocale } from './LocaleProvider';
+import { useAppTranslation, useLocale } from './useLocale';
 import { LOCALE_CHANGED_EVENT, type LanguagePreference } from './store';
 import { responseBelongsToSession, settlePending, type LanguagePending } from './syncState';
 

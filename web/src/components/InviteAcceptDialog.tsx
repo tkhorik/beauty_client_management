@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { UserPlus } from 'lucide-react';
-import { useAppTranslation } from '../i18n/LocaleProvider';
+import { useAppTranslation } from '../i18n/useLocale';
 import { api, writeErrorMessage } from '../services/api';
-import { useOrg } from '../auth/OrgContext';
+import { useOrg } from '../auth/useOrg';
 import { clearInviteToken } from '../auth/deepLinks';
 import { useDismiss } from './useDismiss';
 import './AuthScreens.css';

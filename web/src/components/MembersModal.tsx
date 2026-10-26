@@ -1,13 +1,12 @@
-import { useAppTranslation } from '../i18n/LocaleProvider';
+import { useAppTranslation, useLocale } from '../i18n/useLocale';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useDismiss } from './useDismiss';
 import { X, Users, UserPlus, Check, Trash2, Shield, Link2, History, Ban, RotateCcw } from 'lucide-react';
 import type { InviteLink, OrgMember, OrgRole } from '../types';
 import { OrgActivity } from './OrgActivity';
 import { api, writeErrorMessage } from '../services/api';
-import { useAuth } from '../auth/AuthContext';
-import { useOrg } from '../auth/OrgContext';
-import { useLocale } from '../i18n/LocaleProvider';
+import { useAuth } from '../auth/useAuth';
+import { useOrg } from '../auth/useOrg';
 import './Administration.css';
 
 interface MembersModalProps {

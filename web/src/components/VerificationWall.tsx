@@ -1,7 +1,7 @@
-import { useAppTranslation } from '../i18n/LocaleProvider';
+import { useAppTranslation } from '../i18n/useLocale';
 import type { ReactNode } from 'react';
 import { MailWarning, RefreshCw, Send, LogOut } from 'lucide-react';
-import { useAuth } from '../auth/AuthContext';
+import { useAuth } from '../auth/useAuth';
 import { useVerification } from '../auth/useVerification';
 import { AuthLayout } from './AuthLayout';
 

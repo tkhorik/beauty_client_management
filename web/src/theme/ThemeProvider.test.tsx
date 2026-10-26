@@ -4,7 +4,9 @@ import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { beforeEach, afterEach, expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
-import { ThemeProvider, THEME_STORAGE_KEY, parseThemePreference, useTheme } from './ThemeProvider';
+import { ThemeProvider } from './ThemeProvider';
+import { THEME_STORAGE_KEY, parseThemePreference } from './themePreference';
+import { useTheme } from './useTheme';
 import { LocaleProvider } from '../i18n/LocaleProvider';
 import { ThemeSelector } from '../components/ThemeSelector';
 

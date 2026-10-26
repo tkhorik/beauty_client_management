@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api, ApiError, EMAIL_UNVERIFIED_EVENT } from '../services/api';
-import { useAuth } from './AuthContext';
+import { useAuth } from './useAuth';
 
 /**
  * How long the resend button stays disabled after a click.
