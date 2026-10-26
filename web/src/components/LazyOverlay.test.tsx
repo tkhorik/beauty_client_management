@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, useState, type ComponentType } from 'react';
+import { act, useLayoutEffect, useState, type ComponentType } from 'react';
 import { createRoot } from 'react-dom/client';
 import { expect, it, vi } from 'vitest';
 import { LocaleProvider } from '../i18n/LocaleProvider';
@@ -84,7 +84,7 @@ it('reopens a loaded overlay without suspending on its chunk again', async () =>
   let toggle!: (open: boolean) => void;
   function Directory() {
     const [open, setOpen] = useState(true);
-    toggle = setOpen;
+    useLayoutEffect(() => { toggle = setOpen; }, []);
     return open ? <Overlay onClose={() => setOpen(false)} /> : null;
   }
   const host = document.createElement('div');

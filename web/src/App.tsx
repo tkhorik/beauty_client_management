@@ -203,11 +203,19 @@ function AuthenticatedApp({
   // and selection, not the values captured when a form was submitted.
   const loadData = () => setRefreshGeneration(generation => generation + 1);
 
+  // Each new filter or refresh starts a request. Mark it in flight during
+  // render, so no frame shows the previous outcome as the new one's.
+  const clientsKey = JSON.stringify([searchQuery, selectedTag, refreshGeneration]);
+  const [clientsRequestKey, setClientsRequestKey] = useState(clientsKey);
+  if (clientsRequestKey !== clientsKey) {
+    setClientsRequestKey(clientsKey);
+    setLoading(true);
+    setClientsError(false);
+  }
+
   useEffect(() => {
     const request = ++clientRequest.current;
     let active = true;
-    setLoading(true);
-    setClientsError(false);
     const filterKey = JSON.stringify([searchQuery, selectedTag]);
     void api.getClients(searchQuery, selectedTag).then(data => {
       if (active && request === clientRequest.current) {
@@ -236,13 +244,22 @@ function AuthenticatedApp({
   }, [refreshGeneration]);
 
   const selectedClientId = selectedClient?.id;
+  // Same for the open client's details: reset on a new client or a refresh.
+  const detailKey = selectedClientId ? JSON.stringify([selectedClientId, refreshGeneration]) : null;
+  const [detailRequestKey, setDetailRequestKey] = useState(detailKey);
+  if (detailRequestKey !== detailKey) {
+    setDetailRequestKey(detailKey);
+    if (detailKey) {
+      setSelectedClientVisits([]);
+      setVisitsLoading(true);
+      setVisitsError(false);
+    }
+  }
+
   useEffect(() => {
     if (!selectedClientId) return;
     const request = ++detailRequest.current;
     let active = true;
-    setSelectedClientVisits([]);
-    setVisitsLoading(true);
-    setVisitsError(false);
     void Promise.all([api.getClient(selectedClientId), api.getVisits(selectedClientId)]).then(([client, visits]) => {
       if (!active || request !== detailRequest.current) return;
       if (client) setSelectedClient(client);

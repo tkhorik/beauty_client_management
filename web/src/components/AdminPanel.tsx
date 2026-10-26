@@ -68,27 +68,47 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
    */
   const [managingOrg, setManagingOrg] = useState<AdminOrganization | null>(null);
 
+  // When the lists were last read; link expiry is judged against it so that
+  // rendering stays pure.
+  const [now, setNow] = useState(() => Date.now());
+
+  // Fetching and showing are split so the mount effect below can apply the
+  // result from its own callbacks, and drop it once the panel has closed.
+  const fetchAll = useCallback(() => Promise.all([
+    api.getAdminUsers(),
+    api.getAdminOrganizations(),
+    api.getCreationLinks(),
+  ]), []);
+  const showAll = useCallback(([u, o, l]: Awaited<ReturnType<typeof fetchAll>>) => {
+    setUsers(u);
+    setOrgs(o);
+    setLinks(l);
+    setNow(Date.now());
+  }, []);
+  const showLoadError = useCallback(
+    (err: unknown) => setError(writeErrorMessage(err, t('adminPanel.couldNotLoadAdminData'))),
+    [t],
+  );
+
   const loadAll = useCallback(async () => {
     setError('');
     try {
-      const [u, o, l] = await Promise.all([
-        api.getAdminUsers(),
-        api.getAdminOrganizations(),
-        api.getCreationLinks(),
-      ]);
-      setUsers(u);
-      setOrgs(o);
-      setLinks(l);
+      showAll(await fetchAll());
     } catch (err) {
-      setError(writeErrorMessage(err, t('adminPanel.couldNotLoadAdminData')));
+      showLoadError(err);
     } finally {
       setInitialLoading(false);
     }
-  }, [t]);
+  }, [fetchAll, showAll, showLoadError]);
 
   useEffect(() => {
-    void loadAll();
-  }, [loadAll]);
+    let active = true;
+    void fetchAll().then(
+      data => { if (active) showAll(data); },
+      err => { if (active) showLoadError(err); },
+    ).finally(() => { if (active) setInitialLoading(false); });
+    return () => { active = false; };
+  }, [fetchAll, showAll, showLoadError]);
 
   async function run(action: () => Promise<void>, success: string) {
     setError('');
@@ -152,7 +172,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
               }, t('adminPanel.organizationArchived'))}
             />
           ) : (
-            <LinksTab links={links} onRun={run} freshLink={freshLink} onFreshLink={setFreshLink} />
+            <LinksTab links={links} now={now} onRun={run} freshLink={freshLink} onFreshLink={setFreshLink} />
           )}
         </div>
       </div>
@@ -362,6 +382,8 @@ const OrganizationsTab: React.FC<{
 
 const LinksTab: React.FC<{
   links: OrganizationCreationLink[];
+  /** When `links` was read; expiry is judged against it. */
+  now: number;
   onRun: (action: () => Promise<void>, success: string) => Promise<void>;
   /**
    * Owned by the parent, not local state — see the note on `AdminPanel`'s own
@@ -371,7 +393,7 @@ const LinksTab: React.FC<{
    */
   freshLink: { url: string; token: string } | null;
   onFreshLink: (link: { url: string; token: string } | null) => void;
-}> = ({ links, onRun, freshLink, onFreshLink }) => {
+}> = ({ links, now, onRun, freshLink, onFreshLink }) => {
   const { t } = useAppTranslation();
   const { formatDate } = useLocale();
   const [label, setLabel] = useState('');
@@ -470,7 +492,7 @@ const LinksTab: React.FC<{
       <div className="administration-section">
         <h3>{t('adminPanel.allLinks')}</h3>
         {links.map(l => {
-          const expired = new Date(l.expiresAt).getTime() < Date.now();
+          const expired = new Date(l.expiresAt).getTime() < now;
           const exhausted = l.usesCount >= l.maxUses;
           const dead = !!l.revokedAt || expired || exhausted;
           return (
