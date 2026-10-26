@@ -2,7 +2,7 @@
 # ---------------------------------------------------------------------------
 # Stage 1 — build the fat JAR with Gradle on a full JDK 17.
 # ---------------------------------------------------------------------------
-FROM eclipse-temurin:17-jdk-jammy AS build
+FROM eclipse-temurin:25-jdk-jammy AS build
 
 WORKDIR /src
 
@@ -24,7 +24,7 @@ RUN ./gradlew --no-daemon buildFatJar
 # Stage 2 — runtime. JRE only: no Gradle, no compiler, no source code.
 # Roughly 200 MB instead of ~800 MB, and a much smaller attack surface.
 # ---------------------------------------------------------------------------
-FROM eclipse-temurin:17-jre-jammy AS runtime
+FROM eclipse-temurin:25-jre-jammy AS runtime
 
 # curl is used by the container healthcheck.
 RUN apt-get update \
