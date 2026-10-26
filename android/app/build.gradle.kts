@@ -5,6 +5,7 @@ plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.serialization")
+    id("io.gitlab.arturbosch.detekt")
     id("kotlin-kapt")
 }
 
@@ -190,7 +191,22 @@ android {
     }
 }
 
+detekt {
+    toolVersion = "1.23.8"
+    baseline = rootProject.file("../config/detekt/android-baseline.xml")
+}
+
+dependencyLocking {
+    lockAllConfigurations()
+    lockMode.set(LockMode.STRICT)
+}
+
 dependencies {
+    constraints {
+        // Room's annotation processor resolves Guava; keep the update off the APK runtime graph.
+        kapt("com.google.guava:guava:32.0.1-jre")
+    }
+
     implementation("androidx.core:core-ktx:1.12.0")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.7.0")
     implementation("androidx.activity:activity-compose:1.8.2")
@@ -217,11 +233,11 @@ dependencies {
     implementation("androidx.work:work-runtime-ktx:2.9.0")
 
     // Ktor Client for Android
-    implementation("io.ktor:ktor-client-core:2.3.8")
-    implementation("io.ktor:ktor-client-okhttp:2.3.8")
-    implementation("io.ktor:ktor-client-content-negotiation:2.3.8")
-    implementation("io.ktor:ktor-serialization-kotlinx-json:2.3.8")
-    implementation("io.ktor:ktor-client-auth:2.3.8")
+    implementation("io.ktor:ktor-client-core:2.3.13")
+    implementation("io.ktor:ktor-client-okhttp:2.3.13")
+    implementation("io.ktor:ktor-client-content-negotiation:2.3.13")
+    implementation("io.ktor:ktor-serialization-kotlinx-json:2.3.13")
+    implementation("io.ktor:ktor-client-auth:2.3.13")
 
     // Jetpack Security — EncryptedSharedPreferences for JWT token storage
     implementation("androidx.security:security-crypto:1.1.0-alpha06")
@@ -231,7 +247,7 @@ dependencies {
 
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.3")
-    testImplementation("io.ktor:ktor-client-mock:2.3.8")
+    testImplementation("io.ktor:ktor-client-mock:2.3.13")
     testImplementation("org.mockito.kotlin:mockito-kotlin:5.2.1")
 
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")

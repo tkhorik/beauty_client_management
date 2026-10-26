@@ -1,0 +1,361 @@
+<?xml version="1.0" ?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>ComplexCondition:AttachmentStorage.kt$!storedPath.startsWith(prefix) || name.isBlank() || name.contains('/') || name.contains('\\')</ID>
+    <ID>ComplexCondition:Languages.kt$Languages$language !in setOf("en", "ru") || !quality.isFinite() || quality &lt;= 0 || quality &gt; 1</ID>
+    <ID>ComplexCondition:S3StorageService.kt$S3StorageService.Companion$name.isBlank() || name.contains('/') || name.contains('\\') || name.contains("..")</ID>
+    <ID>CyclomaticComplexMethod:AdminRoutes.kt$fun Route.adminRoutes()</ID>
+    <ID>CyclomaticComplexMethod:AppSettings.kt$AppSettings$fun validateOrFail()</ID>
+    <ID>CyclomaticComplexMethod:AttachmentRoutes.kt$fun Route.attachmentRoutes(storage: FileStorageService)</ID>
+    <ID>CyclomaticComplexMethod:AuthRoutes.kt$fun Route.authRoutes()</ID>
+    <ID>CyclomaticComplexMethod:ClientRoutes.kt$fun Route.clientRoutes(storage: FileStorageService)</ID>
+    <ID>CyclomaticComplexMethod:OrganizationRoutes.kt$fun Route.organizationRoutes()</ID>
+    <ID>CyclomaticComplexMethod:UserRoutes.kt$fun Route.userRoutes()</ID>
+    <ID>CyclomaticComplexMethod:VisitRoutes.kt$fun Route.visitRoutes(storage: FileStorageService)</ID>
+    <ID>DestructuringDeclarationWithTooManyEntries:InviteLinkFlowTest.kt$InviteLinkFlowTest$val (a, aId, _, orgId) = twoAdmins()</ID>
+    <ID>DestructuringDeclarationWithTooManyEntries:InviteLinkFlowTest.kt$InviteLinkFlowTest$val (a, aId, b, orgId) = twoAdmins()</ID>
+    <ID>LargeClass:OrganizationIsolationTest.kt$OrganizationIsolationTest</ID>
+    <ID>LongMethod:AdminRoutes.kt$fun Route.adminRoutes()</ID>
+    <ID>LongMethod:AttachmentRoutes.kt$fun Route.attachmentRoutes(storage: FileStorageService)</ID>
+    <ID>LongMethod:AuthRoutes.kt$fun Route.authRoutes()</ID>
+    <ID>LongMethod:ClientRoutes.kt$fun Route.clientRoutes(storage: FileStorageService)</ID>
+    <ID>LongMethod:OrgAccess.kt$suspend fun PipelineContext&lt;Unit, ApplicationCall&gt;.requireOrgAccess( memberships: MembershipService, requireAdmin: Boolean = false, requireVerified: Boolean? = null ): OrgContext?</ID>
+    <ID>LongMethod:OrganizationRoutes.kt$fun Route.organizationRoutes()</ID>
+    <ID>LongMethod:Routing.kt$fun Application.configureRouting(storage: FileStorageService)</ID>
+    <ID>LongMethod:UserRoutes.kt$fun Route.userRoutes()</ID>
+    <ID>LongMethod:VisitRoutes.kt$fun Route.visitRoutes(storage: FileStorageService)</ID>
+    <ID>LongParameterList:AuthRoutes.kt$( status: HttpStatusCode, user: UserDto, settings: AppSettings, secret: String, issuer: String, audience: String, accessTokenMinutes: Long, refreshTokens: RefreshTokenService )</ID>
+    <ID>LongParameterList:EmailTemplates.kt$EmailTemplates$( adminName: String, requesterName: String, requesterEmail: String, organizationName: String, link: String, language: String = "en" )</ID>
+    <ID>LongParameterList:EmailTemplates.kt$EmailTemplates$( fullName: String, heading: String, subject: String, body: String, notice: String, buttonLabel: String, link: String )</ID>
+    <ID>LongParameterList:Security.kt$( userId: String, email: String, secret: String, issuer: String, audience: String, expiresInMinutes: Long )</ID>
+    <ID>MagicNumber:AppSettings.kt$AppSettings$10</ID>
+    <ID>MagicNumber:AppSettings.kt$AppSettings$15L</ID>
+    <ID>MagicNumber:AppSettings.kt$AppSettings$24L</ID>
+    <ID>MagicNumber:AppSettings.kt$AppSettings$30L</ID>
+    <ID>MagicNumber:AppSettings.kt$AppSettings$32</ID>
+    <ID>MagicNumber:AppSettings.kt$AppSettings$587</ID>
+    <ID>MagicNumber:AppSettings.kt$AppSettings$60L</ID>
+    <ID>MagicNumber:AppSettings.kt$AppSettings$7L</ID>
+    <ID>MagicNumber:AttachmentRoutes.kt$100</ID>
+    <ID>MagicNumber:DatabaseFactory.kt$DatabaseFactory$10_000L</ID>
+    <ID>MagicNumber:OrgAuditService.kt$OrgAuditService$255</ID>
+    <ID>MagicNumber:OrganizationRoutes.kt$100</ID>
+    <ID>MagicNumber:OrganizationRoutes.kt$50</ID>
+    <ID>MagicNumber:Pagination.kt$100</ID>
+    <ID>MagicNumber:Pagination.kt$50</ID>
+    <ID>MagicNumber:S3StorageService.kt$S3StorageService$404</ID>
+    <ID>MagicNumber:Tables.kt$AttachmentsTable$100</ID>
+    <ID>MagicNumber:Tables.kt$AttachmentsTable$50</ID>
+    <ID>MagicNumber:Tables.kt$AttachmentsTable$512</ID>
+    <ID>MagicNumber:Tables.kt$AttachmentsTable$64</ID>
+    <ID>MagicNumber:Tables.kt$ClientsTable$255</ID>
+    <ID>MagicNumber:Tables.kt$ClientsTable$50</ID>
+    <ID>MagicNumber:Tables.kt$ClientsTable$64</ID>
+    <ID>MagicNumber:Tables.kt$OneTimeTokensTable$32</ID>
+    <ID>MagicNumber:Tables.kt$OneTimeTokensTable$64</ID>
+    <ID>MagicNumber:Tables.kt$OrganizationAuditTable$255</ID>
+    <ID>MagicNumber:Tables.kt$OrganizationAuditTable$32</ID>
+    <ID>MagicNumber:Tables.kt$OrganizationAuditTable$64</ID>
+    <ID>MagicNumber:Tables.kt$OrganizationCreationTokensTable$255</ID>
+    <ID>MagicNumber:Tables.kt$OrganizationCreationTokensTable$64</ID>
+    <ID>MagicNumber:Tables.kt$OrganizationInviteLinksTable$64</ID>
+    <ID>MagicNumber:Tables.kt$OrganizationsTable$100</ID>
+    <ID>MagicNumber:Tables.kt$OrganizationsTable$255</ID>
+    <ID>MagicNumber:Tables.kt$OrganizationsTable$64</ID>
+    <ID>MagicNumber:Tables.kt$RefreshTokensTable$64</ID>
+    <ID>MagicNumber:Tables.kt$UserOrganizationsTable$32</ID>
+    <ID>MagicNumber:Tables.kt$UserOrganizationsTable$64</ID>
+    <ID>MagicNumber:Tables.kt$UsersTable$16</ID>
+    <ID>MagicNumber:Tables.kt$UsersTable$255</ID>
+    <ID>MagicNumber:Tables.kt$UsersTable$32</ID>
+    <ID>MagicNumber:Tables.kt$UsersTable$64</ID>
+    <ID>MagicNumber:Tables.kt$VisitsTable$50</ID>
+    <ID>MagicNumber:Tables.kt$VisitsTable$64</ID>
+    <ID>MagicNumber:Validation.kt$Validation$3</ID>
+    <ID>MagicNumber:Validation.kt$Validation$4</ID>
+    <ID>MatchingDeclarationName:LocalStorageService.kt$LocalFileStorageService : FileStorageService</ID>
+    <ID>MaxLineLength:AccountMailer.kt$AccountMailer$fun</ID>
+    <ID>MaxLineLength:AdminRoutes.kt$call.respond(HttpStatusCode.NotFound, mapOf("error" to "No such link, or it was already revoked.", "code" to "LINK_NOT_FOUND"))</ID>
+    <ID>MaxLineLength:AdminRoutes.kt$call.respond(HttpStatusCode.NotFound, mapOf("error" to "No such organization.", "code" to "ORGANIZATION_NOT_FOUND"))</ID>
+    <ID>MaxLineLength:AdminRoutes.kt$if (req.expiresInHours &lt; 1) put("expiresInHours", com.beauty.validation.ValidationIssue("EXPIRY_TOO_SHORT", "Must expire at least one hour from now."))</ID>
+    <ID>MaxLineLength:AdminRoutes.kt$if (req.maxUses &lt; 1) put("maxUses", com.beauty.validation.ValidationIssue("MAX_USES_TOO_SMALL", "Must allow at least one use."))</ID>
+    <ID>MaxLineLength:AdminRoutes.kt$mapOf("error" to "Type the organization handle exactly to confirm.", "code" to "CONFIRMATION_MISMATCH")</ID>
+    <ID>MaxLineLength:AdminRoutes.kt$put("expiresInHours", com.beauty.validation.ValidationIssue("EXPIRY_TOO_LONG", "Cannot exceed $MAX_EXPIRY_HOURS hours (about a year).", mapOf("max" to MAX_EXPIRY_HOURS.toInt())))</ID>
+    <ID>MaxLineLength:AppSettings.kt$AppSettings$add("Both MAIL_STARTTLS and MAIL_SSL_ON_CONNECT are false: mail, including password-reset links, would be sent unencrypted.")</ID>
+    <ID>MaxLineLength:AppSettings.kt$AppSettings$add("MAIL_HOST is not set. Production would fall back to the dev logging mail sender, which prints reset links to the logs instead of sending them.")</ID>
+    <ID>MaxLineLength:AppSettings.kt$AppSettings$add("MAIL_STARTTLS and MAIL_SSL_ON_CONNECT are both true. Choose one: STARTTLS for port 587, implicit TLS for port 465.")</ID>
+    <ID>MaxLineLength:AttachmentRouteSecurityTest.kt$AttachmentRouteSecurityTest$assertEquals(HttpStatusCode.NotFound, client.get(fileUrl) { bearerAuth(alice); header(ORG_HEADER, orgA) }.status)</ID>
+    <ID>MaxLineLength:AttachmentRouteSecurityTest.kt$AttachmentRouteSecurityTest$setBody("""{"clientId":"$clientId","visitDateTime":"2026-08-21T10:00:00","durationMinutes":30,"procedureNotes":"test"}""")</ID>
+    <ID>MaxLineLength:AttachmentRoutes.kt$call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Missing visitId or file data", "code" to "MISSING_ATTACHMENT_DATA"))</ID>
+    <ID>MaxLineLength:AttachmentRoutes.kt$call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Only one file may be uploaded", "code" to "ONE_FILE_REQUIRED"))</ID>
+    <ID>MaxLineLength:AttachmentRoutes.kt$call.respond(HttpStatusCode.NotFound, mapOf("error" to "Attachment file not found", "code" to "ATTACHMENT_NOT_FOUND"))</ID>
+    <ID>MaxLineLength:AttachmentRoutes.kt$call.respond(HttpStatusCode.NotFound, mapOf("error" to "Attachment not found", "code" to "ATTACHMENT_NOT_FOUND"))</ID>
+    <ID>MaxLineLength:AttachmentRoutes.kt$call.respond(HttpStatusCode.NotFound, mapOf("error" to "Visit not found", "code" to "VISIT_NOT_FOUND"))</ID>
+    <ID>MaxLineLength:AttachmentRoutes.kt$call.respond(HttpStatusCode.PayloadTooLarge, mapOf("error" to "Attachment exceeds the 20 MB upload limit", "code" to "ATTACHMENT_TOO_LARGE"))</ID>
+    <ID>MaxLineLength:AttachmentRoutes.kt$val id = call.parameters["id"] ?: return@delete call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Missing ID", "code" to "MISSING_ID"))</ID>
+    <ID>MaxLineLength:AttachmentRoutes.kt$val id = call.parameters["id"] ?: return@get call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Missing ID", "code" to "MISSING_ID"))</ID>
+    <ID>MaxLineLength:AttachmentS3DeliveryTest.kt$AttachmentS3DeliveryTest$setBody("""{"clientId":"$clientId","visitDateTime":"2026-08-21T10:00:00","durationMinutes":30,"procedureNotes":"test"}""")</ID>
+    <ID>MaxLineLength:AuthRoutes.kt$accountMailer.sendVerification(id, email, fullName, Languages.resolve(req.languagePreference, call.request.headers[HttpHeaders.AcceptLanguage]))</ID>
+    <ID>MaxLineLength:AuthRoutes.kt$call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Invalid verification token", "code" to "INVALID_VERIFICATION_TOKEN"))</ID>
+    <ID>MaxLineLength:AuthRoutes.kt$call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Unsupported language preference", "code" to "INVALID_LANGUAGE"))</ID>
+    <ID>MaxLineLength:AuthRoutes.kt$call.respond(HttpStatusCode.Conflict, mapOf("error" to "User with email already exists", "code" to "EMAIL_ALREADY_EXISTS"))</ID>
+    <ID>MaxLineLength:AuthRoutes.kt$call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Invalid credentials", "code" to "INVALID_CREDENTIALS"))</ID>
+    <ID>MaxLineLength:AuthRoutes.kt$call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "No refresh token provided", "code" to "SESSION_EXPIRED"))</ID>
+    <ID>MaxLineLength:AuthRoutes.kt$call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Session expired. Please sign in again.", "code" to "SESSION_EXPIRED"))</ID>
+    <ID>MaxLineLength:AuthRoutes.kt$errors["organizationSlug"] = ValidationIssue("ORGANIZATION_NOT_FOUND", "No organization with that handle.")</ID>
+    <ID>MaxLineLength:AuthRoutes.kt$language = Languages.resolve(row[UsersTable.languagePreference], call.request.headers[HttpHeaders.AcceptLanguage])</ID>
+    <ID>MaxLineLength:AuthRoutes.kt$mapOf("error" to "This reset link is invalid or has expired. Please request a new one.", "code" to "INVALID_RESET_TOKEN")</ID>
+    <ID>MaxLineLength:ClientPhoneValidationTest.kt$ClientPhoneValidationTest$fun</ID>
+    <ID>MaxLineLength:ClientRoutes.kt$call.respond(HttpStatusCode.BadRequest, ValidationErrorResponse.from(mapOf("phone" to updated.issue)))</ID>
+    <ID>MaxLineLength:ClientRoutes.kt$call.respond(HttpStatusCode.NotFound, mapOf("error" to "Client not found", "code" to "CLIENT_NOT_FOUND"))</ID>
+    <ID>MaxLineLength:ClientRoutes.kt$val id = call.parameters["id"] ?: return@delete call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Missing ID", "code" to "MISSING_ID"))</ID>
+    <ID>MaxLineLength:ClientRoutes.kt$val id = call.parameters["id"] ?: return@get call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Missing ID", "code" to "MISSING_ID"))</ID>
+    <ID>MaxLineLength:ClientRoutes.kt$val id = call.parameters["id"] ?: return@put call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Missing ID", "code" to "MISSING_ID"))</ID>
+    <ID>MaxLineLength:EmailTemplates.kt$EmailTemplates$"$who ($requesterEmail) запросил(а) доступ к организации «$org». Запрос не даёт никакого доступа, пока администратор его не одобрит."</ID>
+    <ID>MaxLineLength:EmailTemplates.kt$EmailTemplates$"Если вы не запрашивали сброс, ничего делать не нужно: пароль не изменился, и отправитель запроса не может прочитать это письмо."</ID>
+    <ID>MaxLineLength:EmailTemplates.kt$EmailTemplates$"Если это были вы, ничего делать не нужно. Если это были НЕ вы, немедленно сбросьте пароль: тот, кто его изменил, всё ещё знает установленный пароль."</ID>
+    <ID>MaxLineLength:EmailTemplates.kt$EmailTemplates$"Кто-то запросил сброс пароля вашей учётной записи $APP_NAME. Если это были вы, выберите новый пароль по ссылке ниже. Срок действия ссылки: $expiryMinutes мин. Ссылку можно использовать только один раз."</ID>
+    <ID>MaxLineLength:EmailTemplates.kt$EmailTemplates$"Пароль вашей учётной записи $APP_NAME изменён: $whenText. Выполнен выход из учётной записи на всех устройствах."</ID>
+    <ID>MaxLineLength:EmailTemplates.kt$EmailTemplates$"Подтвердите этот адрес электронной почты, чтобы завершить настройку учётной записи $APP_NAME. Срок действия ссылки: $expiryHours ч. Ссылку можно использовать только один раз."</ID>
+    <ID>MaxLineLength:EmailTemplates.kt$EmailTemplates$fun</ID>
+    <ID>MaxLineLength:EmailTemplates.kt$EmailTemplates$val body = "$who ($requesterEmail) has asked to join $org. The request grants no access until an administrator approves it."</ID>
+    <ID>MaxLineLength:FileStorageFactory.kt$FileStorageFactory$log.info("Using S3 storage bucket: '{}' in region: '{}' (endpoint: {})", s3.bucket, s3.region, s3.endpoint ?: "default")</ID>
+    <ID>MaxLineLength:InviteLinkFlowTest.kt$InviteLinkFlowTest$val preview = json(client.get("/api/organizations/invite-links/preview?token=$link") { bearerAuth(newcomer) }.bodyAsText()).jsonObject</ID>
+    <ID>MaxLineLength:InviteLinkFlowTest.kt$InviteLinkFlowTest$val preview = json(client.get("/api/organizations/invite-links/preview?token=$link") { bearerAuth(second) }.bodyAsText()).jsonObject</ID>
+    <ID>MaxLineLength:JoinRequestFlowTest.kt$JoinRequestFlowTest$assertCode(adminPost(admin, orgId, "$squatterId/approval"), HttpStatusCode.Conflict, "TARGET_EMAIL_NOT_VERIFIED")</ID>
+    <ID>MaxLineLength:JoinRequestFlowTest.kt$JoinRequestFlowTest$assertCode(invite(admin, orgId, "staff@example.com", role = "ORG_ADMIN"), HttpStatusCode.Conflict, "TARGET_EMAIL_NOT_VERIFIED")</ID>
+    <ID>MaxLineLength:JoinRequestFlowTest.kt$JoinRequestFlowTest$assertEquals("ACTIVE", json(join(newcomer, "salon-a").bodyAsText()).jsonObject["status"]!!.jsonPrimitive.content)</ID>
+    <ID>MaxLineLength:JoinRequestFlowTest.kt$JoinRequestFlowTest$private suspend</ID>
+    <ID>MaxLineLength:LanguageMigrationTest.kt$LanguageMigrationTest$DriverManager.getConnection("jdbc:h2:mem:migration-${UUID.randomUUID()};MODE=PostgreSQL", "sa", "")</ID>
+    <ID>MaxLineLength:LanguageMigrationTest.kt$LanguageMigrationTest$statement.executeQuery("SELECT full_name, language_preference, language_revision FROM users WHERE id = 'existing'")</ID>
+    <ID>MaxLineLength:LanguagePreferenceTest.kt$LanguagePreferenceTest$@Test</ID>
+    <ID>MaxLineLength:LanguagePreferenceTest.kt$LanguagePreferenceTest$assertEquals("ACCOUNT_CHANGED", Json.parseToJsonElement(accountMismatch.bodyAsText()).jsonObject["code"]!!.jsonPrimitive.content)</ID>
+    <ID>MaxLineLength:LanguagePreferenceTest.kt$LanguagePreferenceTest$assertEquals("en", Json.parseToJsonElement(other.bodyAsText()).jsonObject["languagePreference"]!!.jsonPrimitive.content)</ID>
+    <ID>MaxLineLength:LanguagePreferenceTest.kt$LanguagePreferenceTest$assertEquals("ru", Json.parseToJsonElement(login.bodyAsText()).jsonObject["user"]!!.jsonObject["languagePreference"]!!.jsonPrimitive.content)</ID>
+    <ID>MaxLineLength:Languages.kt$Languages$val quality = if (qualityText == null) 1.0 else qualityText.toDoubleOrNull() ?: return@mapIndexedNotNull null</ID>
+    <ID>MaxLineLength:LegacyFallbackStorageServiceTest.kt$LegacyFallbackStorageServiceTest.FakeBucket$override suspend</ID>
+    <ID>MaxLineLength:Models.kt$InviteLinkPreviewResponse$/** Response for `GET /api/organizations/invite-links/preview`. [organization] is null when the link is not redeemable. */</ID>
+    <ID>MaxLineLength:Models.kt$UpdateProfileRequest$/** Body for `PATCH /api/users/me`. Only the display name is editable here — email is the login identifier and changing it is a separate, verification-gated flow this app does not yet have. */</ID>
+    <ID>MaxLineLength:OrgCreationTokenGatingTest.kt$OrgCreationTokenGatingTest$assertEquals("ORG_ADMIN", Json.parseToJsonElement(response.bodyAsText()).jsonObject["role"]!!.jsonPrimitive.content)</ID>
+    <ID>MaxLineLength:OrgCreationTokenGatingTest.kt$OrgCreationTokenGatingTest$val (id, token) = service.issue(userId(bootstrapper), null, maxUses = 5, expiresAt = LocalDateTime.now().plusDays(1))</ID>
+    <ID>MaxLineLength:OrgInviteLinkService.kt$OrgInviteLinkService$.</ID>
+    <ID>MaxLineLength:OrgInviteLinkService.kt$OrgInviteLinkService$suspend</ID>
+    <ID>MaxLineLength:OrganizationIsolationTest.kt$OrganizationIsolationTest$"""{"clientId":"$bobsClient","visitDateTime":"2026-07-29T10:00:00","durationMinutes":60,"procedureNotes":"injected"}"""</ID>
+    <ID>MaxLineLength:OrganizationIsolationTest.kt$OrganizationIsolationTest$assertEquals("CANNOT_REVOKE_SELF", Json.parseToJsonElement(self.bodyAsText()).jsonObject["code"]!!.jsonPrimitive.content)</ID>
+    <ID>MaxLineLength:OrganizationIsolationTest.kt$OrganizationIsolationTest$assertEquals("LAST_ADMIN", Json.parseToJsonElement(byRoot.bodyAsText()).jsonObject["code"]!!.jsonPrimitive.content)</ID>
+    <ID>MaxLineLength:OrganizationIsolationTest.kt$OrganizationIsolationTest$assertEquals("MEMBERSHIP_SUSPENDED", Json.parseToJsonElement(again.bodyAsText()).jsonObject["code"]!!.jsonPrimitive.content)</ID>
+    <ID>MaxLineLength:OrganizationIsolationTest.kt$OrganizationIsolationTest$assertEquals("NOT_A_MEMBER", Json.parseToJsonElement(audit.bodyAsText()).jsonObject["code"]!!.jsonPrimitive.content)</ID>
+    <ID>MaxLineLength:OrganizationIsolationTest.kt$OrganizationIsolationTest$assertEquals(selectedTime, Json.parseToJsonElement(created.bodyAsText()).jsonObject["visitDateTime"]!!.jsonPrimitive.content)</ID>
+    <ID>MaxLineLength:OrganizationIsolationTest.kt$OrganizationIsolationTest$setBody("""{"clientId":"$clientId","visitDateTime":"$selectedTime","durationMinutes":60,"procedureNotes":"Historical visit","status":"COMPLETED"}""")</ID>
+    <ID>MaxLineLength:OrganizationRoutes.kt$ValidationErrorResponse.from(mapOf("slug" to com.beauty.validation.ValidationIssue("SLUG_TAKEN", "That organization handle is already taken.")))</ID>
+    <ID>MaxLineLength:OrganizationRoutes.kt$audit.record(orgId, ctx.userId, OrgAuditService.Action.APPROVED, targetUserId = targetUserId, detail = role.name)</ID>
+    <ID>MaxLineLength:OrganizationRoutes.kt$audit.record(orgId, ctx.userId, OrgAuditService.Action.INVITED, targetUserId = targetUserId, detail = role.name)</ID>
+    <ID>MaxLineLength:OrganizationRoutes.kt$audit.record(orgId, ctx.userId, OrgAuditService.Action.REMOVED, targetUserId = targetUserId, detail = existing.status.name)</ID>
+    <ID>MaxLineLength:OrganizationRoutes.kt$audit.record(orgId, ctx.userId, OrgAuditService.Action.ROLE_CHANGED, targetUserId = targetUserId, detail = role.name)</ID>
+    <ID>MaxLineLength:OrganizationRoutes.kt$audit.record(result.org.id, userId, OrgAuditService.Action.INVITATION_ACCEPTED, targetUserId = userId)</ID>
+    <ID>MaxLineLength:OrganizationRoutes.kt$audit.record(result.org.id, userId, OrgAuditService.Action.INVITE_LINK_ACCEPTED, targetUserId = userId)</ID>
+    <ID>MaxLineLength:OrganizationRoutes.kt$call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Invalid 'before' timestamp.", "code" to "INVALID_CURSOR"))</ID>
+    <ID>MaxLineLength:OrganizationRoutes.kt$call.respond(HttpStatusCode.Conflict, mapOf("error" to "That user is already a member.", "code" to "ALREADY_A_MEMBER"))</ID>
+    <ID>MaxLineLength:OrganizationRoutes.kt$call.respond(HttpStatusCode.Conflict, mapOf("error" to "You cannot revoke your own access. Leave the organization instead.", "code" to "CANNOT_REVOKE_SELF"))</ID>
+    <ID>MaxLineLength:OrganizationRoutes.kt$call.respond(HttpStatusCode.NotFound, mapOf("error" to "No pending request from that user.", "code" to "REQUEST_NOT_FOUND"))</ID>
+    <ID>MaxLineLength:OrganizationRoutes.kt$call.respond(HttpStatusCode.NotFound, mapOf("error" to "No such organization.", "code" to "ORGANIZATION_NOT_FOUND"))</ID>
+    <ID>MaxLineLength:OrganizationRoutes.kt$call.respond(HttpStatusCode.NotFound, mapOf("error" to "No unused invite link with that id.", "code" to "INVITE_LINK_NOT_FOUND"))</ID>
+    <ID>MaxLineLength:OrganizationRoutes.kt$call.respond(HttpStatusCode.NotFound, mapOf("error" to "That user is not a member.", "code" to "NOT_A_MEMBER"))</ID>
+    <ID>MaxLineLength:OrganizationRoutes.kt$call.respond(HttpStatusCode.NotFound, mapOf("error" to "That user is not an active member.", "code" to "NOT_A_MEMBER"))</ID>
+    <ID>MaxLineLength:OrganizationRoutes.kt$call.respond(HttpStatusCode.NotFound, mapOf("error" to "That user's access is not revoked.", "code" to "MEMBERSHIP_NOT_SUSPENDED"))</ID>
+    <ID>MaxLineLength:OrganizationRoutes.kt$if (!memberships.accountStatus(targetUserId).emailVerified) return@post call.respondTargetEmailNotVerified()</ID>
+    <ID>MaxLineLength:OrganizationRoutes.kt$mapOf("error" to "No account with that email address. Ask them to register first.", "code" to "ACCOUNT_NOT_FOUND")</ID>
+    <ID>MaxLineLength:OrganizationRoutes.kt$mapOf("error" to "That user is suspended in this organization. Unsuspend them first.", "code" to "MEMBER_SUSPENDED")</ID>
+    <ID>MaxLineLength:OrganizationRoutes.kt$mapOf("error" to "This invite link is invalid, expired or already used.", "code" to "INVITE_LINK_INVALID")</ID>
+    <ID>MaxLineLength:OrganizationRoutes.kt$mapOf("error" to "This is the only administrator. Promote someone else first.", "code" to "LAST_ADMIN")</ID>
+    <ID>MaxLineLength:OrganizationRoutes.kt$pendingRequestCount = if (it.organizationId in administered) pendingCounts[it.organizationId] ?: 0 else null</ID>
+    <ID>MaxLineLength:S3StorageService.kt$S3StorageService$override suspend</ID>
+    <ID>MaxLineLength:S3StorageServiceTest.kt$S3StorageServiceTest$.</ID>
+    <ID>MaxLineLength:UserRoutes.kt$/** Lets the client (re)hydrate the profile it doesn't otherwise have — the JWT carries only id and email, not the display name. */</ID>
+    <ID>MaxLineLength:UserRoutes.kt$UsersTable</ID>
+    <ID>MaxLineLength:UserRoutes.kt$ValidationErrorResponse.from(mapOf("newPassword" to com.beauty.validation.ValidationIssue("PASSWORD_UNCHANGED", "New password must be different from the current password.")))</ID>
+    <ID>MaxLineLength:UserRoutes.kt$call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Invalid language preference or revision", "code" to "INVALID_LANGUAGE"))</ID>
+    <ID>MaxLineLength:UserRoutes.kt$call.respond(HttpStatusCode.Forbidden, mapOf("error" to "The active account changed", "code" to "ACCOUNT_CHANGED"))</ID>
+    <ID>MaxLineLength:UserRoutes.kt$call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Current password is incorrect", "code" to "CURRENT_PASSWORD_INCORRECT"))</ID>
+    <ID>MaxLineLength:Validation.kt$Validation$ValidationIssue("NAME_TOO_LONG", "Name must be at most $FULL_NAME_MAX_LENGTH characters.", mapOf("max" to FULL_NAME_MAX_LENGTH))</ID>
+    <ID>MaxLineLength:Validation.kt$Validation$ValidationIssue("ORGANIZATION_NAME_TOO_LONG", "Organization name must be at most $ORG_NAME_MAX_LENGTH characters.", mapOf("max" to ORG_NAME_MAX_LENGTH))</ID>
+    <ID>MaxLineLength:Validation.kt$Validation$ValidationIssue("PASSWORD_TOO_LONG", "Password must be at most $PASSWORD_MAX_BYTES bytes long.", mapOf("max" to PASSWORD_MAX_BYTES))</ID>
+    <ID>MaxLineLength:Validation.kt$Validation$ValidationIssue("PASSWORD_TOO_SHORT", "Password must be at least $PASSWORD_MIN_LENGTH characters.", mapOf("min" to PASSWORD_MIN_LENGTH))</ID>
+    <ID>MaxLineLength:Validation.kt$Validation$ValidationIssue("SLUG_INVALID", "Organization handle may contain only lowercase letters, numbers and hyphens.")</ID>
+    <ID>MaxLineLength:Validation.kt$Validation$ValidationIssue("SLUG_TOO_LONG", "Organization handle must be at most $ORG_SLUG_MAX_LENGTH characters.", mapOf("max" to ORG_SLUG_MAX_LENGTH))</ID>
+    <ID>MaxLineLength:Validation.kt$Validation$ValidationIssue("SLUG_TOO_SHORT", "Organization handle must be at least $ORG_SLUG_MIN_LENGTH characters.", mapOf("min" to ORG_SLUG_MIN_LENGTH))</ID>
+    <ID>MaxLineLength:Validation.kt$Validation$email.length &gt; EMAIL_MAX_LENGTH -&gt; ValidationIssue("EMAIL_TOO_LONG", "Email must be at most $EMAIL_MAX_LENGTH characters.", mapOf("max" to EMAIL_MAX_LENGTH))</ID>
+    <ID>MaxLineLength:VisitRoutes.kt$call.respond(HttpStatusCode.NotFound, mapOf("error" to "Client not found", "code" to "CLIENT_NOT_FOUND"))</ID>
+    <ID>MaxLineLength:VisitRoutes.kt$try { LocalDateTime.parse(req.visitDateTime) } catch (e: Exception) { existing[VisitsTable.visitDateTime] }</ID>
+    <ID>MaxLineLength:VisitRoutes.kt$val id = call.parameters["id"] ?: return@delete call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Missing ID", "code" to "MISSING_ID"))</ID>
+    <ID>MaxLineLength:VisitRoutes.kt$val id = call.parameters["id"] ?: return@get call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Missing ID", "code" to "MISSING_ID"))</ID>
+    <ID>MaxLineLength:VisitRoutes.kt$val id = call.parameters["id"] ?: return@put call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Missing ID", "code" to "MISSING_ID"))</ID>
+    <ID>ReturnCount:LegacyFallbackStorageService.kt$LegacyFallbackStorageService$override suspend fun resolve(storagePath: String): StoragePayload?</ID>
+    <ID>ReturnCount:MembershipService.kt$MembershipService$suspend fun requestToJoin(userId: String, rawSlug: String, now: LocalDateTime = LocalDateTime.now()): JoinResult</ID>
+    <ID>ReturnCount:OneTimeTokenService.kt$OneTimeTokenService$suspend fun redeem(rawToken: String, purpose: TokenPurpose): Redemption</ID>
+    <ID>ReturnCount:OrgAccess.kt$private suspend fun PipelineContext&lt;Unit, ApplicationCall&gt;.passesVerificationGate( account: AccountStatus, requireVerified: Boolean? ): Boolean</ID>
+    <ID>ReturnCount:OrgAccess.kt$suspend fun PipelineContext&lt;Unit, ApplicationCall&gt;.requireActiveAccount( memberships: MembershipService ): String?</ID>
+    <ID>ReturnCount:OrgAccess.kt$suspend fun PipelineContext&lt;Unit, ApplicationCall&gt;.requireOrgAccess( memberships: MembershipService, requireAdmin: Boolean = false, requireVerified: Boolean? = null ): OrgContext?</ID>
+    <ID>ReturnCount:OrgAccess.kt$suspend fun PipelineContext&lt;Unit, ApplicationCall&gt;.requireSuperAdmin( memberships: MembershipService ): String?</ID>
+    <ID>ReturnCount:OrgAccess.kt$suspend fun PipelineContext&lt;Unit, ApplicationCall&gt;.requireWritableAccount( memberships: MembershipService ): String?</ID>
+    <ID>ReturnCount:S3StorageService.kt$S3StorageService.Companion$fun toS3Key(storagePath: String): String?</ID>
+    <ID>ReturnCount:VerificationPolicy.kt$VerificationPolicy$fun canAccess(account: AccountStatus, now: LocalDateTime = LocalDateTime.now()): Boolean</ID>
+    <ID>ReturnCount:VerificationPolicy.kt$VerificationPolicy$fun deadlineFor(account: AccountStatus): LocalDateTime?</ID>
+    <ID>SpreadOperator:ClientRoutes.kt$(*ClientsTable.columns.toTypedArray())</ID>
+    <ID>SwallowedException:AttachmentRoutes.kt$e: UploadTooLargeException</ID>
+    <ID>SwallowedException:S3StorageService.kt$S3StorageService$e: NoSuchKeyException</ID>
+    <ID>SwallowedException:VisitRoutes.kt$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:AccountMailer.kt$AccountMailer$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:AttachmentRoutes.kt$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:DatabaseFactory.kt$DatabaseFactory$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:LegacyFallbackStorageService.kt$LegacyFallbackStorageService$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:MailSender.kt$SmtpMailSender$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:S3StorageService.kt$S3StorageService$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:VisitRoutes.kt$e: Exception</ID>
+    <ID>TooManyFunctions:MembershipService.kt$MembershipService</ID>
+    <ID>TooManyFunctions:OrgInviteLinkService.kt$OrgInviteLinkService</ID>
+    <ID>TooManyFunctions:Validation.kt$Validation</ID>
+    <ID>UnusedPrivateMember:ClientPhoneValidationTest.kt$ClientPhoneValidationTest$private suspend fun ApplicationTestBuilder.createClient(token: String, orgId: String, name: String): String</ID>
+    <ID>UseCheckOrError:DatabaseFactory.kt$DatabaseFactory$throw IllegalStateException("Cannot create upload directory: ${settings.uploadDir.absolutePath}")</ID>
+    <ID>UseCheckOrError:S3StorageService.kt$S3StorageService$throw IllegalStateException("S3Presigner is required when S3DeliveryMode is REDIRECT")</ID>
+    <ID>WildcardImport:AdminRoutes.kt$import com.beauty.models.*</ID>
+    <ID>WildcardImport:AdminRoutes.kt$import io.ktor.http.*</ID>
+    <ID>WildcardImport:AdminRoutes.kt$import io.ktor.server.application.*</ID>
+    <ID>WildcardImport:AdminRoutes.kt$import io.ktor.server.request.*</ID>
+    <ID>WildcardImport:AdminRoutes.kt$import io.ktor.server.response.*</ID>
+    <ID>WildcardImport:AdminRoutes.kt$import io.ktor.server.routing.*</ID>
+    <ID>WildcardImport:AdminRoutesTest.kt$import io.ktor.client.request.*</ID>
+    <ID>WildcardImport:AdminRoutesTest.kt$import io.ktor.client.statement.*</ID>
+    <ID>WildcardImport:AdminRoutesTest.kt$import io.ktor.http.*</ID>
+    <ID>WildcardImport:AdminRoutesTest.kt$import io.ktor.server.config.*</ID>
+    <ID>WildcardImport:AdminRoutesTest.kt$import io.ktor.server.testing.*</ID>
+    <ID>WildcardImport:AppSettings.kt$import io.ktor.server.config.*</ID>
+    <ID>WildcardImport:Application.kt$import com.beauty.plugins.*</ID>
+    <ID>WildcardImport:Application.kt$import io.ktor.server.application.*</ID>
+    <ID>WildcardImport:Application.kt$import io.ktor.server.netty.*</ID>
+    <ID>WildcardImport:AttachmentRouteSecurityTest.kt$import io.ktor.client.request.*</ID>
+    <ID>WildcardImport:AttachmentRouteSecurityTest.kt$import io.ktor.http.*</ID>
+    <ID>WildcardImport:AttachmentRouteSecurityTest.kt$import io.ktor.server.testing.*</ID>
+    <ID>WildcardImport:AttachmentRoutes.kt$import io.ktor.http.*</ID>
+    <ID>WildcardImport:AttachmentRoutes.kt$import io.ktor.http.content.*</ID>
+    <ID>WildcardImport:AttachmentRoutes.kt$import io.ktor.server.application.*</ID>
+    <ID>WildcardImport:AttachmentRoutes.kt$import io.ktor.server.request.*</ID>
+    <ID>WildcardImport:AttachmentRoutes.kt$import io.ktor.server.response.*</ID>
+    <ID>WildcardImport:AttachmentRoutes.kt$import io.ktor.server.routing.*</ID>
+    <ID>WildcardImport:AttachmentS3DeliveryTest.kt$import io.ktor.client.request.*</ID>
+    <ID>WildcardImport:AttachmentS3DeliveryTest.kt$import io.ktor.http.*</ID>
+    <ID>WildcardImport:AttachmentS3DeliveryTest.kt$import io.ktor.server.testing.*</ID>
+    <ID>WildcardImport:AuthRoutes.kt$import com.beauty.models.*</ID>
+    <ID>WildcardImport:AuthRoutes.kt$import io.ktor.http.*</ID>
+    <ID>WildcardImport:AuthRoutes.kt$import io.ktor.server.application.*</ID>
+    <ID>WildcardImport:AuthRoutes.kt$import io.ktor.server.plugins.ratelimit.*</ID>
+    <ID>WildcardImport:AuthRoutes.kt$import io.ktor.server.request.*</ID>
+    <ID>WildcardImport:AuthRoutes.kt$import io.ktor.server.response.*</ID>
+    <ID>WildcardImport:AuthRoutes.kt$import io.ktor.server.routing.*</ID>
+    <ID>WildcardImport:ClientPhoneValidationTest.kt$import io.ktor.client.request.*</ID>
+    <ID>WildcardImport:ClientPhoneValidationTest.kt$import io.ktor.client.statement.*</ID>
+    <ID>WildcardImport:ClientPhoneValidationTest.kt$import io.ktor.http.*</ID>
+    <ID>WildcardImport:ClientPhoneValidationTest.kt$import io.ktor.server.config.*</ID>
+    <ID>WildcardImport:ClientPhoneValidationTest.kt$import io.ktor.server.testing.*</ID>
+    <ID>WildcardImport:ClientRoutes.kt$import com.beauty.models.*</ID>
+    <ID>WildcardImport:ClientRoutes.kt$import io.ktor.http.*</ID>
+    <ID>WildcardImport:ClientRoutes.kt$import io.ktor.server.application.*</ID>
+    <ID>WildcardImport:ClientRoutes.kt$import io.ktor.server.request.*</ID>
+    <ID>WildcardImport:ClientRoutes.kt$import io.ktor.server.response.*</ID>
+    <ID>WildcardImport:ClientRoutes.kt$import io.ktor.server.routing.*</ID>
+    <ID>WildcardImport:ClientRoutes.kt$import org.jetbrains.exposed.sql.*</ID>
+    <ID>WildcardImport:DatabaseFactory.kt$import io.ktor.server.config.*</ID>
+    <ID>WildcardImport:DtoDefaultsEncodingTest.kt$import kotlin.test.*</ID>
+    <ID>WildcardImport:EmailVerificationEnforcementTest.kt$import io.ktor.client.request.*</ID>
+    <ID>WildcardImport:EmailVerificationEnforcementTest.kt$import io.ktor.client.statement.*</ID>
+    <ID>WildcardImport:EmailVerificationEnforcementTest.kt$import io.ktor.http.*</ID>
+    <ID>WildcardImport:EmailVerificationEnforcementTest.kt$import io.ktor.server.config.*</ID>
+    <ID>WildcardImport:EmailVerificationEnforcementTest.kt$import io.ktor.server.testing.*</ID>
+    <ID>WildcardImport:EmailVerificationRouteTest.kt$import io.ktor.client.request.*</ID>
+    <ID>WildcardImport:EmailVerificationRouteTest.kt$import io.ktor.client.statement.*</ID>
+    <ID>WildcardImport:EmailVerificationRouteTest.kt$import io.ktor.http.*</ID>
+    <ID>WildcardImport:EmailVerificationRouteTest.kt$import io.ktor.server.config.*</ID>
+    <ID>WildcardImport:EmailVerificationRouteTest.kt$import io.ktor.server.testing.*</ID>
+    <ID>WildcardImport:InviteLinkFlowTest.kt$import io.ktor.client.request.*</ID>
+    <ID>WildcardImport:InviteLinkFlowTest.kt$import io.ktor.client.statement.*</ID>
+    <ID>WildcardImport:InviteLinkFlowTest.kt$import io.ktor.http.*</ID>
+    <ID>WildcardImport:InviteLinkFlowTest.kt$import io.ktor.server.config.*</ID>
+    <ID>WildcardImport:InviteLinkFlowTest.kt$import io.ktor.server.testing.*</ID>
+    <ID>WildcardImport:JoinNotificationMailTest.kt$import io.ktor.server.config.*</ID>
+    <ID>WildcardImport:JoinRequestFlowTest.kt$import io.ktor.client.request.*</ID>
+    <ID>WildcardImport:JoinRequestFlowTest.kt$import io.ktor.client.statement.*</ID>
+    <ID>WildcardImport:JoinRequestFlowTest.kt$import io.ktor.http.*</ID>
+    <ID>WildcardImport:JoinRequestFlowTest.kt$import io.ktor.server.config.*</ID>
+    <ID>WildcardImport:JoinRequestFlowTest.kt$import io.ktor.server.testing.*</ID>
+    <ID>WildcardImport:LanguageMigrationTest.kt$import kotlin.test.*</ID>
+    <ID>WildcardImport:LanguagePreferenceTest.kt$import io.ktor.client.request.*</ID>
+    <ID>WildcardImport:LanguagePreferenceTest.kt$import io.ktor.client.statement.*</ID>
+    <ID>WildcardImport:LanguagePreferenceTest.kt$import io.ktor.http.*</ID>
+    <ID>WildcardImport:LanguagePreferenceTest.kt$import io.ktor.server.config.*</ID>
+    <ID>WildcardImport:LanguagePreferenceTest.kt$import io.ktor.server.testing.*</ID>
+    <ID>WildcardImport:LanguagePreferenceTest.kt$import kotlin.test.*</ID>
+    <ID>WildcardImport:LanguagePreferenceTest.kt$import kotlinx.serialization.json.*</ID>
+    <ID>WildcardImport:LanguageTest.kt$import kotlin.test.*</ID>
+    <ID>WildcardImport:LegacyFallbackStorageServiceTest.kt$import kotlin.test.*</ID>
+    <ID>WildcardImport:LocalFileStorageServiceTest.kt$import kotlin.test.*</ID>
+    <ID>WildcardImport:OrgAccess.kt$import io.ktor.http.*</ID>
+    <ID>WildcardImport:OrgAccess.kt$import io.ktor.server.application.*</ID>
+    <ID>WildcardImport:OrgAccess.kt$import io.ktor.server.request.*</ID>
+    <ID>WildcardImport:OrgAccess.kt$import io.ktor.server.response.*</ID>
+    <ID>WildcardImport:OrgAccess.kt$import io.ktor.util.*</ID>
+    <ID>WildcardImport:OrgCreationTokenGatingTest.kt$import io.ktor.client.request.*</ID>
+    <ID>WildcardImport:OrgCreationTokenGatingTest.kt$import io.ktor.client.statement.*</ID>
+    <ID>WildcardImport:OrgCreationTokenGatingTest.kt$import io.ktor.http.*</ID>
+    <ID>WildcardImport:OrgCreationTokenGatingTest.kt$import io.ktor.server.config.*</ID>
+    <ID>WildcardImport:OrgCreationTokenGatingTest.kt$import io.ktor.server.testing.*</ID>
+    <ID>WildcardImport:OrganizationIsolationTest.kt$import io.ktor.client.request.*</ID>
+    <ID>WildcardImport:OrganizationIsolationTest.kt$import io.ktor.client.statement.*</ID>
+    <ID>WildcardImport:OrganizationIsolationTest.kt$import io.ktor.http.*</ID>
+    <ID>WildcardImport:OrganizationIsolationTest.kt$import io.ktor.server.config.*</ID>
+    <ID>WildcardImport:OrganizationIsolationTest.kt$import io.ktor.server.testing.*</ID>
+    <ID>WildcardImport:OrganizationRoutes.kt$import com.beauty.models.*</ID>
+    <ID>WildcardImport:OrganizationRoutes.kt$import io.ktor.http.*</ID>
+    <ID>WildcardImport:OrganizationRoutes.kt$import io.ktor.server.application.*</ID>
+    <ID>WildcardImport:OrganizationRoutes.kt$import io.ktor.server.plugins.ratelimit.*</ID>
+    <ID>WildcardImport:OrganizationRoutes.kt$import io.ktor.server.request.*</ID>
+    <ID>WildcardImport:OrganizationRoutes.kt$import io.ktor.server.response.*</ID>
+    <ID>WildcardImport:OrganizationRoutes.kt$import io.ktor.server.routing.*</ID>
+    <ID>WildcardImport:PasswordResetRouteTest.kt$import io.ktor.client.request.*</ID>
+    <ID>WildcardImport:PasswordResetRouteTest.kt$import io.ktor.client.statement.*</ID>
+    <ID>WildcardImport:PasswordResetRouteTest.kt$import io.ktor.http.*</ID>
+    <ID>WildcardImport:PasswordResetRouteTest.kt$import io.ktor.server.config.*</ID>
+    <ID>WildcardImport:PasswordResetRouteTest.kt$import io.ktor.server.testing.*</ID>
+    <ID>WildcardImport:Routing.kt$import io.ktor.http.*</ID>
+    <ID>WildcardImport:Routing.kt$import io.ktor.server.application.*</ID>
+    <ID>WildcardImport:Routing.kt$import io.ktor.server.auth.*</ID>
+    <ID>WildcardImport:Routing.kt$import io.ktor.server.plugins.cors.routing.*</ID>
+    <ID>WildcardImport:Routing.kt$import io.ktor.server.plugins.forwardedheaders.*</ID>
+    <ID>WildcardImport:Routing.kt$import io.ktor.server.plugins.ratelimit.*</ID>
+    <ID>WildcardImport:Routing.kt$import io.ktor.server.plugins.statuspages.*</ID>
+    <ID>WildcardImport:Routing.kt$import io.ktor.server.response.*</ID>
+    <ID>WildcardImport:Routing.kt$import io.ktor.server.routing.*</ID>
+    <ID>WildcardImport:S3StorageService.kt$import software.amazon.awssdk.services.s3.model.*</ID>
+    <ID>WildcardImport:S3StorageServiceTest.kt$import kotlin.test.*</ID>
+    <ID>WildcardImport:S3StorageServiceTest.kt$import software.amazon.awssdk.services.s3.model.*</ID>
+    <ID>WildcardImport:Security.kt$import io.ktor.server.application.*</ID>
+    <ID>WildcardImport:Security.kt$import io.ktor.server.auth.*</ID>
+    <ID>WildcardImport:Security.kt$import io.ktor.server.auth.jwt.*</ID>
+    <ID>WildcardImport:Serialization.kt$import io.ktor.serialization.kotlinx.json.*</ID>
+    <ID>WildcardImport:Serialization.kt$import io.ktor.server.application.*</ID>
+    <ID>WildcardImport:Serialization.kt$import io.ktor.server.plugins.contentnegotiation.*</ID>
+    <ID>WildcardImport:StorageSettingsTest.kt$import kotlin.test.*</ID>
+    <ID>WildcardImport:UserRoutes.kt$import io.ktor.http.*</ID>
+    <ID>WildcardImport:UserRoutes.kt$import io.ktor.server.application.*</ID>
+    <ID>WildcardImport:UserRoutes.kt$import io.ktor.server.request.*</ID>
+    <ID>WildcardImport:UserRoutes.kt$import io.ktor.server.response.*</ID>
+    <ID>WildcardImport:UserRoutes.kt$import io.ktor.server.routing.*</ID>
+    <ID>WildcardImport:VisitRoutes.kt$import com.beauty.models.*</ID>
+    <ID>WildcardImport:VisitRoutes.kt$import io.ktor.http.*</ID>
+    <ID>WildcardImport:VisitRoutes.kt$import io.ktor.server.application.*</ID>
+    <ID>WildcardImport:VisitRoutes.kt$import io.ktor.server.request.*</ID>
+    <ID>WildcardImport:VisitRoutes.kt$import io.ktor.server.response.*</ID>
+    <ID>WildcardImport:VisitRoutes.kt$import io.ktor.server.routing.*</ID>
+    <ID>WildcardImport:VisitRoutes.kt$import org.jetbrains.exposed.sql.*</ID>
+  </CurrentIssues>
+</SmellBaseline>
