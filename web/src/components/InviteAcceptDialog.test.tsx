@@ -6,7 +6,7 @@ import { LocaleProvider } from '../i18n/LocaleProvider';
 import { api } from '../services/api';
 import { InviteAcceptDialog } from './InviteAcceptDialog';
 
-vi.mock('../auth/OrgContext', () => ({ useOrg: () => ({ refresh: vi.fn(async () => {}), select: vi.fn() }) }));
+vi.mock('../auth/useOrg', () => ({ useOrg: () => ({ refresh: vi.fn(async () => {}), select: vi.fn() }) }));
 
 it('ignores Escape and backdrop clicks while the join request is in flight', async () => {
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });

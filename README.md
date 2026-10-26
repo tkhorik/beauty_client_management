@@ -293,3 +293,56 @@ uninstall a release build (or vice versa) before testing.
 - The emulator may be slow if the host machine has limited RAM.
 - On an 8 GiB host, the `Pixel_7a` emulator may show a warning recommending 16 GiB of system RAM. This is an emulator image recommendation, not an application error. Click **OK** to continue.
 - All auth-and-client-edit-sync changes live on branch `feature/auth-and-client-edit-sync`. The `main` branch is unchanged until an explicit commit is requested.
+
+## Quality gates
+
+Install [mise](https://mise.jdx.dev/) 2026.10.19 or newer, then from the repository root:
+
+```bash
+mise trust
+mise install
+mise run hooks:install
+mise run check
+```
+
+The Android SDK (API 34) must also be available through `ANDROID_HOME` or
+`android/local.properties`. Gradle remains wrapper-managed; npm dependencies
+remain lockfile-managed. `mise.toml` pins the shared CLI tools, Node, Python and JDK.
+
+`mise run check` runs the complete gate. CI invokes the same entry point with
+scopes `quality`, `web`, `backend`, `android`, and `security` in separate jobs.
+The backend retains its existing eight-attempt CI retry budget for the known
+database-isolation flake; local runs stop on the first failure for diagnosis.
+Android checks include debug assembly/unit tests and both accepted and rejected
+release-origin configurations. Device tests still require a connected device.
+
+- **Pre-commit:** check staged content without stashing or modifying working files.
+- **Pre-push:** whole-project static analysis and the web test/build gate.
+- **CI:** all checks, including builds, tests, release-origin checks and OSV.
+- **Weekly:** dependency vulnerabilities and secret-exception expiry, even without changes.
+
+Oxlint warnings fail the gate. Detekt's reviewed existing findings live in
+`config/detekt/*-baseline.xml`; new findings fail. Never regenerate a baseline
+merely to make a change pass. Its entries require review like code changes.
+
+Betterleaks scans the current repository-file snapshot (including eligible
+untracked files) and staged changes, not ignored local files or historical Git
+revisions. It never validates credentials against provider APIs. Approved test,
+translation and documented-development matches are bound to exact paths, rules,
+line spans and content hashes in `config/quality/secret-exceptions.json`. Changed,
+stale or expired entries fail; no whole-file/rule allowlist is used. These entries
+expire after **2026-11-26 UTC** and require review before renewal.
+
+OSV scans `web/package-lock.json`, `backend/gradle.lockfile`, and
+`android/app/gradle.lockfile`. Missing inventories fail. This does not cover OS
+packages in container images, Gradle plugin/buildscript dependencies outside
+these locks, or shaded dependencies that are absent from them. No vulnerability
+exceptions are configured. Dependabot proposes updates; the CI gate decides
+whether they pass.
+
+Lockfiles and the vendored Compose schema are generated artifacts: update them
+through npm/Gradle or the pinned upstream schema, never by hand. Review changes
+to both manifests and locks. The schema's source revision and license are in
+`config/schemas/`. Workflow actions are SHA-pinned. One reviewed
+`superfluous-actions` exception preserves the existing Android release publisher;
+it does not suppress a security finding.

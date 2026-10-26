@@ -1,4 +1,4 @@
-import { useAppTranslation, useLocale } from '../i18n/LocaleProvider';
+import { useAppTranslation, useLocale } from '../i18n/useLocale';
 import { useEffect, useState, type FormEvent } from 'react';
 import { MailCheck } from 'lucide-react';
 import { API_BASE_URL } from '../config';

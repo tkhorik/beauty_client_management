@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { useAuth } from '../auth/AuthContext';
+import { useAuth } from '../auth/useAuth';
 import { Sparkles, Eye, EyeOff, ArrowLeft } from 'lucide-react';
 import { API_BASE_URL } from '../config';
 import { AUTH_TRANSPORT_HEADERS } from '../auth/session';
@@ -8,7 +8,7 @@ import { FORGOT_PASSWORD_PATH, navigate } from '../auth/route';
 import { ThemeSelector } from './ThemeSelector';
 import { LanguageSelector } from './LanguageSelector';
 import './AuthScreens.css';
-import { useAppTranslation, useLocale } from '../i18n/LocaleProvider';
+import { useAppTranslation, useLocale } from '../i18n/useLocale';
 import { effectiveAcceptLanguage } from '../i18n/store';
 import { errorTranslationKey, translatedFieldErrors } from '../i18n/errors';
 import { arrivedWithCreationLink, clearJoinSlug, pendingInviteToken, pendingJoinSlug, stripDeepLinkParams } from '../auth/deepLinks';

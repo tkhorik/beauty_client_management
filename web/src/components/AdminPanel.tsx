@@ -1,12 +1,12 @@
-import { useAppTranslation, useLocale } from '../i18n/LocaleProvider';
+import { useAppTranslation, useLocale } from '../i18n/useLocale';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useDismiss } from './useDismiss';
 import { X, ShieldCheck, Users, Building2, Link2, Copy, Check, Trash2, Ban, RotateCcw, UserCog } from 'lucide-react';
 import type { AdminUser, AdminOrganization, OrganizationCreationLink } from '../types';
 import { api, writeErrorMessage } from '../services/api';
 import { MembersModal } from './MembersModal';
-import { useAuth } from '../auth/AuthContext';
-import { useOrg } from '../auth/OrgContext';
+import { useAuth } from '../auth/useAuth';
+import { useOrg } from '../auth/useOrg';
 import './Administration.css';
 
 interface AdminPanelProps {

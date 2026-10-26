@@ -1,7 +1,8 @@
 plugins {
     kotlin("jvm") version "1.9.22"
     kotlin("plugin.serialization") version "1.9.22"
-    id("io.ktor.plugin") version "2.3.8"
+    id("io.ktor.plugin") version "2.3.13"
+    id("io.gitlab.arturbosch.detekt") version "1.23.8"
     application
 }
 
@@ -16,12 +17,25 @@ repositories {
     mavenCentral()
 }
 
-val ktorVersion = "2.3.8"
+detekt {
+    toolVersion = "1.23.8"
+    baseline = file("../config/detekt/backend-baseline.xml")
+}
+
+dependencyLocking {
+    lockAllConfigurations()
+    lockMode.set(LockMode.STRICT)
+}
+
+val ktorVersion = "2.3.13"
 val exposedVersion = "0.47.0"
-val postgresVersion = "42.7.1"
-val logbackVersion = "1.4.14"
+val postgresVersion = "42.7.14"
+val logbackVersion = "1.5.34"
 
 dependencies {
+    implementation(platform("io.netty:netty-bom:4.1.137.Final"))
+    implementation(platform("com.fasterxml.jackson:jackson-bom:2.18.11"))
+
     // Ktor Server Core & Netty
     implementation("io.ktor:ktor-server-core-jvm:$ktorVersion")
     implementation("io.ktor:ktor-server-netty-jvm:$ktorVersion")
@@ -53,7 +67,7 @@ dependencies {
     implementation("io.ktor:ktor-server-rate-limit-jvm:$ktorVersion")
 
     // Outbound SMTP for verification and password-reset mail.
-    implementation("com.sun.mail:jakarta.mail:2.0.1")
+    implementation("com.sun.mail:jakarta.mail:2.0.2")
 
     // Security & Utilities
     implementation("org.mindrot:jbcrypt:0.4")

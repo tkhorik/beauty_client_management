@@ -25,11 +25,11 @@ import { VerificationBanner } from '../components/VerificationBanner';
 import type { Attachment, Client, Visit } from '../types';
 
 const noop = () => {};
-vi.mock('../auth/AuthContext', () => ({ useAuth: () => ({
+vi.mock('../auth/useAuth', () => ({ useAuth: () => ({
   user: { id: 'a', fullName: 'Customer Name', email: 'customer@example.com', languagePreference: 'en', languageRevision: 1, globalRole: 'SUPER_ADMIN', emailVerified: false, verificationDeadline: new Date(Date.now() + 2 * 86_400_000).toISOString() },
   token: 'test-only-token', logout: () => {}, updateUser: () => {},
 }) }));
-vi.mock('../auth/OrgContext', () => ({ useOrg: () => ({
+vi.mock('../auth/useOrg', () => ({ useOrg: () => ({
   current: { id: 'org', name: 'Customer Salon', role: 'ORG_ADMIN' }, organizations: [], activeOrganizations: [{ id: 'org', name: 'Customer Salon' }], refresh: async () => {}, select: () => {}, offline: false,
 }) }));
 

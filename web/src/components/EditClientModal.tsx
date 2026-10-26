@@ -1,4 +1,4 @@
-import { useAppTranslation } from '../i18n/LocaleProvider';
+import { useAppTranslation } from '../i18n/useLocale';
 import React, { useId, useRef, useState } from 'react';
 import { useDismiss } from './useDismiss';
 import { useDraftGuard } from './useDraftGuard';

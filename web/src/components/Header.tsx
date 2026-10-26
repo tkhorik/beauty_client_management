@@ -1,7 +1,7 @@
-import { useAppTranslation } from '../i18n/LocaleProvider';
+import { useAppTranslation } from '../i18n/useLocale';
 import { Search, Plus, Sparkles, Settings, Users, ShieldCheck, ArrowUpRight } from 'lucide-react';
-import { useAuth } from '../auth/AuthContext';
-import { useOrg } from '../auth/OrgContext';
+import { useAuth } from '../auth/useAuth';
+import { useOrg } from '../auth/useOrg';
 import { ThemeSelector } from './ThemeSelector';
 import { LanguageSelector } from './LanguageSelector';
 import type { ClientTag } from '../types';

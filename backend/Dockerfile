@@ -11,7 +11,7 @@ WORKDIR /src
 # not on every source edit.
 COPY gradlew ./
 COPY gradle ./gradle
-COPY build.gradle.kts settings.gradle.kts ./
+COPY build.gradle.kts settings.gradle.kts gradle.lockfile ./
 RUN chmod +x gradlew && ./gradlew --no-daemon dependencies --quiet || true
 
 COPY src ./src

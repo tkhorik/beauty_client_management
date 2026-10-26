@@ -1,34 +1,8 @@
-import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { setToken, clearToken, clearLegacyToken } from './tokenStore';
 import { endSession, restoreSession } from './session';
 import type { UserProfile } from '../types';
-
-interface AuthContextValue {
-  token: string | null;
-  /** The signed-in user's own profile. Null exactly when `token` is null. */
-  user: UserProfile | null;
-  /**
-   * True until the initial refresh attempt settles. The app must wait for this
-   * rather than assume a null token means "signed out" — on a reload there is
-   * always a moment where the session is real but the access token has not
-   * arrived yet, and rendering the login page during it would flash a login
-   * form at an already-authenticated user.
-   */
-  initialising: boolean;
-  /** Changes for every login/logout lifecycle, even for the same account id. */
-  sessionGeneration: number;
-  /** Called after login, register, or a password change — every endpoint that mints a brand-new session. */
-  login: (token: string, user: UserProfile) => void;
-  logout: () => void;
-  /**
-   * Updates the cached profile in place after a profile edit that does *not*
-   * mint a new token (`PATCH /api/users/me`). Separate from `login` so a plain
-   * name change never has to pretend it rotated the session.
-   */
-  updateUser: (user: UserProfile) => void;
-}
-
-const AuthContext = createContext<AuthContextValue | null>(null);
+import { AuthContext } from './AuthContextValue';
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setTokenState] = useState<string | null>(null);
@@ -96,10 +70,4 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       {children}
     </AuthContext.Provider>
   );
-}
-
-export function useAuth(): AuthContextValue {
-  const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error('useAuth must be used inside AuthProvider');
-  return ctx;
 }

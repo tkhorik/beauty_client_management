@@ -1,5 +1,5 @@
 import { Component, Suspense, useId, type ComponentType, type ErrorInfo, type LazyExoticComponent } from 'react';
-import { useAppTranslation } from '../i18n/LocaleProvider';
+import { useAppTranslation } from '../i18n/useLocale';
 import { useDismiss } from './useDismiss';
 import { ChunkLoadFailure } from './chunkLoadFailure';
 

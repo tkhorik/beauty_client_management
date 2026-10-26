@@ -1,6 +1,6 @@
 import React, { useRef } from 'react';
 import { Camera, Images } from 'lucide-react';
-import { useAppTranslation } from '../i18n/LocaleProvider';
+import { useAppTranslation } from '../i18n/useLocale';
 
 /**
  * Phones and tablets open the camera for `capture`; desktop browsers ignore it

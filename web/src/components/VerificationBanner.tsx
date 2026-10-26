@@ -1,4 +1,4 @@
-import { useAppTranslation } from '../i18n/LocaleProvider';
+import { useAppTranslation } from '../i18n/useLocale';
 import { MailCheck, RefreshCw } from 'lucide-react';
 import { useVerification } from '../auth/useVerification';
 

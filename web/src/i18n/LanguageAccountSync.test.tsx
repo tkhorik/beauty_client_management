@@ -2,10 +2,12 @@
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { AuthProvider, useAuth } from '../auth/AuthContext';
+import { AuthProvider } from '../auth/AuthContext';
+import { useAuth } from '../auth/useAuth';
 import { api, ApiError } from '../services/api';
 import type { UserProfile } from '../types';
-import { LocaleProvider, useLocale } from './LocaleProvider';
+import { LocaleProvider } from './LocaleProvider';
+import { useLocale } from './useLocale';
 import { LanguageAccountSync } from './LanguageAccountSync';
 import { effectiveAcceptLanguage, type LanguagePreference } from './store';
 

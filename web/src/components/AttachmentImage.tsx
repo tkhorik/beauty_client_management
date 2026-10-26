@@ -1,4 +1,4 @@
-import { useAppTranslation } from '../i18n/LocaleProvider';
+import { useAppTranslation } from '../i18n/useLocale';
 import { useAttachmentImage } from './useAttachmentImage';
 
 export function AttachmentImage({ fileUrl, alt, onOpen, openLabel }: {

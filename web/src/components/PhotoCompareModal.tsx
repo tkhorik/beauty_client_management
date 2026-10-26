@@ -1,4 +1,4 @@
-import { useAppTranslation } from '../i18n/LocaleProvider';
+import { useAppTranslation } from '../i18n/useLocale';
 import React, { useId, useState } from 'react';
 import { useDismiss } from './useDismiss';
 import type { Attachment } from '../types';

@@ -1,7 +1,7 @@
 import { useId } from 'react';
 import { Globe } from 'lucide-react';
 import { PreferenceMenu } from './PreferenceMenu';
-import { useAppTranslation, useLocale } from '../i18n/LocaleProvider';
+import { useAppTranslation, useLocale } from '../i18n/useLocale';
 import { resolveSystemLocale, type LanguagePreference } from '../i18n/store';
 
 const OPTIONS: LanguagePreference[] = ['system', 'en', 'ru'];

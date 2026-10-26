@@ -1,7 +1,8 @@
 import { useId } from 'react';
 import { SunMoon } from 'lucide-react';
-import { useAppTranslation } from '../i18n/LocaleProvider';
-import { useTheme, type ThemePreference } from '../theme/ThemeProvider';
+import { useAppTranslation } from '../i18n/useLocale';
+import { useTheme } from '../theme/useTheme';
+import type { ThemePreference } from '../theme/themePreference';
 import { PreferenceMenu } from './PreferenceMenu';
 
 const OPTIONS: ThemePreference[] = ['system', 'light', 'dark'];

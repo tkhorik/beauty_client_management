@@ -1,8 +1,9 @@
-import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import type { Organization } from '../types';
 import { api, ApiError, MEMBERSHIP_LOST_EVENT } from '../services/api';
 import { getActiveOrgId, setActiveOrgId, clearActiveOrgId } from './orgStore';
-import { useAuth } from './AuthContext';
+import { useAuth } from './useAuth';
+import { OrgContext } from './OrgContextValue';
 
 /**
  * The synthetic organization used when the backend cannot be reached.
@@ -25,23 +26,6 @@ const DEMO_ORG: Organization = {
   status: 'ACTIVE',
 };
 
-interface OrgContextValue {
-  /** Every organization the user belongs to or has asked to belong to. */
-  organizations: Organization[];
-  /** Only the ones that actually grant access. */
-  activeOrganizations: Organization[];
-  /** The one the app is currently working in, or null if none is chosen. */
-  current: Organization | null;
-  loading: boolean;
-  /** True when the organization list came from the offline fallback rather than the API. */
-  offline: boolean;
-  /** Switches organization. Takes effect on the next API call. */
-  select: (orgId: string) => void;
-  /** Re-reads the list — call after creating, joining, or being approved. */
-  refresh: () => Promise<void>;
-}
-
-const OrgContext = createContext<OrgContextValue | null>(null);
 
 export function OrgProvider({ children }: { children: ReactNode }) {
   const { token } = useAuth();
@@ -135,10 +119,4 @@ export function OrgProvider({ children }: { children: ReactNode }) {
       {children}
     </OrgContext.Provider>
   );
-}
-
-export function useOrg(): OrgContextValue {
-  const ctx = useContext(OrgContext);
-  if (!ctx) throw new Error('useOrg must be used inside OrgProvider');
-  return ctx;
 }

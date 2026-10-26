@@ -21,8 +21,8 @@ vi.mock('./components/ClientDetailModal', () => ({ ClientDetailModal: (props: ty
 } }));
 vi.mock('./components/NewVisitModal', () => ({ NewVisitModal: (props: typeof newVisit) => { newVisit = props; return null; } }));
 vi.mock('./components/ClientCard', () => ({ ClientCard: ({ client, onSelect }: { client: Client; onSelect: (client: Client) => void }) => <button onClick={() => onSelect(client)}>{client.name}</button> }));
-vi.mock('./auth/AuthContext', () => ({ useAuth: () => ({ token: 'test', user: { emailVerified: true }, logout: () => {} }) }));
-vi.mock('./auth/OrgContext', () => ({ useOrg: () => ({ current: { id: 'org', role: 'ORG_ADMIN' }, organizations: [] }) }));
+vi.mock('./auth/useAuth', () => ({ useAuth: () => ({ token: 'test', user: { emailVerified: true }, logout: () => {} }) }));
+vi.mock('./auth/useOrg', () => ({ useOrg: () => ({ current: { id: 'org', role: 'ORG_ADMIN' }, organizations: [] }) }));
 
 const client = (id: string): Client => ({ id, name: id, phone: '123', tags: [], customFields: {}, totalVisits: 1, createdAt: '2020-01-01', updatedAt: '2020-01-01' });
 const visits = (id: string): Visit[] => [{ id: `${id}-visit`, clientId: id, visitDateTime: '2020-01-01T10:00', durationMinutes: 60, procedureNotes: '', status: 'COMPLETED', attachments: [], createdAt: '2020-01-01' }];

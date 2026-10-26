@@ -1,4 +1,4 @@
-import { useAppTranslation } from '../i18n/LocaleProvider';
+import { useAppTranslation } from '../i18n/useLocale';
 import React, { useLayoutEffect, useRef } from 'react';
 import { formatPhone, maskedLength, phoneDigits } from './phone';
 

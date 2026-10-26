@@ -1,20 +1,6 @@
-import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useState, type ReactNode } from 'react';
-
-export type ThemePreference = 'system' | 'light' | 'dark';
-export const THEME_STORAGE_KEY = 'beauty:theme-preference';
-export const THEME_QUERY = '(prefers-color-scheme: dark)';
-export function parseThemePreference(value: unknown): ThemePreference {
-  return value === 'light' || value === 'dark' ? value : 'system';
-}
-export function readThemePreference(): ThemePreference {
-  try { return parseThemePreference(localStorage.getItem(THEME_STORAGE_KEY)); }
-  catch { return 'system'; }
-}
-function systemIsDark() { return window.matchMedia?.(THEME_QUERY).matches ?? false; }
-
-const ThemeContext = createContext({
-  preference: 'system' as ThemePreference, resolved: 'light' as 'light' | 'dark', setPreference: (_next: ThemePreference) => {},
-});
+import { useCallback, useEffect, useLayoutEffect, useMemo, useState, type ReactNode } from 'react';
+import { ThemeContext } from './ThemeContext';
+import { parseThemePreference, readThemePreference, systemIsDark, THEME_QUERY, THEME_STORAGE_KEY, type ThemePreference } from './themePreference';
 
 /** Device preference, deliberately independent of authentication and account language. */
 export function ThemeProvider({ children }: { children: ReactNode }) {
@@ -51,4 +37,3 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const value = useMemo(() => ({ preference, resolved, setPreference }), [preference, resolved, setPreference]);
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 }
-export function useTheme() { return useContext(ThemeContext); }

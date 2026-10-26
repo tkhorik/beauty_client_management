@@ -3,8 +3,8 @@ import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 
-vi.mock('../auth/AuthContext', () => ({ useAuth: () => ({ token: null, initialising: false, user: null, login: () => {}, logout: () => {} }) }));
-vi.mock('../auth/OrgContext', () => ({ useOrg: () => ({ current: null, organizations: [], loading: false }) }));
+vi.mock('../auth/useAuth', () => ({ useAuth: () => ({ token: null, initialising: false, user: null, login: () => {}, logout: () => {} }) }));
+vi.mock('../auth/useOrg', () => ({ useOrg: () => ({ current: null, organizations: [], loading: false }) }));
 
 let root: Root;
 let host: HTMLDivElement;

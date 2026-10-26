@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Download, ExternalLink, Smartphone, X } from 'lucide-react';
-import { useAppTranslation } from '../i18n/LocaleProvider';
+import { useAppTranslation } from '../i18n/useLocale';
 import {
   ANDROID_DOWNLOAD_URL,
   ANDROID_PACKAGE_ID,

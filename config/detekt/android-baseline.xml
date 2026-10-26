@@ -1,0 +1,698 @@
+<?xml version="1.0" ?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>ComplexCondition:ClientDirectoryScreen.kt$viewModel.filtered.isEmpty() &amp;&amp; !viewModel.refreshing &amp;&amp; !viewModel.searching &amp;&amp; !viewModel.blocked</ID>
+    <ID>CyclomaticComplexMethod:AuthViewModel.kt$AuthViewModel$fun register( email: String, password: String, confirmPassword: String, fullName: String, includeOrganization: Boolean = true )</ID>
+    <ID>CyclomaticComplexMethod:AuthViewModel.kt$AuthViewModel$fun resetPassword(token: String?, newPassword: String, confirmPassword: String)</ID>
+    <ID>CyclomaticComplexMethod:BeautyApi.kt$suspend fun Throwable.safeMessage(fallback: String = "NETWORK_ERROR"): String</ID>
+    <ID>CyclomaticComplexMethod:ClientDetailScreen.kt$@OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class) @Composable private fun VisitForm( clientName: String, saving: Boolean, error: String?, onDismiss: () -&gt; Unit, onSave: (String, String, String, String, List&lt;Pair&lt;String, Uri&gt;&gt;) -&gt; Unit )</ID>
+    <ID>CyclomaticComplexMethod:ClientDetailScreen.kt$@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class) @Composable fun ClientDetailScreen( viewModel: ClientDetailViewModel, repository: BeautyRepository, onBack: () -&gt; Unit, onEdit: () -&gt; Unit, onDeleted: () -&gt; Unit = onBack, /** Opens the visit form straight away, as the web's "Log Visit" buttons do. */ openVisitForm: Boolean = false )</ID>
+    <ID>CyclomaticComplexMethod:ClientDirectoryScreen.kt$@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterialApi::class, ExperimentalLayoutApi::class) @Composable fun ClientDirectoryScreen( viewModel: ClientDirectoryViewModel, repository: BeautyRepository, organizationName: String, onClientTap: (String) -&gt; Unit, onNewClient: () -&gt; Unit, onLogVisit: (String) -&gt; Unit, onSettings: () -&gt; Unit, onAbout: () -&gt; Unit, onOrganizations: () -&gt; Unit, /** Join requests awaiting this admin's approval in the active organization. */ pendingRequestCount: Int = 0, onAdmin: (() -&gt; Unit)?, onLogout: () -&gt; Unit, updateManager: com.beauty.app.updater.UpdateManager? = null, onOpenUpdateDialog: () -&gt; Unit = {} )</ID>
+    <ID>CyclomaticComplexMethod:EditClientScreen.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun EditClientScreen(viewModel: EditClientViewModel, onBack: () -&gt; Unit)</ID>
+    <ID>CyclomaticComplexMethod:EditClientViewModel.kt$EditClientViewModel$fun save()</ID>
+    <ID>CyclomaticComplexMethod:LanguagePreferenceManager.kt$LanguagePreferenceManager$internal suspend fun synchronize( accountId: String?, fetch: suspend () -&gt; LanguagePreferenceResponse, write: suspend (String, Long) -&gt; WriteResult ): SyncResult</ID>
+    <ID>CyclomaticComplexMethod:LocalizedMessage.kt$@Composable fun localizedMessage(raw: String): String</ID>
+    <ID>CyclomaticComplexMethod:MainActivity.kt$@Composable internal fun AppNavHost(links: AppLinkViewModel)</ID>
+    <ID>CyclomaticComplexMethod:MemberRow.kt$@OptIn(ExperimentalLayoutApi::class) @Composable internal fun MemberRow( member: MemberDto, onApprove: () -&gt; Unit, onDecline: () -&gt; Unit, onRemove: () -&gt; Unit, onToggleRole: () -&gt; Unit, /** Null hides the action — for the caller's own row, or a screen that does not offer it. */ onRevoke: (() -&gt; Unit)? = null, onRestore: (() -&gt; Unit)? = null )</ID>
+    <ID>CyclomaticComplexMethod:OrganizationScreen.kt$@Composable private fun AuditRow(event: AuditEventDto)</ID>
+    <ID>CyclomaticComplexMethod:OrganizationScreen.kt$@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class) @Composable fun OrganizationScreen( viewModel: OrganizationViewModel, onDone: (() -&gt; Unit)?, onLogout: () -&gt; Unit, onOpenAdmin: (() -&gt; Unit)? = null )</ID>
+    <ID>CyclomaticComplexMethod:PhotoCapture.kt$internal fun decodeUprightBitmap(context: Context, uri: Uri, maxWidth: Int): Bitmap?</ID>
+    <ID>CyclomaticComplexMethod:SettingsViewModel.kt$SettingsViewModel$fun changePassword(currentPassword: String, newPassword: String, confirmNewPassword: String)</ID>
+    <ID>CyclomaticComplexMethod:UpdateDialog.kt$@Composable fun UpdateDialog( state: UpdateState, currentVersion: String, distributionMode: UpdateDistributionMode, onDismiss: () -&gt; Unit, onStartDownload: () -&gt; Unit, onCancelDownload: () -&gt; Unit, onInstall: () -&gt; Unit, onOpenPlayStore: () -&gt; Unit, onRequestPermission: () -&gt; Unit, needsInstallPermission: Boolean )</ID>
+    <ID>FunctionNaming:AboutScreen.kt$@Composable private fun AboutCard(content: @Composable ColumnScope.() -&gt; Unit)</ID>
+    <ID>FunctionNaming:AboutScreen.kt$@Composable private fun LinkRow(label: String, onClick: () -&gt; Unit)</ID>
+    <ID>FunctionNaming:AboutScreen.kt$@Composable private fun UpdateAction( state: UpdateState, onCheckForUpdates: () -&gt; Unit, onOpenUpdateDialog: () -&gt; Unit )</ID>
+    <ID>FunctionNaming:AboutScreen.kt$@Composable private fun UpdateStatus(state: UpdateState)</ID>
+    <ID>FunctionNaming:AboutScreen.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun AboutScreen( updateManager: UpdateManager, onCheckForUpdates: () -&gt; Unit, onOpenUpdateDialog: () -&gt; Unit, onBack: () -&gt; Unit )</ID>
+    <ID>FunctionNaming:AdminScreen.kt$@Composable private fun Banner(message: String, isError: Boolean)</ID>
+    <ID>FunctionNaming:AdminScreen.kt$@Composable private fun LinkRow(link: OrganizationCreationTokenDto, viewModel: AdminViewModel)</ID>
+    <ID>FunctionNaming:AdminScreen.kt$@Composable private fun MembersTab(viewModel: AdminViewModel, org: AdminOrganizationDto)</ID>
+    <ID>FunctionNaming:AdminScreen.kt$@Composable private fun OrganizationsTab( viewModel: AdminViewModel, onOpenOrganization: (AdminOrganizationDto) -&gt; Unit )</ID>
+    <ID>FunctionNaming:AdminScreen.kt$@Composable private fun UserRow(user: AdminUserDto, isSelf: Boolean, onToggleSuspended: () -&gt; Unit)</ID>
+    <ID>FunctionNaming:AdminScreen.kt$@Composable private fun UsersTab(viewModel: AdminViewModel)</ID>
+    <ID>FunctionNaming:AdminScreen.kt$@OptIn(ExperimentalLayoutApi::class) @Composable private fun LinksTab(viewModel: AdminViewModel)</ID>
+    <ID>FunctionNaming:AdminScreen.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun AdminScreen( viewModel: AdminViewModel, onDone: () -&gt; Unit, onOpenOrganization: (AdminOrganizationDto) -&gt; Unit )</ID>
+    <ID>FunctionNaming:AttachmentImages.kt$@Composable fun AttachmentThumbnail( repository: BeautyRepository, organizationId: String, attachment: VisitAttachmentDto, onClick: () -&gt; Unit )</ID>
+    <ID>FunctionNaming:AttachmentImages.kt$@Composable fun PhotoViewerDialog( repository: BeautyRepository, organizationId: String, attachment: VisitAttachmentDto, onDismiss: () -&gt; Unit )</ID>
+    <ID>FunctionNaming:AttachmentImages.kt$@Composable private fun PhotoLabel(text: String, modifier: Modifier = Modifier, small: Boolean = false, tag: String = text)</ID>
+    <ID>FunctionNaming:AttachmentImages.kt$@Composable private fun SidePhoto(image: ImageBitmap, tag: String, caption: String, modifier: Modifier)</ID>
+    <ID>FunctionNaming:AttachmentImages.kt$@Composable private fun SliderCompare(before: ImageBitmap, after: ImageBitmap)</ID>
+    <ID>FunctionNaming:AttachmentImages.kt$@OptIn(ExperimentalLayoutApi::class) @Composable fun PhotoCompareDialog( repository: BeautyRepository, organizationId: String, attachments: List&lt;VisitAttachmentDto&gt;, onDismiss: () -&gt; Unit )</ID>
+    <ID>FunctionNaming:AttributeTile.kt$@Composable fun AttributeTile( name: String, value: String, onNameChange: (String) -&gt; Unit, onValueChange: (String) -&gt; Unit, onRemove: () -&gt; Unit, modifier: Modifier = Modifier, enabled: Boolean = true )</ID>
+    <ID>FunctionNaming:AttributeTile.kt$@Composable private fun InlineField( text: String, onChange: (String) -&gt; Unit, placeholder: String, enabled: Boolean, interaction: MutableInteractionSource, style: TextStyle, modifier: Modifier = Modifier )</ID>
+    <ID>FunctionNaming:ClientDetailScreen.kt$@Composable private fun PhotoSlot( tag: String, color: Color, uri: Uri?, enabled: Boolean, modifier: Modifier, source: PhotoSource, onRemove: () -&gt; Unit )</ID>
+    <ID>FunctionNaming:ClientDetailScreen.kt$@OptIn(ExperimentalLayoutApi::class) @Composable private fun AddVisitPhotoDialog( initialTag: String, cameraAvailable: Boolean, onDismiss: () -&gt; Unit, onSource: (tag: String, useCamera: Boolean) -&gt; Unit )</ID>
+    <ID>FunctionNaming:ClientDetailScreen.kt$@OptIn(ExperimentalLayoutApi::class) @Composable private fun AttributesCard( customFieldsJson: String, editor: AttributeEditorState, saving: Boolean, error: String?, onStartEditing: () -&gt; Unit, onCancel: () -&gt; Unit, onSave: (JsonObject) -&gt; Unit )</ID>
+    <ID>FunctionNaming:ClientDetailScreen.kt$@OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class) @Composable private fun VisitForm( clientName: String, saving: Boolean, error: String?, onDismiss: () -&gt; Unit, onSave: (String, String, String, String, List&lt;Pair&lt;String, Uri&gt;&gt;) -&gt; Unit )</ID>
+    <ID>FunctionNaming:ClientDetailScreen.kt$@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class) @Composable fun ClientDetailScreen( viewModel: ClientDetailViewModel, repository: BeautyRepository, onBack: () -&gt; Unit, onEdit: () -&gt; Unit, onDeleted: () -&gt; Unit = onBack, /** Opens the visit form straight away, as the web's "Log Visit" buttons do. */ openVisitForm: Boolean = false )</ID>
+    <ID>FunctionNaming:ClientDirectoryScreen.kt$@Composable private fun CompactUpdateStatus(state: com.beauty.app.updater.UpdateState, onTap: () -&gt; Unit)</ID>
+    <ID>FunctionNaming:ClientDirectoryScreen.kt$@OptIn(ExperimentalLayoutApi::class) @Composable private fun ClientCard(client: ClientEntity, logVisitEnabled: Boolean, onClick: () -&gt; Unit, onLogVisit: () -&gt; Unit)</ID>
+    <ID>FunctionNaming:ClientDirectoryScreen.kt$@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterialApi::class, ExperimentalLayoutApi::class) @Composable fun ClientDirectoryScreen( viewModel: ClientDirectoryViewModel, repository: BeautyRepository, organizationName: String, onClientTap: (String) -&gt; Unit, onNewClient: () -&gt; Unit, onLogVisit: (String) -&gt; Unit, onSettings: () -&gt; Unit, onAbout: () -&gt; Unit, onOrganizations: () -&gt; Unit, /** Join requests awaiting this admin's approval in the active organization. */ pendingRequestCount: Int = 0, onAdmin: (() -&gt; Unit)?, onLogout: () -&gt; Unit, updateManager: com.beauty.app.updater.UpdateManager? = null, onOpenUpdateDialog: () -&gt; Unit = {} )</ID>
+    <ID>FunctionNaming:ClientPresentation.kt$@Composable fun TagBadge(tag: String)</ID>
+    <ID>FunctionNaming:ClientPresentation.kt$@Composable fun VisitStatusBadge(status: String)</ID>
+    <ID>FunctionNaming:Components.kt$@Composable fun AuraCard(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -&gt; Unit)</ID>
+    <ID>FunctionNaming:Components.kt$@Composable fun AuraPageHeader(title: String, subtitle: String? = null, trailing: (@Composable () -&gt; Unit)? = null)</ID>
+    <ID>FunctionNaming:Components.kt$@Composable fun AuraSectionLabel(text: String)</ID>
+    <ID>FunctionNaming:Components.kt$@OptIn(ExperimentalLayoutApi::class) @Composable fun AuraAuthLayout( title: String, modifier: Modifier = Modifier, subtitle: String? = null, accountId: String? = null, content: @Composable ColumnScope.() -&gt; Unit )</ID>
+    <ID>FunctionNaming:EditClientScreen.kt$@OptIn(ExperimentalLayoutApi::class) @Composable private fun ClientForm(viewModel: EditClientViewModel)</ID>
+    <ID>FunctionNaming:EditClientScreen.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun EditClientScreen(viewModel: EditClientViewModel, onBack: () -&gt; Unit)</ID>
+    <ID>FunctionNaming:ForgotPasswordScreen.kt$@Composable fun ForgotPasswordScreen( viewModel: AuthViewModel, onNavigateBackToLogin: () -&gt; Unit, onEnterResetLink: () -&gt; Unit )</ID>
+    <ID>FunctionNaming:ForgotPasswordScreen.kt$@Composable private fun ColumnScope.SentConfirmation(onNavigateBackToLogin: () -&gt; Unit, onEnterResetLink: () -&gt; Unit)</ID>
+    <ID>FunctionNaming:LanguageSelector.kt$@Composable private fun CompactLanguageSelector( currentPreference: String, names: Map&lt;String, String&gt;, expanded: Boolean, onExpandedChange: (Boolean) -&gt; Unit, onSelect: (String) -&gt; Unit, modifier: Modifier )</ID>
+    <ID>FunctionNaming:LanguageSelector.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun LanguageSelector( accountId: String?, modifier: Modifier = Modifier, compact: Boolean = false, onSelected: (String?) -&gt; Unit = {} )</ID>
+    <ID>FunctionNaming:LoginScreen.kt$@Composable @OptIn(ExperimentalComposeUiApi::class) fun LoginScreen( viewModel: AuthViewModel, onLoginSuccess: () -&gt; Unit, onNavigateToRegister: () -&gt; Unit, onNavigateToForgotPassword: () -&gt; Unit )</ID>
+    <ID>FunctionNaming:MainActivity.kt$@Composable fun ClientCardItem(client: DirectoryClient, onClick: () -&gt; Unit)</ID>
+    <ID>FunctionNaming:MainActivity.kt$@Composable internal fun AppNavHost(links: AppLinkViewModel)</ID>
+    <ID>FunctionNaming:MainActivity.kt$@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterialApi::class) @Composable fun BeautyAppScreen( tokenStore: com.beauty.app.data.local.TokenStore, /** The organization whose directory this screen shows. Never inferred. */ organizationId: String, onClientTap: (clientId: String) -&gt; Unit, onOpenSettings: () -&gt; Unit, onOpenOrganizations: () -&gt; Unit, /** * Null for an ordinary account, which is how the shield stays hidden. * * A capability hint, not a control: `requireSuperAdmin()` refuses every * endpoint behind that screen regardless of whether this app draws the * button. */ onOpenAdmin: (() -&gt; Unit)? = null, onLogout: () -&gt; Unit )</ID>
+    <ID>FunctionNaming:MemberRow.kt$@OptIn(ExperimentalLayoutApi::class) @Composable internal fun MemberRow( member: MemberDto, onApprove: () -&gt; Unit, onDecline: () -&gt; Unit, onRemove: () -&gt; Unit, onToggleRole: () -&gt; Unit, /** Null hides the action — for the caller's own row, or a screen that does not offer it. */ onRevoke: (() -&gt; Unit)? = null, onRestore: (() -&gt; Unit)? = null )</ID>
+    <ID>FunctionNaming:OrganizationScreen.kt$@Composable private fun AuditRow(event: AuditEventDto)</ID>
+    <ID>FunctionNaming:OrganizationScreen.kt$@Composable private fun Banner(message: String, isError: Boolean, localize: Boolean = true)</ID>
+    <ID>FunctionNaming:OrganizationScreen.kt$@Composable private fun InviteOfferDialog( offer: OrganizationViewModel.InviteOffer, onJoin: () -&gt; Unit, onDismiss: () -&gt; Unit )</ID>
+    <ID>FunctionNaming:OrganizationScreen.kt$@Composable private fun OrganizationRow(org: OrganizationDto, selected: Boolean, onSelect: () -&gt; Unit)</ID>
+    <ID>FunctionNaming:OrganizationScreen.kt$@Composable private fun SectionTitle(text: String)</ID>
+    <ID>FunctionNaming:OrganizationScreen.kt$@OptIn(ExperimentalLayoutApi::class) @Composable private fun InviteLinksCard( issuedUrl: String?, links: List&lt;com.beauty.app.data.api.InviteLinkDto&gt;, onGenerate: () -&gt; Unit, onRevoke: (String) -&gt; Unit )</ID>
+    <ID>FunctionNaming:OrganizationScreen.kt$@OptIn(ExperimentalLayoutApi::class) @Composable private fun JoinLinkCard(slug: String)</ID>
+    <ID>FunctionNaming:OrganizationScreen.kt$@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class) @Composable fun OrganizationScreen( viewModel: OrganizationViewModel, onDone: (() -&gt; Unit)?, onLogout: () -&gt; Unit, onOpenAdmin: (() -&gt; Unit)? = null )</ID>
+    <ID>FunctionNaming:RegisterScreen.kt$@Composable fun RegisterScreen( viewModel: AuthViewModel, onRegisterSuccess: () -&gt; Unit, onNavigateToLogin: () -&gt; Unit, /** * False when the user arrived with an organization-creation link: they * are about to create their own organization, and asking to join someone * else's on the same form would only confuse that. */ offerOrganizationField: Boolean = true )</ID>
+    <ID>FunctionNaming:RegisterScreen.kt$@Composable private fun AuthTextField( value: String, onValueChange: (String) -&gt; Unit, label: String, error: String? = null, helper: String? = null, keyboardType: KeyboardType = KeyboardType.Text, autofillField: AutofillField? = null, isPassword: Boolean = false, showPassword: Boolean = false, onToggleShowPassword: (() -&gt; Unit)? = null )</ID>
+    <ID>FunctionNaming:ResetPasswordScreen.kt$@Composable fun ResetPasswordScreen( viewModel: AuthViewModel, onNavigateBackToLogin: () -&gt; Unit, onRequestNewLink: () -&gt; Unit, initialToken: String? = null, onTokenUsed: () -&gt; Unit = {} )</ID>
+    <ID>FunctionNaming:ResetPasswordScreen.kt$@Composable private fun PrimaryButton(text: String, loading: Boolean, onClick: () -&gt; Unit)</ID>
+    <ID>FunctionNaming:ResetPasswordScreen.kt$@Composable private fun ResetField( value: String, onValueChange: (String) -&gt; Unit, label: String, error: String?, enabled: Boolean, keyboardType: KeyboardType, autofillField: AutofillField? = null, helper: String? = null, hidden: Boolean = false, trailingIcon: (@Composable () -&gt; Unit)? = null )</ID>
+    <ID>FunctionNaming:SettingsScreen.kt$@Composable private fun SettingsTextField( value: String, onValueChange: (String) -&gt; Unit, label: String, error: String? = null, helper: String? = null, enabled: Boolean = true, isPassword: Boolean = false, showPassword: Boolean = false, onToggleShowPassword: (() -&gt; Unit)? = null )</ID>
+    <ID>FunctionNaming:SettingsScreen.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun SettingsScreen( viewModel: SettingsViewModel, accountId: String?, languageManager: com.beauty.app.i18n.LanguagePreferenceManager, onLanguageSelected: (String?) -&gt; Unit, onBack: () -&gt; Unit )</ID>
+    <ID>FunctionNaming:Theme.kt$@Composable fun BeautyTheme(darkTheme: Boolean = isSystemInDarkTheme(), content: @Composable () -&gt; Unit)</ID>
+    <ID>FunctionNaming:ThemeSelector.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun ThemeSelector(modifier: Modifier = Modifier, compact: Boolean = false)</ID>
+    <ID>FunctionNaming:UpdateBanner.kt$@Composable fun UpdateBanner( state: UpdateState, onTap: () -&gt; Unit, modifier: Modifier = Modifier )</ID>
+    <ID>FunctionNaming:UpdateDialog.kt$@Composable fun UpdateDialog( state: UpdateState, currentVersion: String, distributionMode: UpdateDistributionMode, onDismiss: () -&gt; Unit, onStartDownload: () -&gt; Unit, onCancelDownload: () -&gt; Unit, onInstall: () -&gt; Unit, onOpenPlayStore: () -&gt; Unit, onRequestPermission: () -&gt; Unit, needsInstallPermission: Boolean )</ID>
+    <ID>FunctionNaming:VerificationBanner.kt$@OptIn(ExperimentalLayoutApi::class) @Composable fun VerificationBanner( repository: BeautyRepository, modifier: Modifier = Modifier )</ID>
+    <ID>FunctionNaming:VerificationWallScreen.kt$@Composable fun VerificationGate( repository: BeautyRepository, onLogout: () -&gt; Unit, refreshKey: Int = 0, content: @Composable () -&gt; Unit )</ID>
+    <ID>FunctionNaming:VerificationWallScreen.kt$@Composable fun VerificationWallScreen( email: String?, onResend: suspend () -&gt; Result&lt;Unit&gt;, onRecheck: suspend () -&gt; Unit, onLogout: () -&gt; Unit, modifier: Modifier = Modifier )</ID>
+    <ID>InstanceOfCheckForException:EditClientViewModel.kt$EditClientViewModel$e is kotlinx.coroutines.CancellationException</ID>
+    <ID>LongMethod:AboutScreen.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun AboutScreen( updateManager: UpdateManager, onCheckForUpdates: () -&gt; Unit, onOpenUpdateDialog: () -&gt; Unit, onBack: () -&gt; Unit )</ID>
+    <ID>LongMethod:AdminScreen.kt$@Composable private fun OrganizationsTab( viewModel: AdminViewModel, onOpenOrganization: (AdminOrganizationDto) -&gt; Unit )</ID>
+    <ID>LongMethod:AdminScreen.kt$@OptIn(ExperimentalLayoutApi::class) @Composable private fun LinksTab(viewModel: AdminViewModel)</ID>
+    <ID>LongMethod:ClientDetailScreen.kt$@OptIn(ExperimentalLayoutApi::class) @Composable private fun AttributesCard( customFieldsJson: String, editor: AttributeEditorState, saving: Boolean, error: String?, onStartEditing: () -&gt; Unit, onCancel: () -&gt; Unit, onSave: (JsonObject) -&gt; Unit )</ID>
+    <ID>LongMethod:ClientDetailScreen.kt$@OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class) @Composable private fun VisitForm( clientName: String, saving: Boolean, error: String?, onDismiss: () -&gt; Unit, onSave: (String, String, String, String, List&lt;Pair&lt;String, Uri&gt;&gt;) -&gt; Unit )</ID>
+    <ID>LongMethod:ClientDetailScreen.kt$@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class) @Composable fun ClientDetailScreen( viewModel: ClientDetailViewModel, repository: BeautyRepository, onBack: () -&gt; Unit, onEdit: () -&gt; Unit, onDeleted: () -&gt; Unit = onBack, /** Opens the visit form straight away, as the web's "Log Visit" buttons do. */ openVisitForm: Boolean = false )</ID>
+    <ID>LongMethod:ClientDirectoryScreen.kt$@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterialApi::class, ExperimentalLayoutApi::class) @Composable fun ClientDirectoryScreen( viewModel: ClientDirectoryViewModel, repository: BeautyRepository, organizationName: String, onClientTap: (String) -&gt; Unit, onNewClient: () -&gt; Unit, onLogVisit: (String) -&gt; Unit, onSettings: () -&gt; Unit, onAbout: () -&gt; Unit, onOrganizations: () -&gt; Unit, /** Join requests awaiting this admin's approval in the active organization. */ pendingRequestCount: Int = 0, onAdmin: (() -&gt; Unit)?, onLogout: () -&gt; Unit, updateManager: com.beauty.app.updater.UpdateManager? = null, onOpenUpdateDialog: () -&gt; Unit = {} )</ID>
+    <ID>LongMethod:EditClientScreen.kt$@OptIn(ExperimentalLayoutApi::class) @Composable private fun ClientForm(viewModel: EditClientViewModel)</ID>
+    <ID>LongMethod:EditClientScreen.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun EditClientScreen(viewModel: EditClientViewModel, onBack: () -&gt; Unit)</ID>
+    <ID>LongMethod:EditClientViewModel.kt$EditClientViewModel$fun save()</ID>
+    <ID>LongMethod:ForgotPasswordScreen.kt$@Composable fun ForgotPasswordScreen( viewModel: AuthViewModel, onNavigateBackToLogin: () -&gt; Unit, onEnterResetLink: () -&gt; Unit )</ID>
+    <ID>LongMethod:LocalizedMessage.kt$@Composable fun localizedMessage(raw: String): String</ID>
+    <ID>LongMethod:LoginScreen.kt$@Composable @OptIn(ExperimentalComposeUiApi::class) fun LoginScreen( viewModel: AuthViewModel, onLoginSuccess: () -&gt; Unit, onNavigateToRegister: () -&gt; Unit, onNavigateToForgotPassword: () -&gt; Unit )</ID>
+    <ID>LongMethod:MainActivity.kt$@Composable internal fun AppNavHost(links: AppLinkViewModel)</ID>
+    <ID>LongMethod:MainActivity.kt$@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterialApi::class) @Composable fun BeautyAppScreen( tokenStore: com.beauty.app.data.local.TokenStore, /** The organization whose directory this screen shows. Never inferred. */ organizationId: String, onClientTap: (clientId: String) -&gt; Unit, onOpenSettings: () -&gt; Unit, onOpenOrganizations: () -&gt; Unit, /** * Null for an ordinary account, which is how the shield stays hidden. * * A capability hint, not a control: `requireSuperAdmin()` refuses every * endpoint behind that screen regardless of whether this app draws the * button. */ onOpenAdmin: (() -&gt; Unit)? = null, onLogout: () -&gt; Unit )</ID>
+    <ID>LongMethod:MemberRow.kt$@OptIn(ExperimentalLayoutApi::class) @Composable internal fun MemberRow( member: MemberDto, onApprove: () -&gt; Unit, onDecline: () -&gt; Unit, onRemove: () -&gt; Unit, onToggleRole: () -&gt; Unit, /** Null hides the action — for the caller's own row, or a screen that does not offer it. */ onRevoke: (() -&gt; Unit)? = null, onRestore: (() -&gt; Unit)? = null )</ID>
+    <ID>LongMethod:OrganizationScreen.kt$@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class) @Composable fun OrganizationScreen( viewModel: OrganizationViewModel, onDone: (() -&gt; Unit)?, onLogout: () -&gt; Unit, onOpenAdmin: (() -&gt; Unit)? = null )</ID>
+    <ID>LongMethod:RegisterScreen.kt$@Composable fun RegisterScreen( viewModel: AuthViewModel, onRegisterSuccess: () -&gt; Unit, onNavigateToLogin: () -&gt; Unit, /** * False when the user arrived with an organization-creation link: they * are about to create their own organization, and asking to join someone * else's on the same form would only confuse that. */ offerOrganizationField: Boolean = true )</ID>
+    <ID>LongMethod:ResetPasswordScreen.kt$@Composable fun ResetPasswordScreen( viewModel: AuthViewModel, onNavigateBackToLogin: () -&gt; Unit, onRequestNewLink: () -&gt; Unit, initialToken: String? = null, onTokenUsed: () -&gt; Unit = {} )</ID>
+    <ID>LongMethod:SettingsScreen.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun SettingsScreen( viewModel: SettingsViewModel, accountId: String?, languageManager: com.beauty.app.i18n.LanguagePreferenceManager, onLanguageSelected: (String?) -&gt; Unit, onBack: () -&gt; Unit )</ID>
+    <ID>LongMethod:UpdateDialog.kt$@Composable fun UpdateDialog( state: UpdateState, currentVersion: String, distributionMode: UpdateDistributionMode, onDismiss: () -&gt; Unit, onStartDownload: () -&gt; Unit, onCancelDownload: () -&gt; Unit, onInstall: () -&gt; Unit, onOpenPlayStore: () -&gt; Unit, onRequestPermission: () -&gt; Unit, needsInstallPermission: Boolean )</ID>
+    <ID>LongMethod:VerificationBanner.kt$@OptIn(ExperimentalLayoutApi::class) @Composable fun VerificationBanner( repository: BeautyRepository, modifier: Modifier = Modifier )</ID>
+    <ID>LongMethod:VerificationWallScreen.kt$@Composable fun VerificationWallScreen( email: String?, onResend: suspend () -&gt; Result&lt;Unit&gt;, onRecheck: suspend () -&gt; Unit, onLogout: () -&gt; Unit, modifier: Modifier = Modifier )</ID>
+    <ID>LongParameterList:AttributeTile.kt$( name: String, value: String, onNameChange: (String) -&gt; Unit, onValueChange: (String) -&gt; Unit, onRemove: () -&gt; Unit, modifier: Modifier = Modifier, enabled: Boolean = true )</ID>
+    <ID>LongParameterList:AttributeTile.kt$( text: String, onChange: (String) -&gt; Unit, placeholder: String, enabled: Boolean, interaction: MutableInteractionSource, style: TextStyle, modifier: Modifier = Modifier )</ID>
+    <ID>LongParameterList:BeautyRepository.kt$BeautyRepository$( orgId: String, clientId: String, localVisitId: String, localFilePath: String, tag: String, remoteVisitId: String? = null )</ID>
+    <ID>LongParameterList:BeautyRepository.kt$BeautyRepository$( orgId: String, clientId: String, visitDateTime: String, durationMinutes: Int, procedureNotes: String, status: String = "COMPLETED" )</ID>
+    <ID>LongParameterList:BeautyRepository.kt$BeautyRepository$( orgId: String, id: String, name: String, phone: String, email: String?, tags: List&lt;String&gt;, customFields: JsonObject )</ID>
+    <ID>LongParameterList:BeautyRepository.kt$BeautyRepository$(orgId: String, name: String, phone: String, email: String?, tags: List&lt;String&gt;, customFields: JsonObject)</ID>
+    <ID>LongParameterList:ClientDetailScreen.kt$( customFieldsJson: String, editor: AttributeEditorState, saving: Boolean, error: String?, onStartEditing: () -&gt; Unit, onCancel: () -&gt; Unit, onSave: (JsonObject) -&gt; Unit )</ID>
+    <ID>LongParameterList:ClientDetailScreen.kt$( tag: String, color: Color, uri: Uri?, enabled: Boolean, modifier: Modifier, source: PhotoSource, onRemove: () -&gt; Unit )</ID>
+    <ID>LongParameterList:ClientDetailScreen.kt$( viewModel: ClientDetailViewModel, repository: BeautyRepository, onBack: () -&gt; Unit, onEdit: () -&gt; Unit, onDeleted: () -&gt; Unit = onBack, /** Opens the visit form straight away, as the web's "Log Visit" buttons do. */ openVisitForm: Boolean = false )</ID>
+    <ID>LongParameterList:ClientDetailViewModel.kt$ClientDetailViewModel$( context: Context, rowKey: String, remoteVisitId: String?, localVisitId: String?, tag: String, uri: Uri, onPending: () -&gt; Unit )</ID>
+    <ID>LongParameterList:ClientDetailViewModel.kt$ClientDetailViewModel$(dateTime: String, duration: String, notes: String, status: String, onSaved: () -&gt; Unit, context: Context? = null, photos: List&lt;Pair&lt;String, Uri&gt;&gt; = emptyList())</ID>
+    <ID>LongParameterList:ClientDirectoryScreen.kt$( viewModel: ClientDirectoryViewModel, repository: BeautyRepository, organizationName: String, onClientTap: (String) -&gt; Unit, onNewClient: () -&gt; Unit, onLogVisit: (String) -&gt; Unit, onSettings: () -&gt; Unit, onAbout: () -&gt; Unit, onOrganizations: () -&gt; Unit, /** Join requests awaiting this admin's approval in the active organization. */ pendingRequestCount: Int = 0, onAdmin: (() -&gt; Unit)?, onLogout: () -&gt; Unit, updateManager: com.beauty.app.updater.UpdateManager? = null, onOpenUpdateDialog: () -&gt; Unit = {} )</ID>
+    <ID>LongParameterList:LanguageSelector.kt$( currentPreference: String, names: Map&lt;String, String&gt;, expanded: Boolean, onExpandedChange: (Boolean) -&gt; Unit, onSelect: (String) -&gt; Unit, modifier: Modifier )</ID>
+    <ID>LongParameterList:MainActivity.kt$( tokenStore: com.beauty.app.data.local.TokenStore, /** The organization whose directory this screen shows. Never inferred. */ organizationId: String, onClientTap: (clientId: String) -&gt; Unit, onOpenSettings: () -&gt; Unit, onOpenOrganizations: () -&gt; Unit, /** * Null for an ordinary account, which is how the shield stays hidden. * * A capability hint, not a control: `requireSuperAdmin()` refuses every * endpoint behind that screen regardless of whether this app draws the * button. */ onOpenAdmin: (() -&gt; Unit)? = null, onLogout: () -&gt; Unit )</ID>
+    <ID>LongParameterList:MemberRow.kt$( member: MemberDto, onApprove: () -&gt; Unit, onDecline: () -&gt; Unit, onRemove: () -&gt; Unit, onToggleRole: () -&gt; Unit, /** Null hides the action — for the caller's own row, or a screen that does not offer it. */ onRevoke: (() -&gt; Unit)? = null, onRestore: (() -&gt; Unit)? = null )</ID>
+    <ID>LongParameterList:RegisterScreen.kt$( value: String, onValueChange: (String) -&gt; Unit, label: String, error: String? = null, helper: String? = null, keyboardType: KeyboardType = KeyboardType.Text, autofillField: AutofillField? = null, isPassword: Boolean = false, showPassword: Boolean = false, onToggleShowPassword: (() -&gt; Unit)? = null )</ID>
+    <ID>LongParameterList:ResetPasswordScreen.kt$( value: String, onValueChange: (String) -&gt; Unit, label: String, error: String?, enabled: Boolean, keyboardType: KeyboardType, autofillField: AutofillField? = null, helper: String? = null, hidden: Boolean = false, trailingIcon: (@Composable () -&gt; Unit)? = null )</ID>
+    <ID>LongParameterList:SettingsScreen.kt$( value: String, onValueChange: (String) -&gt; Unit, label: String, error: String? = null, helper: String? = null, enabled: Boolean = true, isPassword: Boolean = false, showPassword: Boolean = false, onToggleShowPassword: (() -&gt; Unit)? = null )</ID>
+    <ID>LongParameterList:UpdateDialog.kt$( state: UpdateState, currentVersion: String, distributionMode: UpdateDistributionMode, onDismiss: () -&gt; Unit, onStartDownload: () -&gt; Unit, onCancelDownload: () -&gt; Unit, onInstall: () -&gt; Unit, onOpenPlayStore: () -&gt; Unit, onRequestPermission: () -&gt; Unit, needsInstallPermission: Boolean )</ID>
+    <ID>MagicNumber:AboutScreen.kt$100</ID>
+    <ID>MagicNumber:AdminScreen.kt$168L</ID>
+    <ID>MagicNumber:AppContainer.kt$AppContainer$10_000</ID>
+    <ID>MagicNumber:AppContainer.kt$AppContainer$15_000</ID>
+    <ID>MagicNumber:AppContainer.kt$AppContainer$30_000</ID>
+    <ID>MagicNumber:AppLinks.kt$2048</ID>
+    <ID>MagicNumber:AppLinks.kt$443</ID>
+    <ID>MagicNumber:AppLinks.kt$80</ID>
+    <ID>MagicNumber:AttachmentImages.kt$0.25f</ID>
+    <ID>MagicNumber:AttachmentImages.kt$0.5f</ID>
+    <ID>MagicNumber:AttachmentImages.kt$0.95f</ID>
+    <ID>MagicNumber:AttachmentImages.kt$AttachmentBitmapCache$1024</ID>
+    <ID>MagicNumber:AttachmentImages.kt$AttachmentBitmapCache$8</ID>
+    <ID>MagicNumber:AttributeEditorState.kt$AttributeEditorState.Companion$3</ID>
+    <ID>MagicNumber:AttributeEditorState.kt$AttributeEditorState.Companion$4</ID>
+    <ID>MagicNumber:AuthValidation.kt$AuthValidation$3</ID>
+    <ID>MagicNumber:AuthValidation.kt$AuthValidation$4</ID>
+    <ID>MagicNumber:BeautyApi.kt$400</ID>
+    <ID>MagicNumber:BeautyApi.kt$401</ID>
+    <ID>MagicNumber:BeautyApi.kt$403</ID>
+    <ID>MagicNumber:BeautyApi.kt$404</ID>
+    <ID>MagicNumber:BeautyApi.kt$409</ID>
+    <ID>MagicNumber:BeautyApi.kt$413</ID>
+    <ID>MagicNumber:BeautyApi.kt$422</ID>
+    <ID>MagicNumber:BeautyApi.kt$429</ID>
+    <ID>MagicNumber:BeautyApi.kt$KtorBeautyApi$100</ID>
+    <ID>MagicNumber:BeautyApi.kt$KtorBeautyApi$200</ID>
+    <ID>MagicNumber:BeautyApi.kt$KtorBeautyApi$299</ID>
+    <ID>MagicNumber:BeautyApi.kt$KtorBeautyApi$300</ID>
+    <ID>MagicNumber:BeautyApi.kt$KtorBeautyApi$399</ID>
+    <ID>MagicNumber:BeautyApi.kt$KtorBeautyApi$400</ID>
+    <ID>MagicNumber:BeautyApi.kt$KtorBeautyApi$499</ID>
+    <ID>MagicNumber:BeautyApi.kt$KtorBeautyApi$500</ID>
+    <ID>MagicNumber:BeautyApi.kt$KtorBeautyApi$599</ID>
+    <ID>MagicNumber:BeautyDatabaseProvider.kt$BeautyDatabaseProvider.&lt;no name provided&gt;$3</ID>
+    <ID>MagicNumber:BeautyDatabaseProvider.kt$BeautyDatabaseProvider.&lt;no name provided&gt;$4</ID>
+    <ID>MagicNumber:BeautyDatabaseProvider.kt$BeautyDatabaseProvider.&lt;no name provided&gt;$5</ID>
+    <ID>MagicNumber:BeautyDatabaseProvider.kt$BeautyDatabaseProvider.&lt;no name provided&gt;$6</ID>
+    <ID>MagicNumber:BeautyRepository.kt$16</ID>
+    <ID>MagicNumber:ClientDetailScreen.kt$0xB3000000</ID>
+    <ID>MagicNumber:ClientDetailScreen.kt$300</ID>
+    <ID>MagicNumber:ClientDirectoryScreen.kt$1.15f</ID>
+    <ID>MagicNumber:ClientDirectoryScreen.kt$100</ID>
+    <ID>MagicNumber:ClientDirectoryScreen.kt$99</ID>
+    <ID>MagicNumber:ClientDirectoryViewModel.kt$ClientDirectoryViewModel$250</ID>
+    <ID>MagicNumber:ClientDirectoryViewModel.kt$ClientDirectoryViewModel$401</ID>
+    <ID>MagicNumber:ClientDirectoryViewModel.kt$ClientDirectoryViewModel$403</ID>
+    <ID>MagicNumber:ClientDirectoryViewModel.kt$ClientDirectoryViewModel$404</ID>
+    <ID>MagicNumber:GithubUpdateService.kt$GithubUpdateService$1024</ID>
+    <ID>MagicNumber:GithubUpdateService.kt$GithubUpdateService$16</ID>
+    <ID>MagicNumber:GithubUpdateService.kt$GithubUpdateService.Companion$15_000</ID>
+    <ID>MagicNumber:GithubUpdateService.kt$GithubUpdateService.Companion$300_000</ID>
+    <ID>MagicNumber:GithubUpdateService.kt$GithubUpdateService.Companion$60_000</ID>
+    <ID>MagicNumber:LocalizedMessage.kt$15</ID>
+    <ID>MagicNumber:MainActivity.kt$60_000L</ID>
+    <ID>MagicNumber:NativeLabels.kt$10</ID>
+    <ID>MagicNumber:NativeLabels.kt$19</ID>
+    <ID>MagicNumber:OrganizationScreen.kt$99</ID>
+    <ID>MagicNumber:PhotoCapture.kt$180f</ID>
+    <ID>MagicNumber:PhotoCapture.kt$270f</ID>
+    <ID>MagicNumber:PhotoCapture.kt$90f</ID>
+    <ID>MagicNumber:Theme.kt$0xFF101712</ID>
+    <ID>MagicNumber:Theme.kt$0xFF121A15</ID>
+    <ID>MagicNumber:Theme.kt$0xFF123819</ID>
+    <ID>MagicNumber:Theme.kt$0xFF172019</ID>
+    <ID>MagicNumber:Theme.kt$0xFF17311F</ID>
+    <ID>MagicNumber:Theme.kt$0xFF1B251E</ID>
+    <ID>MagicNumber:Theme.kt$0xFF263128</ID>
+    <ID>MagicNumber:Theme.kt$0xFF263828</ID>
+    <ID>MagicNumber:Theme.kt$0xFF28332B</ID>
+    <ID>MagicNumber:Theme.kt$0xFF283A2C</ID>
+    <ID>MagicNumber:Theme.kt$0xFF303C32</ID>
+    <ID>MagicNumber:Theme.kt$0xFF314936</ID>
+    <ID>MagicNumber:Theme.kt$0xFF344238</ID>
+    <ID>MagicNumber:Theme.kt$0xFF3A4D3A</ID>
+    <ID>MagicNumber:Theme.kt$0xFF3D653D</ID>
+    <ID>MagicNumber:Theme.kt$0xFF465349</ID>
+    <ID>MagicNumber:Theme.kt$0xFF4A2716</ID>
+    <ID>MagicNumber:Theme.kt$0xFF626B5D</ID>
+    <ID>MagicNumber:Theme.kt$0xFF633F28</ID>
+    <ID>MagicNumber:Theme.kt$0xFF690005</ID>
+    <ID>MagicNumber:Theme.kt$0xFF782B32</ID>
+    <ID>MagicNumber:Theme.kt$0xFF845438</ID>
+    <ID>MagicNumber:Theme.kt$0xFF8B9583</ID>
+    <ID>MagicNumber:Theme.kt$0xFF8F9B90</ID>
+    <ID>MagicNumber:Theme.kt$0xFF93000A</ID>
+    <ID>MagicNumber:Theme.kt$0xFFA33E46</ID>
+    <ID>MagicNumber:Theme.kt$0xFFA7D9A6</ID>
+    <ID>MagicNumber:Theme.kt$0xFFC1CBC0</ID>
+    <ID>MagicNumber:Theme.kt$0xFFC7D6B9</ID>
+    <ID>MagicNumber:Theme.kt$0xFFD4DFCC</ID>
+    <ID>MagicNumber:Theme.kt$0xFFD8DCD0</ID>
+    <ID>MagicNumber:Theme.kt$0xFFE1E6D8</ID>
+    <ID>MagicNumber:Theme.kt$0xFFE3F0D6</ID>
+    <ID>MagicNumber:Theme.kt$0xFFE7EDE3</ID>
+    <ID>MagicNumber:Theme.kt$0xFFE7F0DF</ID>
+    <ID>MagicNumber:Theme.kt$0xFFE8ECDF</ID>
+    <ID>MagicNumber:Theme.kt$0xFFF4BC99</ID>
+    <ID>MagicNumber:Theme.kt$0xFFF8E5E5</ID>
+    <ID>MagicNumber:Theme.kt$0xFFF8F7F2</ID>
+    <ID>MagicNumber:Theme.kt$0xFFFFB4AB</ID>
+    <ID>MagicNumber:Theme.kt$0xFFFFC8A5</ID>
+    <ID>MagicNumber:Theme.kt$0xFFFFDAD6</ID>
+    <ID>MagicNumber:Theme.kt$0xFFFFDCCA</ID>
+    <ID>MagicNumber:Theme.kt$0xFFFFFEF9</ID>
+    <ID>MagicNumber:Theme.kt$12</ID>
+    <ID>MagicNumber:Theme.kt$13</ID>
+    <ID>MagicNumber:Theme.kt$14</ID>
+    <ID>MagicNumber:Theme.kt$16</ID>
+    <ID>MagicNumber:Theme.kt$18</ID>
+    <ID>MagicNumber:Theme.kt$20</ID>
+    <ID>MagicNumber:Theme.kt$21</ID>
+    <ID>MagicNumber:Theme.kt$22</ID>
+    <ID>MagicNumber:Theme.kt$24</ID>
+    <ID>MagicNumber:Theme.kt$25</ID>
+    <ID>MagicNumber:Theme.kt$28</ID>
+    <ID>MagicNumber:Theme.kt$30</ID>
+    <ID>MagicNumber:Theme.kt$32</ID>
+    <ID>MagicNumber:Theme.kt$36</ID>
+    <ID>MagicNumber:Theme.kt$38</ID>
+    <ID>MagicNumber:Theme.kt$40</ID>
+    <ID>MagicNumber:Theme.kt$44</ID>
+    <ID>MagicNumber:UpdateBanner.kt$100</ID>
+    <ID>MagicNumber:UpdateDialog.kt$1024f</ID>
+    <ID>MagicNumber:VerificationState.kt$19</ID>
+    <ID>MagicNumber:VerificationState.kt$86_400_000L</ID>
+    <ID>MatchingDeclarationName:Autofill.kt$AutofillField</ID>
+    <ID>MatchingDeclarationName:VerificationState.kt$VerificationStanding</ID>
+    <ID>MaxLineLength:AboutScreen.kt$Icon(Icons.Default.ArrowBack, contentDescription = stringResource(com.beauty.app.R.string.back), tint = Forest)</ID>
+    <ID>MaxLineLength:AboutScreen.kt$Icon(Icons.Default.ContentCopy, contentDescription = stringResource(com.beauty.app.R.string.copy_version), tint = Muted)</ID>
+    <ID>MaxLineLength:AboutScreen.kt$Icon(Icons.Default.SystemUpdate, contentDescription = null, tint = Forest, modifier = Modifier.size(20.dp))</ID>
+    <ID>MaxLineLength:AboutScreen.kt$LinkRow(label = stringResource(com.beauty.app.R.string.download_from_github), onClick = { openUrl(updateManager.releasesPageUrl) })</ID>
+    <ID>MaxLineLength:AboutScreen.kt$Row</ID>
+    <ID>MaxLineLength:AboutScreen.kt$Text(if (state is UpdateState.Error) stringResource(com.beauty.app.R.string.try_again) else stringResource(com.beauty.app.R.string.check_for_updates), fontWeight = FontWeight.SemiBold)</ID>
+    <ID>MaxLineLength:AboutScreen.kt$Text(stringResource(com.beauty.app.R.string.aura_beauty_log), color = Forest, fontWeight = FontWeight.Bold, fontSize = 20.sp)</ID>
+    <ID>MaxLineLength:AboutScreen.kt$Text(stringResource(com.beauty.app.R.string.checked_time, relativeTime(state.checkedAt)), color = Muted, fontSize = 13.sp)</ID>
+    <ID>MaxLineLength:AboutScreen.kt$Text(stringResource(com.beauty.app.R.string.update_downloading, state.release.versionName, (state.progress * 100).toInt()), color = Forest, fontSize = 13.sp)</ID>
+    <ID>MaxLineLength:AboutScreen.kt$Text(stringResource(com.beauty.app.R.string.updates), color = Forest, fontWeight = FontWeight.Bold, fontSize = 16.sp)</ID>
+    <ID>MaxLineLength:AboutScreen.kt$Text(stringResource(com.beauty.app.R.string.you_re_on_the_latest_version), color = Success, fontSize = 13.sp)</ID>
+    <ID>MaxLineLength:AboutScreen.kt$UpdateState.Idle -&gt; Text(stringResource(com.beauty.app.R.string.not_checked_yet), color = Muted, fontSize = 13.sp)</ID>
+    <ID>MaxLineLength:AboutScreen.kt$colors = ButtonDefaults.buttonColors(containerColor = color, contentColor = if (state is UpdateState.ReadyToInstall) OnSuccess else MaterialTheme.colorScheme.onPrimary)</ID>
+    <ID>MaxLineLength:AboutScreen.kt$is UpdateState.Downloading -&gt; stringResource(com.beauty.app.R.string.view_download) to MaterialTheme.colorScheme.primary</ID>
+    <ID>MaxLineLength:AboutScreen.kt$is UpdateState.Error -&gt; Text(localizedMessage(state.message), color = MaterialTheme.colorScheme.error, fontSize = 13.sp)</ID>
+    <ID>MaxLineLength:AboutScreen.kt$label = if (release != null) stringResource(com.beauty.app.R.string.whats_new_version, release.versionName) else stringResource(com.beauty.app.R.string.release_notes)</ID>
+    <ID>MaxLineLength:AboutScreen.kt$scope.launch { snackbarHostState.showSnackbar(context.getString(com.beauty.app.R.string.ui2_no_app_available_to_open_the_link)) }</ID>
+    <ID>MaxLineLength:AboutScreen.kt$val versionLabel = stringResource(com.beauty.app.R.string.version_build, BuildConfig.VERSION_NAME, BuildConfig.VERSION_CODE)</ID>
+    <ID>MaxLineLength:AdminScreen.kt$" · "</ID>
+    <ID>MaxLineLength:AdminScreen.kt$FlowRow</ID>
+    <ID>MaxLineLength:AdminScreen.kt$Icon(Icons.Default.ArrowBack, contentDescription = stringResource(com.beauty.app.R.string.back), tint = TextMuted)</ID>
+    <ID>MaxLineLength:AdminScreen.kt$Icon(Icons.Default.Delete, contentDescription = stringResource(com.beauty.app.R.string.revoke_link), tint = TextMuted)</ID>
+    <ID>MaxLineLength:AdminScreen.kt$Text(link.label ?: stringResource(com.beauty.app.R.string.untitled_link), style = MaterialTheme.typography.titleMedium)</ID>
+    <ID>MaxLineLength:AdminScreen.kt$Text(stringResource(com.beauty.app.R.string.archive), color = MaterialTheme.colorScheme.error, fontSize = 14.sp)</ID>
+    <ID>MaxLineLength:AdminScreen.kt$Text(stringResource(com.beauty.app.R.string.loading), color = TextMuted, modifier = Modifier.padding(16.dp))</ID>
+    <ID>MaxLineLength:AdminScreen.kt$Text(stringResource(com.beauty.app.R.string.new_link_copy_it_now), color = RoseGoldPrimary, fontSize = 14.sp)</ID>
+    <ID>MaxLineLength:AdminScreen.kt$Text(stringResource(com.beauty.app.R.string.open_organization), color = RoseGoldPrimary, fontSize = 14.sp)</ID>
+    <ID>MaxLineLength:AdminScreen.kt$append(pluralStringResource(com.beauty.app.R.plurals.organizations_count, user.organizationCount, user.organizationCount))</ID>
+    <ID>MaxLineLength:AdminScreen.kt$append(stringResource(com.beauty.app.R.string.link_usage, link.usesCount, link.maxUses, com.beauty.app.ui.i18n.localizedIsoDate(link.expiresAt)))</ID>
+    <ID>MaxLineLength:AdminScreen.kt$if (user.isSuspended) stringResource(com.beauty.app.R.string.unsuspend) else stringResource(com.beauty.app.R.string.suspend)</ID>
+    <ID>MaxLineLength:AdminScreen.kt$item { Text(stringResource(com.beauty.app.R.string.no_organizations_yet), color = TextMuted, fontSize = 14.sp) }</ID>
+    <ID>MaxLineLength:AdminScreen.kt$stringResource(com.beauty.app.R.string.organization_created_by, org.slug, org.createdByEmail ?: stringResource(com.beauty.app.R.string.unknown))</ID>
+    <ID>MaxLineLength:AppContainer.kt$AppContainer$KtorBeautyApi(client, buildStorageClient())</ID>
+    <ID>MaxLineLength:AppLinks.kt$"/api/auth/verify-email", "/verify-email" -&gt; AppLink.VerifyEmail(link.parameter("token"), link.parameter("status"))</ID>
+    <ID>MaxLineLength:AppLinksTest.kt$AppLinksTest$assertEquals("first", (parseAppLink("$origin/reset-password?token=first", origin) as AppLink.ResetPassword).token)</ID>
+    <ID>MaxLineLength:AppLinksTest.kt$AppLinksTest$assertEquals("mail", (parseAppLink("$origin/api/auth/verify-email?token=mail", origin) as AppLink.VerifyEmail).token)</ID>
+    <ID>MaxLineLength:AppLinksTest.kt$AppLinksTest$assertEquals("success", (parseAppLink("$origin/verify-email?status=success", origin) as AppLink.VerifyEmail).status)</ID>
+    <ID>MaxLineLength:AttachmentImages.kt$FilterChip(selected = !sideBySide, onClick = { sideBySide = false }, label = { Text(stringResource(com.beauty.app.R.string.slider_split)) })</ID>
+    <ID>MaxLineLength:AttachmentImages.kt$FilterChip(selected = sideBySide, onClick = { sideBySide = true }, label = { Text(stringResource(com.beauty.app.R.string.side_by_side)) })</ID>
+    <ID>MaxLineLength:AttachmentImages.kt$Icon(Icons.Default.Close, contentDescription = stringResource(com.beauty.app.R.string.close), tint = TextMuted)</ID>
+    <ID>MaxLineLength:AttachmentImages.kt$IconButton(onClick = onDismiss) { Icon(Icons.Default.Close, stringResource(com.beauty.app.R.string.close), tint = TextMuted) }</ID>
+    <ID>MaxLineLength:AttachmentImages.kt$Image(after, contentDescription = stringResource(com.beauty.app.R.string.after_procedure), modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)</ID>
+    <ID>MaxLineLength:AttachmentImages.kt$Image(image, contentDescription = caption, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)</ID>
+    <ID>MaxLineLength:AttachmentImages.kt$ImageLoad.Failed -&gt; Text(stringResource(com.beauty.app.R.string.unavailable), fontSize = 14.sp, color = TextMuted, modifier = Modifier.align(Alignment.Center))</ID>
+    <ID>MaxLineLength:AttachmentImages.kt$OutlinedButton(onClick = imageState.retry) { Text(stringResource(com.beauty.app.R.string.ui2_retry)) }</ID>
+    <ID>MaxLineLength:AttachmentImages.kt$PhotoLabel(if (tag == "BEFORE") stringResource(com.beauty.app.R.string.photo_before) else stringResource(com.beauty.app.R.string.photo_after), modifier = Modifier.align(Alignment.TopStart).padding(8.dp), tag = tag)</ID>
+    <ID>MaxLineLength:AttachmentImages.kt$PhotoLabel(photoTagLabel(attachment.tag), modifier = Modifier.align(Alignment.BottomStart).padding(4.dp), small = true, tag = attachment.tag)</ID>
+    <ID>MaxLineLength:AttachmentImages.kt$PhotoLabel(stringResource(com.beauty.app.R.string.after_procedure_2), Modifier.align(Alignment.TopEnd).padding(12.dp), tag = "AFTER")</ID>
+    <ID>MaxLineLength:AttachmentImages.kt$SidePhoto(afterImage, "AFTER", after?.caption ?: stringResource(com.beauty.app.R.string.post_procedure_finished_result), Modifier.fillMaxWidth())</ID>
+    <ID>MaxLineLength:AttachmentImages.kt$SidePhoto(afterImage, "AFTER", after?.caption ?: stringResource(com.beauty.app.R.string.post_procedure_finished_result), Modifier.weight(1f))</ID>
+    <ID>MaxLineLength:AttachmentImages.kt$SidePhoto(beforeImage, "BEFORE", before?.caption ?: stringResource(com.beauty.app.R.string.before_procedure_baseline_photo), Modifier.fillMaxWidth())</ID>
+    <ID>MaxLineLength:AttachmentImages.kt$SidePhoto(beforeImage, "BEFORE", before?.caption ?: stringResource(com.beauty.app.R.string.before_procedure_baseline_photo), Modifier.weight(1f))</ID>
+    <ID>MaxLineLength:AttachmentImages.kt$Surface</ID>
+    <ID>MaxLineLength:AttachmentImages.kt$Text(stringResource(com.beauty.app.R.string.before_after_comparison), color = RoseGoldPrimary, fontWeight = FontWeight.Bold, fontSize = 18.sp)</ID>
+    <ID>MaxLineLength:AttachmentImages.kt$Text(stringResource(com.beauty.app.R.string.could_not_load_these_photos_check_your_connection_and_t), color = MaterialTheme.colorScheme.error)</ID>
+    <ID>MaxLineLength:AttachmentImages.kt$Text(stringResource(com.beauty.app.R.string.side_by_side_slider_inspection), color = TextMuted, fontSize = 14.sp)</ID>
+    <ID>MaxLineLength:AttachmentImages.kt$if (split &gt; 0.25f) PhotoLabel(stringResource(com.beauty.app.R.string.before_procedure_2), Modifier.align(Alignment.TopStart).padding(12.dp), tag = "BEFORE")</ID>
+    <ID>MaxLineLength:AttributeEditorState.kt$AttributeEditorState.Companion$listOf(it.organizationId, it.clientId, it.rows?.let { rows -&gt; Json.encodeToString(rows) } ?: "", it.error ?: "", it.draftId ?: "")</ID>
+    <ID>MaxLineLength:AttributeEditorState.kt$AttributeEditorState.Companion$rows = saved[2].takeIf { it.isNotEmpty() }?.let { Json.decodeFromString&lt;List&lt;AttributeDraft&gt;&gt;(it) }</ID>
+    <ID>MaxLineLength:AttributeTile.kt$if (text.isEmpty()) Text(placeholder, style = style.copy(color = TextMuted, fontWeight = FontWeight.Normal))</ID>
+    <ID>MaxLineLength:AttributeTile.kt$modifier = modifier.fillMaxWidth().heightIn(min = 48.dp).padding(vertical = 10.dp).semantics { contentDescription = placeholder }</ID>
+    <ID>MaxLineLength:AuthViewModelRegisterTest.kt$AuthViewModelRegisterTest.&lt;no name provided&gt;$return AuthResponse("access", "refresh", 900, UserDto("u1", request.email, request.fullName, "2026-10-09T10:00:00"))</ID>
+    <ID>MaxLineLength:AuthViewModelResetPasswordTest.kt$AuthViewModelResetPasswordTest$respond(body, HttpStatusCode.BadRequest, headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()))</ID>
+    <ID>MaxLineLength:AuthViewModelResetPasswordTest.kt$AuthViewModelResetPasswordTest$val failure = clientError("""{"error":"Validation failed","fieldErrors":{"newPassword":{"code":"PASSWORD_TOO_SHORT","args":{"min":12}}}}""")</ID>
+    <ID>MaxLineLength:BeautyApi.kt$BeautyApi$suspend fun uploadAttachment(orgId: String, visitId: String, tag: String, bytes: ByteArray, caption: String? = null): VisitAttachmentDto</ID>
+    <ID>MaxLineLength:BeautyApi.kt$KtorBeautyApi$override suspend</ID>
+    <ID>MaxLineLength:BeautyApi.kt$LanguagePreferenceRequest$data</ID>
+    <ID>MaxLineLength:BeautyApi.kt$MemberDto$/** An unconfirmed account cannot be approved or accept an invitation. Defaults true for a backend that predates the field. */</ID>
+    <ID>MaxLineLength:BeautyApi.kt$PendingVisitsException : IllegalStateException</ID>
+    <ID>MaxLineLength:BeautyDatabaseProvider.kt$BeautyDatabaseProvider$fun</ID>
+    <ID>MaxLineLength:BeautyDatabaseProvider.kt$BeautyDatabaseProvider.&lt;no name provided&gt;$db.execSQL("CREATE INDEX IF NOT EXISTS index_photo_drafts_organizationId_clientId ON photo_drafts (organizationId, clientId)")</ID>
+    <ID>MaxLineLength:BeautyDatabaseProvider.kt$BeautyDatabaseProvider.&lt;no name provided&gt;$db.execSQL("CREATE TABLE IF NOT EXISTS history_snapshots (organizationId TEXT NOT NULL, clientId TEXT NOT NULL, historyJson TEXT NOT NULL, PRIMARY KEY(organizationId, clientId))")</ID>
+    <ID>MaxLineLength:BeautyDatabaseProvider.kt$BeautyDatabaseProvider.&lt;no name provided&gt;$db.execSQL("CREATE TABLE IF NOT EXISTS photo_drafts (id TEXT NOT NULL PRIMARY KEY, organizationId TEXT NOT NULL, clientId TEXT NOT NULL, localVisitId TEXT NOT NULL, localFilePath TEXT NOT NULL, tag TEXT NOT NULL, syncError TEXT, uploadedAttachmentJson TEXT)")</ID>
+    <ID>MaxLineLength:BeautyRepository.kt$BeautyRepository$parityDao?.getHistory(orgId, clientId)?.let { runCatching { json.decodeFromString&lt;List&lt;VisitHistoryDto&gt;&gt;(it.historyJson) }.getOrDefault(emptyList()) } ?: emptyList()</ID>
+    <ID>MaxLineLength:BeautyRepository.kt$BeautyRepository$parityDao?.getPhotoDrafts(orgId, id)?.takeIf { it.isNotEmpty() }?.let { throw PendingVisitsException("Upload pending photos before deleting this client.") }</ID>
+    <ID>MaxLineLength:BeautyRepository.kt$BeautyRepository$suspend</ID>
+    <ID>MaxLineLength:BeautyRepository.kt$BeautyRepository$suspend fun getPhotoDrafts(orgId: String, clientId: String): List&lt;PhotoDraftEntity&gt;</ID>
+    <ID>MaxLineLength:BeautyRepository.kt$BeautyRepository$val bytes = file.takeIf { it.exists() }?.readBytes() ?: throw PhotoDraftException("Photo file is no longer available.")</ID>
+    <ID>MaxLineLength:BeautyRepository.kt$BeautyRepository$val draft = PhotoDraftEntity(UUID.randomUUID().toString(), orgId, clientId, localVisitId, localFilePath, tag, remoteVisitId = remoteVisitId)</ID>
+    <ID>MaxLineLength:BeautyRepository.kt$BeautyRepository$val uploaded = api.uploadAttachment(draft.organizationId, remoteVisitId, draft.tag, bytes, defaultPhotoCaption(draft.tag))</ID>
+    <ID>MaxLineLength:BeautyRepository.kt$BeautyRepository$val visit = visitDao.getVisitById(draft.localVisitId) ?: throw PhotoDraftException("Visit is no longer available.")</ID>
+    <ID>MaxLineLength:BeautyRepositoryTest.kt$BeautyRepositoryTest$respond(body, io.ktor.http.HttpStatusCode.Forbidden, io.ktor.http.headersOf(io.ktor.http.HttpHeaders.ContentType, "application/json"))</ID>
+    <ID>MaxLineLength:BeautyRepositoryTest.kt$BeautyRepositoryTest$whenever(visitDao.getUnsyncedVisits()).thenReturn(listOf(pendingVisit(orgId = ORG_A), pendingVisit(orgId = ORG_A).copy(id = "local-2")))</ID>
+    <ID>MaxLineLength:BeautyRepositoryTest.kt$BeautyRepositoryTest.&lt;no name provided&gt;$ClientDto("client-1", "Ada", "+100", tags = listOf("VIP"), customFields = JsonObject(emptyMap()), totalVisits = 2, createdAt = "now", updatedAt = "now")</ID>
+    <ID>MaxLineLength:ClientDetailScreen.kt$(editor.error ?: error)?.let { Text(localizedMessage(it), color = MaterialTheme.colorScheme.error, fontSize = 13.sp) }</ID>
+    <ID>MaxLineLength:ClientDetailScreen.kt$/** One of the web form's BEFORE/AFTER boxes: camera and gallery buttons until chosen, then a preview with a remove button. */</ID>
+    <ID>MaxLineLength:ClientDetailScreen.kt$?:</ID>
+    <ID>MaxLineLength:ClientDetailScreen.kt$Box</ID>
+    <ID>MaxLineLength:ClientDetailScreen.kt$Button(onClick = { compareAttachments = row.attachments }) { Text(stringResource(com.beauty.app.R.string.compare_before_after)) }</ID>
+    <ID>MaxLineLength:ClientDetailScreen.kt$Card</ID>
+    <ID>MaxLineLength:ClientDetailScreen.kt$DropdownMenuItem</ID>
+    <ID>MaxLineLength:ClientDetailScreen.kt$FilterChip</ID>
+    <ID>MaxLineLength:ClientDetailScreen.kt$FilterChip(selected = tag == option, onClick = { tag = option }, label = { Text(stringResource(label)) })</ID>
+    <ID>MaxLineLength:ClientDetailScreen.kt$FlowRow</ID>
+    <ID>MaxLineLength:ClientDetailScreen.kt$HistoryRow</ID>
+    <ID>MaxLineLength:ClientDetailScreen.kt$Icon</ID>
+    <ID>MaxLineLength:ClientDetailScreen.kt$Icon(Icons.Default.Close, if (tag == "BEFORE") stringResource(com.beauty.app.R.string.remove_before_photo) else stringResource(com.beauty.app.R.string.remove_after_photo), tint = Color.White, modifier = Modifier.padding(4.dp).size(14.dp))</ID>
+    <ID>MaxLineLength:ClientDetailScreen.kt$IconButton</ID>
+    <ID>MaxLineLength:ClientDetailScreen.kt$OutlinedButton(enabled = !saving, onClick = onCancel) { Text(stringResource(com.beauty.app.R.string.cancel)) }</ID>
+    <ID>MaxLineLength:ClientDetailScreen.kt$Text</ID>
+    <ID>MaxLineLength:ClientDetailScreen.kt$Text(if (saving) stringResource(com.beauty.app.R.string.saving) else stringResource(com.beauty.app.R.string.save_changes))</ID>
+    <ID>MaxLineLength:ClientDetailScreen.kt$Text(pluralStringResource(com.beauty.app.R.plurals.attachments_count, row.attachments.size, row.attachments.size), color = TextMuted, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)</ID>
+    <ID>MaxLineLength:ClientDetailScreen.kt$Text(pluralStringResource(com.beauty.app.R.plurals.visit_duration, row.duration, row.duration), color = TextMuted, fontSize = 14.sp)</ID>
+    <ID>MaxLineLength:ClientDetailScreen.kt$Text(stringResource(com.beauty.app.R.string.date_time), style = MaterialTheme.typography.titleMedium)</ID>
+    <ID>MaxLineLength:ClientDetailScreen.kt$Text(stringResource(com.beauty.app.R.string.email_value, it), color = Muted, style = MaterialTheme.typography.bodyMedium)</ID>
+    <ID>MaxLineLength:ClientDetailScreen.kt$Text(stringResource(com.beauty.app.R.string.phone_value, client.phone), style = MaterialTheme.typography.bodyLarge)</ID>
+    <ID>MaxLineLength:ClientDetailScreen.kt$Text(stringResource(com.beauty.app.R.string.photo_before) .let { if (tag == "BEFORE") it else stringResource(com.beauty.app.R.string.photo_after) }, color = color, fontSize = 13.sp, fontWeight = FontWeight.Bold)</ID>
+    <ID>MaxLineLength:ClientDetailScreen.kt$Text(stringResource(com.beauty.app.R.string.ui2_no_visit_logs_found_for_this_client_yet), color = TextMuted)</ID>
+    <ID>MaxLineLength:ClientDetailScreen.kt$Text(stringResource(com.beauty.app.R.string.ui2_visit_saved_on_this_device_it_will_upload_when_connected), color = MaterialTheme.colorScheme.primary)</ID>
+    <ID>MaxLineLength:ClientDetailScreen.kt$Text(stringResource(com.beauty.app.R.string.uploading_photo), color = TextMuted, fontSize = 14.sp)</ID>
+    <ID>MaxLineLength:ClientDetailScreen.kt$Text(stringResource(com.beauty.app.R.string.ux_client_preferences), modifier = Modifier.weight(1f))</ID>
+    <ID>MaxLineLength:ClientDetailScreen.kt$Text(stringResource(com.beauty.app.R.string.visit_status), style = MaterialTheme.typography.titleMedium)</ID>
+    <ID>MaxLineLength:ClientDetailScreen.kt$Text(stringResource(com.beauty.app.R.string.workspace_client_details), style = MaterialTheme.typography.titleLarge)</ID>
+    <ID>MaxLineLength:ClientDetailScreen.kt$Text(stringResource(if (saving) com.beauty.app.R.string.saving else com.beauty.app.R.string.ux_save_visit))</ID>
+    <ID>MaxLineLength:ClientDetailScreen.kt$TextButton</ID>
+    <ID>MaxLineLength:ClientDetailScreen.kt$TextButton(onClick = onStartEditing) { Text(stringResource(com.beauty.app.R.string.edit_attributes)) }</ID>
+    <ID>MaxLineLength:ClientDetailScreen.kt$TextButton(onClick = { viewModel.refresh() }) { Text(stringResource(com.beauty.app.R.string.ui2_retry)) }</ID>
+    <ID>MaxLineLength:ClientDetailScreen.kt$color = if (code == "PHOTO_SAVED_UPLOAD_PENDING") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error</ID>
+    <ID>MaxLineLength:ClientDetailScreen.kt$colors = CardDefaults.cardColors(containerColor = WhiteCard)</ID>
+    <ID>MaxLineLength:ClientDetailScreen.kt$confirmButton = { TextButton(enabled = !viewModel.deleting, onClick = { viewModel.delete { confirmDelete = false; onDeleted() } }) { Text(stringResource(com.beauty.app.R.string.delete)) } }</ID>
+    <ID>MaxLineLength:ClientDetailScreen.kt$dismissButton = { TextButton(enabled = !viewModel.deleting, onClick = { confirmDelete = false }) { Text(stringResource(com.beauty.app.R.string.cancel)) } }</ID>
+    <ID>MaxLineLength:ClientDetailScreen.kt$if (client != null) Button(onClick = openVisit) { Text(stringResource(com.beauty.app.R.string.log_first_visit)) }</ID>
+    <ID>MaxLineLength:ClientDetailScreen.kt$item { Text(stringResource(com.beauty.app.R.string.ux_visit_history), style = MaterialTheme.typography.titleLarge) }</ID>
+    <ID>MaxLineLength:ClientDetailScreen.kt$navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, stringResource(com.beauty.app.R.string.back)) } }</ID>
+    <ID>MaxLineLength:ClientDetailScreen.kt$onStartEditing = { viewModel.clearAttributesError(); attributeEditor.start(client.customFieldsJson) }</ID>
+    <ID>MaxLineLength:ClientDetailScreen.kt$placeholder = { Text(stringResource(com.beauty.app.R.string.lash_mapping_dye_formula_ratios_laser_intensity_skin_tr)) }</ID>
+    <ID>MaxLineLength:ClientDetailScreen.kt$preview?.let { Image(it, if (tag == "BEFORE") stringResource(com.beauty.app.R.string.preview_before_photo) else stringResource(com.beauty.app.R.string.preview_after_photo), Modifier.fillMaxSize(), contentScale = ContentScale.Crop) }</ID>
+    <ID>MaxLineLength:ClientDetailScreen.kt$text = { Text(stringResource(com.beauty.app.R.string.delete_client_confirmation, client?.name ?: stringResource(com.beauty.app.R.string.this_client))) }</ID>
+    <ID>MaxLineLength:ClientDetailScreen.kt$title = { Text(stringResource(com.beauty.app.R.string.client_details), style = MaterialTheme.typography.titleMedium) }</ID>
+    <ID>MaxLineLength:ClientDetailScreen.kt$val duplicate = named.groupingBy { it.key.trim() }.eachCount().entries.firstOrNull { it.value &gt; 1 }?.key</ID>
+    <ID>MaxLineLength:ClientDetailScreen.kt$val extras = localHistoryExtras(viewModel.visits, viewModel.localVisits, !viewModel.historyLoaded || viewModel.error != null)</ID>
+    <ID>MaxLineLength:ClientDetailScreen.kt$viewModel.deleteError?.let { Text(localizedMessage(it), color = MaterialTheme.colorScheme.error) }</ID>
+    <ID>MaxLineLength:ClientDetailScreen.kt$}</ID>
+    <ID>MaxLineLength:ClientDetailViewModel.kt$ClientDetailViewModel$val draft = repository.addPhotoDraft(organizationId, clientId, localVisitId.orEmpty(), file.absolutePath, tag, remoteVisitId)</ID>
+    <ID>MaxLineLength:ClientDetailViewModel.kt$ClientDetailViewModel$val file = File(context.filesDir, "photo_${localVisitId}_${tag.lowercase()}_${System.nanoTime()}.jpg")</ID>
+    <ID>MaxLineLength:ClientDetailViewModel.kt$ClientDetailViewModel$val file = File(context.filesDir, "photo_${remoteVisitId ?: localVisitId}_${tag.lowercase()}_${System.nanoTime()}.jpg")</ID>
+    <ID>MaxLineLength:ClientDetailViewModel.kt$ClientDetailViewModel$val localVisitId = repository.enqueueVisit(organizationId, clientId, dateTime, minutes, notes.trim(), status)</ID>
+    <ID>MaxLineLength:ClientDetailViewModelTest.kt$ClientDetailViewModelTest$private</ID>
+    <ID>MaxLineLength:ClientDetailViewModelTest.kt$ClientDetailViewModelTest$private fun model(api: FakeBeautyApi)</ID>
+    <ID>MaxLineLength:ClientDirectoryScreen.kt$BadgedBox</ID>
+    <ID>MaxLineLength:ClientDirectoryScreen.kt$DropdownMenuItem(text = { Text(stringResource(com.beauty.app.R.string.account_settings)) }, onClick = { menu = false; onSettings() })</ID>
+    <ID>MaxLineLength:ClientDirectoryScreen.kt$DropdownMenuItem(text = { Text(stringResource(com.beauty.app.R.string.sign_out)) }, onClick = { menu = false; onLogout() })</ID>
+    <ID>MaxLineLength:ClientDirectoryScreen.kt$FilterChip(selected = viewModel.tag.isEmpty(), onClick = { viewModel.updateTag("") }, label = { Text(stringResource(com.beauty.app.R.string.all)) })</ID>
+    <ID>MaxLineLength:ClientDirectoryScreen.kt$Icon(Icons.Default.MoreVert, if (hasActiveUpdate) stringResource(com.beauty.app.R.string.more_options_update_available) else stringResource(com.beauty.app.R.string.more_options))</ID>
+    <ID>MaxLineLength:ClientDirectoryScreen.kt$IconButton(onClick = refresh, enabled = !viewModel.refreshing) { Icon(Icons.Default.Refresh, stringResource(com.beauty.app.R.string.refresh_clients)) }</ID>
+    <ID>MaxLineLength:ClientDirectoryScreen.kt$IconButton(onClick = { viewModel.updateQuery("") }) { Icon(Icons.Default.Close, stringResource(com.beauty.app.R.string.clear_filters)) }</ID>
+    <ID>MaxLineLength:ClientDirectoryScreen.kt$LazyColumn</ID>
+    <ID>MaxLineLength:ClientDirectoryScreen.kt$OutlinedButton</ID>
+    <ID>MaxLineLength:ClientDirectoryScreen.kt$Row</ID>
+    <ID>MaxLineLength:ClientDirectoryScreen.kt$Text</ID>
+    <ID>MaxLineLength:ClientDirectoryScreen.kt$Text(client.name, style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)</ID>
+    <ID>MaxLineLength:ClientDirectoryScreen.kt$Text(client.phone, color = Muted, style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)</ID>
+    <ID>MaxLineLength:ClientDirectoryScreen.kt$Text(if (pendingRequestCount &gt; 99) "99+" else pendingRequestCount.toString(), color = MaterialTheme.colorScheme.onPrimary)</ID>
+    <ID>MaxLineLength:ClientDirectoryScreen.kt$Text(stringResource(com.beauty.app.R.string.aura_beauty_log), style = MaterialTheme.typography.titleMedium)</ID>
+    <ID>MaxLineLength:ClientDirectoryScreen.kt$Text(stringResource(com.beauty.app.R.string.client_directory_count, viewModel.filtered.size), style = MaterialTheme.typography.titleMedium)</ID>
+    <ID>MaxLineLength:ClientDirectoryScreen.kt$TextButton(onClick = viewModel::clearFilters) { Text(stringResource(com.beauty.app.R.string.clear_filters)) }</ID>
+    <ID>MaxLineLength:ClientDirectoryScreen.kt$else</ID>
+    <ID>MaxLineLength:ClientDirectoryScreen.kt$if</ID>
+    <ID>MaxLineLength:ClientDirectoryScreen.kt$if (onAdmin != null) DropdownMenuItem(text = { Text(stringResource(com.beauty.app.R.string.admin_panel)) }, onClick = { menu = false; onAdmin() })</ID>
+    <ID>MaxLineLength:ClientDirectoryScreen.kt$if (viewModel.message != null) TextButton(onClick = refresh, modifier = Modifier.heightIn(min = 48.dp)) { Text(stringResource(com.beauty.app.R.string.ui2_retry)) }</ID>
+    <ID>MaxLineLength:ClientDirectoryScreen.kt$if (viewModel.searching || viewModel.refreshing) item { LinearProgressIndicator(Modifier.fillMaxWidth()) }</ID>
+    <ID>MaxLineLength:ClientDirectoryScreen.kt$is com.beauty.app.updater.UpdateState.Downloading -&gt; stringResource(com.beauty.app.R.string.update_banner_downloading, (state.progress * 100).toInt())</ID>
+    <ID>MaxLineLength:ClientDirectoryScreen.kt$is com.beauty.app.updater.UpdateState.ReadyToInstall -&gt; stringResource(com.beauty.app.R.string.update_banner_ready, state.release.versionName)</ID>
+    <ID>MaxLineLength:ClientDirectoryScreen.kt$placeholder = { Text(stringResource(com.beauty.app.R.string.search_name_phone_email_or_tag), maxLines = 1, overflow = TextOverflow.Ellipsis) }</ID>
+    <ID>MaxLineLength:ClientDirectoryScreen.kt$role = Role.Button</ID>
+    <ID>MaxLineLength:ClientDirectoryScreen.kt$trailingIcon = if (hasActiveUpdate) ({ Badge(containerColor = RoseGoldPrimary) { Text(stringResource(com.beauty.app.R.string.new_badge), color = MaterialTheme.colorScheme.onPrimary) } }) else null</ID>
+    <ID>MaxLineLength:ClientDirectoryScreen.kt$val updateState by (updateManager?.state ?: kotlinx.coroutines.flow.MutableStateFlow(com.beauty.app.updater.UpdateState.Idle)).collectAsState()</ID>
+    <ID>MaxLineLength:ClientDirectoryScreen.kt$viewModel.message?.let { localizedMessage(it) } ?: if (viewModel.lastRefresh == 0L) stringResource(com.beauty.app.R.string.loading_saved_clients) else stringResource(com.beauty.app.R.string.synced_with_web)</ID>
+    <ID>MaxLineLength:ClientDirectoryViewModel.kt$ClientDirectoryViewModel$(q.isEmpty() || listOf(it.name, it.phone, it.email.orEmpty(), tags.joinToString(",")).any { value -&gt; value.contains(q, true) })</ID>
+    <ID>MaxLineLength:Components.kt$.</ID>
+    <ID>MaxLineLength:Components.kt$Icon(Icons.Default.Spa, contentDescription = null, tint = Forest, modifier = Modifier.padding(14.dp).size(28.dp))</ID>
+    <ID>MaxLineLength:Components.kt$Row</ID>
+    <ID>MaxLineLength:Components.kt$Surface</ID>
+    <ID>MaxLineLength:Components.kt$Text("aura", style = MaterialTheme.typography.headlineMedium, color = Forest, modifier = Modifier.weight(1f))</ID>
+    <ID>MaxLineLength:EditClientScreen.kt$FlowRow</ID>
+    <ID>MaxLineLength:EditClientScreen.kt$Text(stringResource(R.string.client_editor_pending_tag, viewModel.tagInput), style = MaterialTheme.typography.bodySmall)</ID>
+    <ID>MaxLineLength:EditClientScreen.kt$Text(stringResource(R.string.custom_attributes), Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)</ID>
+    <ID>MaxLineLength:EditClientScreen.kt$TextButton</ID>
+    <ID>MaxLineLength:EditClientScreen.kt$TextButton(onClick = viewModel::addCustomField, enabled = enabled) { Text(stringResource(R.string.add)) }</ID>
+    <ID>MaxLineLength:EditClientScreen.kt$else</ID>
+    <ID>MaxLineLength:EditClientScreen.kt$if</ID>
+    <ID>MaxLineLength:EditClientScreen.kt$modifier = Modifier.widthIn(max = 680.dp).fillMaxWidth().semantics { liveRegion = LiveRegionMode.Polite }</ID>
+    <ID>MaxLineLength:EditClientScreen.kt$title = { Text(stringResource(if (viewModel.isNewClient) R.string.new_client else R.string.edit_client), style = MaterialTheme.typography.titleMedium) }</ID>
+    <ID>MaxLineLength:EditClientScreen.kt$trailingIcon = { Icon(Icons.Default.Close, stringResource(R.string.remove_tag), Modifier.size(18.dp)) }</ID>
+    <ID>MaxLineLength:EditClientViewModel.kt$EditClientViewModel$savedStateHandle[DRAFT_KEY] = Json.encodeToString(ClientEditorSnapshot(organizationId, clientId, baseline, draft))</ID>
+    <ID>MaxLineLength:EditClientViewModel.kt$EditClientViewModel$val trimmedPhone = if (phoneChanged &amp;&amp; phoneIssue == null) AuthValidation.formatPhone(phone) else phone.trim()</ID>
+    <ID>MaxLineLength:EditClientViewModelTest.kt$EditClientViewModelTest$@Test</ID>
+    <ID>MaxLineLength:EditClientViewModelTest.kt$EditClientViewModelTest$original.filterKeys { it != "number" }.forEach { (key, value) -&gt; assertEquals(value, submitted!!.customFields[key]) }</ID>
+    <ID>MaxLineLength:EditClientViewModelTest.kt$EditClientViewModelTest$whenever(clientDao.getClientById("client", "other-org")).thenReturn(stored.copy(organizationId = "other-org", name = "Other org"))</ID>
+    <ID>MaxLineLength:EditClientViewModelTest.kt$EditClientViewModelTest.&lt;no name provided&gt;$return</ID>
+    <ID>MaxLineLength:Entities.kt$BeautyDatabase$entities = [ClientEntity::class, VisitEntity::class, AttachmentEntity::class, HistorySnapshotEntity::class, PhotoDraftEntity::class]</ID>
+    <ID>MaxLineLength:Entities.kt$ClientDao$@Query("DELETE FROM clients WHERE organizationId = :organizationId AND NOT EXISTS (SELECT 1 FROM visits WHERE visits.clientId = clients.id AND visits.isPendingSync = 1) AND NOT EXISTS (SELECT 1 FROM photo_drafts WHERE photo_drafts.clientId = clients.id AND photo_drafts.uploadedAttachmentJson IS NULL)")</ID>
+    <ID>MaxLineLength:Entities.kt$ClientDao$@Query("DELETE FROM clients WHERE organizationId = :organizationId AND id NOT IN (:serverIds) AND NOT EXISTS (SELECT 1 FROM visits WHERE visits.clientId = clients.id AND visits.isPendingSync = 1) AND NOT EXISTS (SELECT 1 FROM photo_drafts WHERE photo_drafts.clientId = clients.id AND photo_drafts.uploadedAttachmentJson IS NULL)")</ID>
+    <ID>MaxLineLength:Entities.kt$ParityDao$@Query("SELECT * FROM photo_drafts WHERE organizationId = :orgId AND clientId = :clientId AND uploadedAttachmentJson IS NULL")</ID>
+    <ID>MaxLineLength:Entities.kt$VisitDao$@Query("SELECT * FROM visits WHERE clientId = :clientId AND organizationId = :organizationId ORDER BY visitDateTime DESC, createdAt DESC")</ID>
+    <ID>MaxLineLength:Entities.kt$VisitDao$@Query("SELECT COUNT(*) FROM visits WHERE clientId = :clientId AND organizationId = :organizationId AND isPendingSync = 1")</ID>
+    <ID>MaxLineLength:FakeBeautyApi.kt$FakeBeautyApi$override suspend fun changeMemberRole(orgId: String, userId: String, request: ChangeMemberRoleRequest): Unit</ID>
+    <ID>MaxLineLength:FakeBeautyApi.kt$FakeBeautyApi$override suspend fun updateClient(orgId: String, id: String, request: UpdateClientRequest): ClientDto</ID>
+    <ID>MaxLineLength:FakeBeautyApi.kt$FakeBeautyApi$override suspend fun updateLanguagePreference(request: LanguagePreferenceRequest): LanguagePreferenceResponse</ID>
+    <ID>MaxLineLength:FakeBeautyApi.kt$FakeBeautyApi$override suspend fun uploadAttachment(orgId: String, visitId: String, tag: String, bytes: ByteArray, caption: String?): VisitAttachmentDto</ID>
+    <ID>MaxLineLength:ForgotPasswordScreen.kt$subtitle = if (state is AuthViewModel.ForgotPasswordState.Sent) null else stringResource(com.beauty.app.R.string.forgot_password_help)</ID>
+    <ID>MaxLineLength:ForgotPasswordScreen.kt$title = stringResource(if (state is AuthViewModel.ForgotPasswordState.Sent) com.beauty.app.R.string.check_your_email else com.beauty.app.R.string.reset_your_password)</ID>
+    <ID>MaxLineLength:GithubUpdateServiceTest.kt$GithubUpdateServiceTest$assertEquals("https://api.github.com/repos/tkhorik/beauty_client_management/releases/latest", request.url.toString())</ID>
+    <ID>MaxLineLength:GithubUpdateServiceTest.kt$GithubUpdateServiceTest$respond(content = sampleJson, status = HttpStatusCode.OK, headers = headersOf(HttpHeaders.ContentType, "application/json"))</ID>
+    <ID>MaxLineLength:KtorBeautyApiTest.kt$KtorBeautyApiTest$"""{"id":"v-$index","clientId":"client-a","visitDateTime":"2026-09-01T10:00:00","durationMinutes":30,"procedureNotes":"notes","status":"COMPLETED"}"""</ID>
+    <ID>MaxLineLength:KtorBeautyApiTest.kt$KtorBeautyApiTest$"""{"id":"v-$it","clientId":"client-a","visitDateTime":"2026-09-01T10:00:00","durationMinutes":30,"procedureNotes":"notes","status":"COMPLETED"}"""</ID>
+    <ID>MaxLineLength:KtorBeautyApiTest.kt$KtorBeautyApiTest$respond("", HttpStatusCode.Found, headersOf(HttpHeaders.Location, "https://storage.example/a1?X-Amz-Signature=sig"))</ID>
+    <ID>MaxLineLength:KtorBeautyApiTest.kt$KtorBeautyApiTest$respond(body, HttpStatusCode.OK, headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()))</ID>
+    <ID>MaxLineLength:KtorBeautyApiTest.kt$KtorBeautyApiTest$val finalPage = """[{"id":"v-100","clientId":"client-a","visitDateTime":"2026-09-02T11:00:00","durationMinutes":45,"procedureNotes":"full decode","status":"SCHEDULED","attachments":[{"id":"a-1","visitId":"v-100","fileUrl":"/api/attachments/a-1","fileType":"image/jpeg","fileSize":1234,"caption":"Before","tag":"BEFORE","uploadedAt":"2026-09-02T11:05:00"}]}]"""</ID>
+    <ID>MaxLineLength:LanguagePreferenceManager.kt$LanguagePreferenceManager.&lt;no name provided&gt;$override fun apply(tags: String)</ID>
+    <ID>MaxLineLength:LanguagePreferenceManagerTest.kt$LanguagePreferenceManagerTest$private fun saved(preference: String, revision: Long)</ID>
+    <ID>MaxLineLength:LanguageSelector.kt$Text(text = if (currentPreference == "system") stringResource(R.string.language) else currentPreference.uppercase())</ID>
+    <ID>MaxLineLength:LanguageStore.kt$LanguageStore$val preference = prefs.getString("$key.preference", "system")?.takeIf { it in LanguagePreference.all } ?: "system"</ID>
+    <ID>MaxLineLength:LocalizedMessage.kt$R.string.error_duplicate_field, R.string.organization_created, R.string.organization_joined, R.string.organization_requested, R.string.account_suspended, R.string.account_unsuspended -&gt; stringResource(id, raw.substringAfter(':', ""))</ID>
+    <ID>MaxLineLength:LocalizedMessage.kt$R.string.error_expiry_too_long, R.string.error_duration_min, R.string.error_duration_step -&gt; stringResource(id, limit ?: 15)</ID>
+    <ID>MaxLineLength:LoginScreen.kt$Text(stringResource(com.beauty.app.R.string.sign_in), style = MaterialTheme.typography.titleLarge, color = Forest)</ID>
+    <ID>MaxLineLength:LoginScreen.kt$contentDescription = if (showPassword) stringResource(com.beauty.app.R.string.hide_password) else stringResource(com.beauty.app.R.string.show_password)</ID>
+    <ID>MaxLineLength:MainActivity.kt$&lt;no name provided&gt;$ClientDetailViewModel(clientId, detailOrgId, repository, database.clientDao(), database.visitDao()) as T</ID>
+    <ID>MaxLineLength:MainActivity.kt$&lt;no name provided&gt;$EditClientViewModel(clientId, editOrgId, repository, clientDao, extras.createSavedStateHandle()) as T</ID>
+    <ID>MaxLineLength:MainActivity.kt$&lt;no name provided&gt;$EditClientViewModel(null, createOrgId, repository, database.clientDao(), extras.createSavedStateHandle()) as T</ID>
+    <ID>MaxLineLength:MainActivity.kt$Button(onClick = { openHome() }, enabled = !links.verifying, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) { Text(stringResource(R.string.continue_action)) }</ID>
+    <ID>MaxLineLength:MainActivity.kt$Icon(Icons.Default.Search, contentDescription = stringResource(com.beauty.app.R.string.search), tint = TextMuted)</ID>
+    <ID>MaxLineLength:MainActivity.kt$System.currentTimeMillis() - lastSuccessfulSyncAt &lt; 60_000L -&gt; stringResource(com.beauty.app.R.string.ui2_synced_just_now)</ID>
+    <ID>MaxLineLength:MainActivity.kt$Text(if (links.verifying) stringResource(com.beauty.app.R.string.ui2_confirming_your_email) else links.verificationMessage?.let { com.beauty.app.ui.i18n.localizedMessage(it) } ?: stringResource(com.beauty.app.R.string.ui2_reopen_your_verification_link_to_continue))</ID>
+    <ID>MaxLineLength:MainActivity.kt$Text(stringResource(com.beauty.app.R.string.ui2_no_clients_available_refresh_the_directory_or_create_a_client_on_))</ID>
+    <ID>MaxLineLength:MainActivity.kt$confirmButton = { TextButton(onClick = { showVisitClientPicker = false }) { Text(stringResource(com.beauty.app.R.string.cancel)) } }</ID>
+    <ID>MaxLineLength:MainActivity.kt$else -&gt; pluralStringResource(com.beauty.app.R.plurals.synced_minutes, ((System.currentTimeMillis() - lastSuccessfulSyncAt) / 60_000L).toInt(), ((System.currentTimeMillis() - lastSuccessfulSyncAt) / 60_000L).toInt())</ID>
+    <ID>MaxLineLength:MainActivity.kt$placeholder = { Text(stringResource(com.beauty.app.R.string.ui2_search_clients_or_procedure_specs), color = TextMuted) }</ID>
+    <ID>MaxLineLength:MainActivity.kt$pluralStringResource(com.beauty.app.R.plurals.visits_count, client.visitsCount, client.visitsCount)</ID>
+    <ID>MaxLineLength:MemberRow.kt$"${member.email} · ${com.beauty.app.ui.i18n.roleLabel(member.role)} · ${com.beauty.app.ui.i18n.statusLabel(member.status)}"</ID>
+    <ID>MaxLineLength:MemberRow.kt$Icon(Icons.Default.Block, contentDescription = stringResource(com.beauty.app.R.string.member_revoke_access), tint = TextMuted)</ID>
+    <ID>MaxLineLength:MemberRow.kt$Icon(Icons.Default.Check, contentDescription = stringResource(com.beauty.app.R.string.approve), tint = RoseGoldPrimary)</ID>
+    <ID>MaxLineLength:MemberRow.kt$Icon(Icons.Default.Close, contentDescription = stringResource(com.beauty.app.R.string.decline), tint = TextMuted)</ID>
+    <ID>MaxLineLength:MemberRow.kt$Text(stringResource(com.beauty.app.R.string.member_restore_access), color = RoseGoldPrimary, fontSize = 14.sp)</ID>
+    <ID>MaxLineLength:MemberRow.kt$contentDescription = if (member.status == "INVITED") stringResource(com.beauty.app.R.string.withdraw_invitation) else stringResource(com.beauty.app.R.string.remove)</ID>
+    <ID>MaxLineLength:MemberRow.kt$if (member.emailVerified) "" else " · ${stringResource(com.beauty.app.R.string.email_not_confirmed)}"</ID>
+    <ID>MaxLineLength:MemberRow.kt$if (member.role == "ORG_ADMIN") stringResource(com.beauty.app.R.string.demote) else stringResource(com.beauty.app.R.string.promote)</ID>
+    <ID>MaxLineLength:NativeLabels.kt$"RESOURCE:ui2_couldn_t_send_the_link_check_your_connection" -&gt; R.string.ui2_couldn_t_send_the_link_check_your_connection</ID>
+    <ID>MaxLineLength:NativeLabels.kt$"RESOURCE:ui2_new_link_sent_it_can_take_a_minute_to_arrive" -&gt; R.string.ui2_new_link_sent_it_can_take_a_minute_to_arrive</ID>
+    <ID>MaxLineLength:NativeLabels.kt$"RESOURCE:ui2_still_unconfirmed_open_the_link_then_try_again" -&gt; R.string.ui2_still_unconfirmed_open_the_link_then_try_again</ID>
+    <ID>MaxLineLength:OrganizationScreen.kt$)</ID>
+    <ID>MaxLineLength:OrganizationScreen.kt$FlowRow</ID>
+    <ID>MaxLineLength:OrganizationScreen.kt$Icon(Icons.Default.ArrowBack, contentDescription = stringResource(com.beauty.app.R.string.back), tint = TextMuted)</ID>
+    <ID>MaxLineLength:OrganizationScreen.kt$OrganizationViewModel.InviteStatus.CHECKING -&gt; stringResource(com.beauty.app.R.string.invite_accept_checking)</ID>
+    <ID>MaxLineLength:OrganizationScreen.kt$OrganizationViewModel.InviteStatus.INVALID -&gt; stringResource(com.beauty.app.R.string.error_invite_link_invalid)</ID>
+    <ID>MaxLineLength:OrganizationScreen.kt$Text(stringResource(com.beauty.app.R.string.checking_your_link), color = TextMuted, fontSize = 14.sp)</ID>
+    <ID>MaxLineLength:OrganizationScreen.kt$TextButton(onClick = onLogout) { Text(stringResource(com.beauty.app.R.string.sign_out), color = TextMuted) }</ID>
+    <ID>MaxLineLength:OrganizationScreen.kt$TextButton(onClick = onOpenAdmin) { Text(stringResource(com.beauty.app.R.string.admin_panel), color = RoseGoldPrimary) }</ID>
+    <ID>MaxLineLength:OrganizationScreen.kt$fieldErrors["slug"]?.let { com.beauty.app.ui.i18n.localizedMessage(it) } ?: stringResource(com.beauty.app.R.string.handle_help)</ID>
+    <ID>MaxLineLength:OrganizationScreen.kt$if</ID>
+    <ID>MaxLineLength:OrganizationScreen.kt$if (copied) Text(stringResource(com.beauty.app.R.string.org_join_link_copied), color = RoseGoldPrimary, fontSize = 14.sp)</ID>
+    <ID>MaxLineLength:OrganizationScreen.kt$modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).selectable(selected = selected, role = Role.RadioButton, onClick = onSelect)</ID>
+    <ID>MaxLineLength:OrganizationScreen.kt$onRevoke = if (member.userId != viewModel.currentUserId) ({ viewModel.revoke(current.id, member.userId) }) else null</ID>
+    <ID>MaxLineLength:OrganizationScreen.kt$stringResource(com.beauty.app.R.string.invite_links_expires, link.createdByName, localizedIsoDateTime(link.expiresAt))</ID>
+    <ID>MaxLineLength:OrganizationScreen.kt$supportingText = fieldErrors["name"]?.let { text -&gt; { Text(com.beauty.app.ui.i18n.localizedMessage(text)) } }</ID>
+    <ID>MaxLineLength:OrganizationScreen.kt$supportingText = message?.let { text -&gt; { Text(if (creationLinkError != null) com.beauty.app.ui.i18n.localizedMessage(text) else text) } }</ID>
+    <ID>MaxLineLength:OrganizationScreen.kt$supportingText = { Text(stringResource(com.beauty.app.R.string.they_need_an_account_already)) }</ID>
+    <ID>MaxLineLength:OrganizationScreen.kt$title = { Text(stringResource(com.beauty.app.R.string.organizations), style = MaterialTheme.typography.titleMedium) }</ID>
+    <ID>MaxLineLength:OrganizationScreen.kt$viewModel.inviteOffer?.let { offer -&gt; InviteOfferDialog(offer, onJoin = viewModel::acceptInvite, onDismiss = viewModel::dismissInvite) }</ID>
+    <ID>MaxLineLength:RegisterScreen.kt$contentDescription = if (showPassword) stringResource(com.beauty.app.R.string.hide_password) else stringResource(com.beauty.app.R.string.show_password)</ID>
+    <ID>MaxLineLength:RegisterScreen.kt$onClick = { viewModel.register(email, password, confirmPassword, fullName, includeOrganization = offerOrganizationField) }</ID>
+    <ID>MaxLineLength:ResetPasswordScreen.kt$CircularProgressIndicator(modifier = Modifier.size(20.dp), color = MaterialTheme.colorScheme.onPrimary, strokeWidth = 2.dp)</ID>
+    <ID>MaxLineLength:ResetPasswordScreen.kt$PrimaryButton(text = stringResource(com.beauty.app.R.string.sign_in_2), loading = false, onClick = onNavigateBackToLogin)</ID>
+    <ID>MaxLineLength:ResetPasswordScreen.kt$Text(stringResource(com.beauty.app.R.string.reset_link_received_choose_your_new_password), color = Muted)</ID>
+    <ID>MaxLineLength:ResetPasswordScreen.kt$Text(text = stringResource(com.beauty.app.R.string.request_a_new_link), color = Forest, fontSize = 13.sp)</ID>
+    <ID>MaxLineLength:ResetPasswordScreen.kt$Text(text = text, color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.Bold, fontSize = 15.sp)</ID>
+    <ID>MaxLineLength:ResetPasswordScreen.kt$contentDescription = if (showPassword) stringResource(com.beauty.app.R.string.hide_password) else stringResource(com.beauty.app.R.string.show_password)</ID>
+    <ID>MaxLineLength:ResetPasswordScreen.kt$supportingText = (error ?: helper)?.let { text -&gt; { Text(if (error != null) localizedMessage(text) else text) } }</ID>
+    <ID>MaxLineLength:ResetPasswordScreen.kt$text = stringResource(com.beauty.app.R.string.ui2_you_ve_been_signed_out_on_every_device_sign_in_with_your_new_pass)</ID>
+    <ID>MaxLineLength:ResetPasswordScreen.kt$title = stringResource(if (state is AuthViewModel.ResetPasswordState.Done) com.beauty.app.R.string.password_changed else com.beauty.app.R.string.choose_a_new_password)</ID>
+    <ID>MaxLineLength:SettingsScreen.kt$CircularProgressIndicator(modifier = Modifier.size(18.dp), color = MaterialTheme.colorScheme.onPrimary, strokeWidth = 2.dp)</ID>
+    <ID>MaxLineLength:SettingsScreen.kt$Icon(Icons.Default.ArrowBack, contentDescription = stringResource(com.beauty.app.R.string.back), tint = Forest)</ID>
+    <ID>MaxLineLength:SettingsScreen.kt$LanguageSelector(accountId = accountId, modifier = Modifier.fillMaxWidth(), onSelected = onLanguageSelected)</ID>
+    <ID>MaxLineLength:SettingsScreen.kt$Text(stringResource(com.beauty.app.R.string.appearance), color = Forest, fontWeight = FontWeight.SemiBold, fontSize = 20.sp)</ID>
+    <ID>MaxLineLength:SettingsScreen.kt$Text(stringResource(com.beauty.app.R.string.change_password), color = Forest, fontWeight = FontWeight.SemiBold, fontSize = 20.sp)</ID>
+    <ID>MaxLineLength:SettingsScreen.kt$Text(stringResource(com.beauty.app.R.string.change_password), color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.Bold)</ID>
+    <ID>MaxLineLength:SettingsScreen.kt$Text(stringResource(com.beauty.app.R.string.language), color = Forest, fontWeight = FontWeight.SemiBold, fontSize = 20.sp)</ID>
+    <ID>MaxLineLength:SettingsScreen.kt$Text(stringResource(com.beauty.app.R.string.profile), color = Forest, fontWeight = FontWeight.SemiBold, fontSize = 20.sp)</ID>
+    <ID>MaxLineLength:SettingsScreen.kt$Text(stringResource(com.beauty.app.R.string.save_name), color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.Bold)</ID>
+    <ID>MaxLineLength:SettingsScreen.kt$contentDescription = if (showPassword) stringResource(com.beauty.app.R.string.hide_password) else stringResource(com.beauty.app.R.string.show_password)</ID>
+    <ID>MaxLineLength:SettingsScreen.kt$stringResource(com.beauty.app.R.string.ui2_password_changed_you_ve_been_signed_out_of_every_other_device)</ID>
+    <ID>MaxLineLength:SettingsViewModelTest.kt$SettingsViewModelTest$@Test</ID>
+    <ID>MaxLineLength:Theme.kt$internal val LightSemantic = AuraSemanticColors(LightSuccess, LightCard, LightMuted, LightSage, LightPeach, LightClay, LightBorder)</ID>
+    <ID>MaxLineLength:ThemeSelector.kt$DropdownMenuItem(text = { Text(labels.getValue(value)) }, onClick = { expanded = false; select(value) })</ID>
+    <ID>MaxLineLength:ThemeSelector.kt$modifier = Modifier.heightIn(min = 48.dp).semantics { contentDescription = appearanceLabel; stateDescription = labels.getValue(preference) }</ID>
+    <ID>MaxLineLength:UpdateDialog.kt$Text(stringResource(com.beauty.app.R.string.download_install), color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.Bold)</ID>
+    <ID>MaxLineLength:UpdateDialog.kt$Text(stringResource(com.beauty.app.R.string.open_google_play), color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.Bold)</ID>
+    <ID>MaxLineLength:UpdateDialog.kt$colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)</ID>
+    <ID>MaxLineLength:UpdateDialog.kt$text = if (needsInstallPermission) stringResource(com.beauty.app.R.string.grant_permission) else stringResource(com.beauty.app.R.string.install_now)</ID>
+    <ID>MaxLineLength:UpdateDialog.kt$text = stringResource(com.beauty.app.R.string.ui2_to_install_this_update_you_ll_need_to_allow_aura_beauty_to_instal)</ID>
+    <ID>MaxLineLength:UpdateInstaller.kt$UpdateInstaller$val</ID>
+    <ID>MaxLineLength:UpdateManager.kt$UpdateManager$_state.value = UpdateState.Downloading(release, progress = 0f, downloadedBytes = 0L, totalBytes = release.apkSize)</ID>
+    <ID>MaxLineLength:UpdateManager.kt$UpdateState$Downloading : UpdateState</ID>
+    <ID>MaxLineLength:VerificationBanner.kt$if (checking) stringResource(com.beauty.app.R.string.checking) else stringResource(com.beauty.app.R.string.i_ve_confirmed)</ID>
+    <ID>MaxLineLength:VerificationBanner.kt$if (coolingDown) stringResource(com.beauty.app.R.string.link_sent) else stringResource(com.beauty.app.R.string.resend_link)</ID>
+    <ID>MaxLineLength:VerificationBanner.kt$text = pluralStringResource(com.beauty.app.R.plurals.confirm_email_days, daysLeft.toInt(), daysLeft.toInt())</ID>
+    <ID>MaxLineLength:VerificationBanner.kt$text = stringResource(com.beauty.app.R.string.verification_banner_help, email ?: stringResource(com.beauty.app.R.string.your_address))</ID>
+    <ID>MaxLineLength:VerificationWallScreen.kt$Text(com.beauty.app.ui.i18n.verificationMessage(it), color = Forest, fontSize = 13.sp, textAlign = TextAlign.Start)</ID>
+    <ID>MaxLineLength:VerificationWallScreen.kt$Text(if (checking) stringResource(com.beauty.app.R.string.checking) else stringResource(com.beauty.app.R.string.ui2_i_ve_confirmed_my_email))</ID>
+    <ID>MaxLineLength:VerificationWallScreen.kt$Text(stringResource(com.beauty.app.R.string.ui2_we_sent_a_confirmation_link_to), color = Muted, fontSize = 13.sp)</ID>
+    <ID>MaxLineLength:VerificationWallScreen.kt$accountId = com.beauty.app.AppContainer.tokenStore(androidx.compose.ui.platform.LocalContext.current).getAccountId()</ID>
+    <ID>MaxLineLength:VerificationWallScreen.kt$if (coolingDown) stringResource(com.beauty.app.R.string.link_sent) else stringResource(com.beauty.app.R.string.send_the_link_again)</ID>
+    <ID>MaxLineLength:VerificationWallScreen.kt$stringResource(com.beauty.app.R.string.ui2_your_account_is_ready_it_just_needs_a_confirmed_email_address_bef)</ID>
+    <ID>ReturnCount:AppLinks.kt$internal fun tokenFromWebAppLink(raw: String, queryParam: String, path: String? = null): String?</ID>
+    <ID>ReturnCount:AppLinks.kt$internal fun trustedWebLink(raw: String, webBaseUrl: String = BuildConfig.APP_WEB_BASE_URL): URI?</ID>
+    <ID>ReturnCount:AttachmentImages.kt$private suspend fun loadAttachmentBitmap( repository: BeautyRepository, organizationId: String, attachmentId: String ): ImageBitmap?</ID>
+    <ID>ReturnCount:BeautyApi.kt$suspend fun Throwable.isEmailNotVerified(): Boolean</ID>
+    <ID>ReturnCount:BeautyApi.kt$suspend fun Throwable.isNotAMember(): Boolean</ID>
+    <ID>ReturnCount:BeautyApi.kt$suspend fun Throwable.safeMessage(fallback: String = "NETWORK_ERROR"): String</ID>
+    <ID>ReturnCount:ClientDetailViewModel.kt$ClientDetailViewModel$fun saveVisitWithPhotos(dateTime: String, duration: String, notes: String, status: String, onSaved: () -&gt; Unit, context: Context? = null, photos: List&lt;Pair&lt;String, Uri&gt;&gt; = emptyList())</ID>
+    <ID>ReturnCount:LanguagePreferenceManager.kt$LanguagePreferenceManager$fun detectExternalOverride(accountId: String?): Boolean</ID>
+    <ID>ReturnCount:OrganizationViewModel.kt$OrganizationViewModel$private fun applyPendingFocus()</ID>
+    <ID>ReturnCount:PhotoCapture.kt$internal fun decodeUprightBitmap(context: Context, uri: Uri, maxWidth: Int): Bitmap?</ID>
+    <ID>ReturnCount:VerificationState.kt$fun standingFor(emailVerified: Boolean, deadline: String?): VerificationStanding</ID>
+    <ID>SwallowedException:AppContainer.kt$AppContainer$e: Exception</ID>
+    <ID>SwallowedException:AppLinkViewModel.kt$AppLinkViewModel$e: Exception</ID>
+    <ID>SwallowedException:AuthViewModel.kt$AuthViewModel$e: Exception</ID>
+    <ID>SwallowedException:AuthViewModel.kt$AuthViewModel$e: ResponseException</ID>
+    <ID>SwallowedException:SettingsViewModel.kt$SettingsViewModel$e: Exception</ID>
+    <ID>ThrowsCount:BeautyRepository.kt$BeautyRepository$suspend fun uploadPhotoDraft(draftId: String): VisitAttachmentDto</ID>
+    <ID>ThrowsCount:ClientDetailViewModel.kt$ClientDetailViewModel$fun addPhotoToVisit( context: Context, rowKey: String, remoteVisitId: String?, localVisitId: String?, tag: String, uri: Uri, onPending: () -&gt; Unit )</ID>
+    <ID>TooGenericExceptionCaught:AdminViewModel.kt$AdminViewModel$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:AppContainer.kt$AppContainer$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:AppLinkViewModel.kt$AppLinkViewModel$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:AuthViewModel.kt$AuthViewModel$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:BeautyRepository.kt$BeautyRepository$error: Exception</ID>
+    <ID>TooGenericExceptionCaught:ClientDetailViewModel.kt$ClientDetailViewModel$error: Exception</ID>
+    <ID>TooGenericExceptionCaught:ClientDirectoryViewModel.kt$ClientDirectoryViewModel$error: Exception</ID>
+    <ID>TooGenericExceptionCaught:EditClientViewModel.kt$EditClientViewModel$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:OrganizationViewModel.kt$OrganizationViewModel$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:SettingsViewModel.kt$SettingsViewModel$e: Exception</ID>
+    <ID>TooManyFunctions:AdminViewModel.kt$AdminViewModel : ViewModel</ID>
+    <ID>TooManyFunctions:AppContainer.kt$AppContainer</ID>
+    <ID>TooManyFunctions:AppLinkViewModel.kt$AppLinkViewModel : ViewModel</ID>
+    <ID>TooManyFunctions:AttachmentImages.kt$com.beauty.app.ui.client.AttachmentImages.kt</ID>
+    <ID>TooManyFunctions:BeautyApi.kt$BeautyApi</ID>
+    <ID>TooManyFunctions:BeautyApi.kt$KtorBeautyApi : BeautyApi</ID>
+    <ID>TooManyFunctions:BeautyRepository.kt$BeautyRepository : VisitSyncRepository</ID>
+    <ID>TooManyFunctions:ClientPresentation.kt$com.beauty.app.ui.client.ClientPresentation.kt</ID>
+    <ID>TooManyFunctions:EditClientViewModel.kt$EditClientViewModel : ViewModel</ID>
+    <ID>TooManyFunctions:OrganizationViewModel.kt$OrganizationViewModel : ViewModel</ID>
+    <ID>UseCheckOrError:GithubUpdateService.kt$GithubUpdateService$throw IllegalStateException("Download failed with HTTP ${response.status.value}")</ID>
+    <ID>UseCheckOrError:GithubUpdateService.kt$GithubUpdateService$throw IllegalStateException("GitHub API returned ${response.status.value}")</ID>
+    <ID>UseCheckOrError:GithubUpdateService.kt$GithubUpdateService$throw IllegalStateException("GitHub rate limit reached. Please try again later.")</ID>
+    <ID>UseCheckOrError:PhotoCapture.kt$throw IllegalStateException("COULD_NOT_READ_PHOTO")</ID>
+    <ID>WildcardImport:AboutScreen.kt$import androidx.compose.foundation.layout.*</ID>
+    <ID>WildcardImport:AboutScreen.kt$import androidx.compose.material3.*</ID>
+    <ID>WildcardImport:AboutScreen.kt$import androidx.compose.runtime.*</ID>
+    <ID>WildcardImport:AboutScreen.kt$import com.beauty.app.ui.theme.*</ID>
+    <ID>WildcardImport:AdminScreen.kt$import androidx.compose.foundation.layout.*</ID>
+    <ID>WildcardImport:AdminScreen.kt$import androidx.compose.material3.*</ID>
+    <ID>WildcardImport:AdminScreen.kt$import androidx.compose.runtime.*</ID>
+    <ID>WildcardImport:AdminScreen.kt$import com.beauty.app.ui.theme.*</ID>
+    <ID>WildcardImport:AppLinkInboxTest.kt$import org.junit.Assert.*</ID>
+    <ID>WildcardImport:AppLinkViewModelTest.kt$import kotlinx.coroutines.test.*</ID>
+    <ID>WildcardImport:AppLinkViewModelTest.kt$import org.junit.Assert.*</ID>
+    <ID>WildcardImport:AppLinksTest.kt$import org.junit.Assert.*</ID>
+    <ID>WildcardImport:AttachmentImages.kt$import androidx.compose.foundation.layout.*</ID>
+    <ID>WildcardImport:AttachmentImages.kt$import androidx.compose.material3.*</ID>
+    <ID>WildcardImport:AttachmentImages.kt$import androidx.compose.runtime.*</ID>
+    <ID>WildcardImport:AttachmentImages.kt$import com.beauty.app.ui.theme.*</ID>
+    <ID>WildcardImport:AttributeEditorStateTest.kt$import org.junit.Assert.*</ID>
+    <ID>WildcardImport:AttributeTile.kt$import com.beauty.app.ui.theme.*</ID>
+    <ID>WildcardImport:AuthViewModelRegisterTest.kt$import org.junit.Assert.*</ID>
+    <ID>WildcardImport:AuthViewModelResetPasswordTest.kt$import org.junit.Assert.*</ID>
+    <ID>WildcardImport:ClientDetailScreen.kt$import androidx.compose.foundation.layout.*</ID>
+    <ID>WildcardImport:ClientDetailScreen.kt$import androidx.compose.material3.*</ID>
+    <ID>WildcardImport:ClientDetailScreen.kt$import androidx.compose.runtime.*</ID>
+    <ID>WildcardImport:ClientDetailScreen.kt$import com.beauty.app.ui.theme.*</ID>
+    <ID>WildcardImport:ClientDetailViewModelTest.kt$import org.junit.Assert.*</ID>
+    <ID>WildcardImport:ClientDirectoryScreen.kt$import androidx.compose.foundation.layout.*</ID>
+    <ID>WildcardImport:ClientDirectoryScreen.kt$import androidx.compose.material.pullrefresh.*</ID>
+    <ID>WildcardImport:ClientDirectoryScreen.kt$import androidx.compose.material3.*</ID>
+    <ID>WildcardImport:ClientDirectoryScreen.kt$import androidx.compose.runtime.*</ID>
+    <ID>WildcardImport:ClientDirectoryScreen.kt$import com.beauty.app.ui.theme.*</ID>
+    <ID>WildcardImport:ClientPresentation.kt$import com.beauty.app.ui.theme.*</ID>
+    <ID>WildcardImport:Components.kt$import androidx.compose.foundation.layout.*</ID>
+    <ID>WildcardImport:Components.kt$import androidx.compose.material3.*</ID>
+    <ID>WildcardImport:EditClientScreen.kt$import androidx.compose.foundation.layout.*</ID>
+    <ID>WildcardImport:EditClientScreen.kt$import androidx.compose.material3.*</ID>
+    <ID>WildcardImport:EditClientScreen.kt$import androidx.compose.runtime.*</ID>
+    <ID>WildcardImport:EditClientScreen.kt$import com.beauty.app.ui.theme.*</ID>
+    <ID>WildcardImport:EditClientViewModelTest.kt$import org.junit.Assert.*</ID>
+    <ID>WildcardImport:Entities.kt$import androidx.room.*</ID>
+    <ID>WildcardImport:ForgotPasswordScreen.kt$import androidx.compose.foundation.layout.*</ID>
+    <ID>WildcardImport:ForgotPasswordScreen.kt$import androidx.compose.material3.*</ID>
+    <ID>WildcardImport:ForgotPasswordScreen.kt$import androidx.compose.runtime.*</ID>
+    <ID>WildcardImport:ForgotPasswordScreen.kt$import com.beauty.app.ui.theme.*</ID>
+    <ID>WildcardImport:GithubUpdateServiceTest.kt$import org.junit.Assert.*</ID>
+    <ID>WildcardImport:LanguagePreferenceManagerTest.kt$import org.junit.Assert.*</ID>
+    <ID>WildcardImport:LoginScreen.kt$import androidx.compose.foundation.layout.*</ID>
+    <ID>WildcardImport:LoginScreen.kt$import androidx.compose.material3.*</ID>
+    <ID>WildcardImport:LoginScreen.kt$import androidx.compose.runtime.*</ID>
+    <ID>WildcardImport:LoginScreen.kt$import com.beauty.app.ui.theme.*</ID>
+    <ID>WildcardImport:MainActivity.kt$import androidx.compose.foundation.layout.*</ID>
+    <ID>WildcardImport:MainActivity.kt$import androidx.compose.material3.*</ID>
+    <ID>WildcardImport:MainActivity.kt$import androidx.compose.runtime.*</ID>
+    <ID>WildcardImport:MainActivity.kt$import com.beauty.app.ui.theme.*</ID>
+    <ID>WildcardImport:MemberRow.kt$import androidx.compose.foundation.layout.*</ID>
+    <ID>WildcardImport:MemberRow.kt$import androidx.compose.material3.*</ID>
+    <ID>WildcardImport:MemberRow.kt$import com.beauty.app.ui.theme.*</ID>
+    <ID>WildcardImport:OrganizationScreen.kt$import androidx.compose.foundation.layout.*</ID>
+    <ID>WildcardImport:OrganizationScreen.kt$import androidx.compose.material3.*</ID>
+    <ID>WildcardImport:OrganizationScreen.kt$import androidx.compose.runtime.*</ID>
+    <ID>WildcardImport:OrganizationScreen.kt$import com.beauty.app.ui.theme.*</ID>
+    <ID>WildcardImport:RegisterScreen.kt$import androidx.compose.foundation.layout.*</ID>
+    <ID>WildcardImport:RegisterScreen.kt$import androidx.compose.material3.*</ID>
+    <ID>WildcardImport:RegisterScreen.kt$import androidx.compose.runtime.*</ID>
+    <ID>WildcardImport:RegisterScreen.kt$import com.beauty.app.ui.theme.*</ID>
+    <ID>WildcardImport:ResetPasswordScreen.kt$import androidx.compose.foundation.layout.*</ID>
+    <ID>WildcardImport:ResetPasswordScreen.kt$import androidx.compose.material3.*</ID>
+    <ID>WildcardImport:ResetPasswordScreen.kt$import androidx.compose.runtime.*</ID>
+    <ID>WildcardImport:ResetPasswordScreen.kt$import com.beauty.app.ui.theme.*</ID>
+    <ID>WildcardImport:SettingsScreen.kt$import androidx.compose.foundation.layout.*</ID>
+    <ID>WildcardImport:SettingsScreen.kt$import androidx.compose.material3.*</ID>
+    <ID>WildcardImport:SettingsScreen.kt$import androidx.compose.runtime.*</ID>
+    <ID>WildcardImport:SettingsScreen.kt$import com.beauty.app.ui.theme.*</ID>
+    <ID>WildcardImport:SettingsViewModelTest.kt$import org.junit.Assert.*</ID>
+    <ID>WildcardImport:Theme.kt$import androidx.compose.material3.*</ID>
+    <ID>WildcardImport:UpdateBanner.kt$import androidx.compose.foundation.layout.*</ID>
+    <ID>WildcardImport:UpdateBanner.kt$import androidx.compose.material3.*</ID>
+    <ID>WildcardImport:UpdateBanner.kt$import com.beauty.app.ui.theme.*</ID>
+    <ID>WildcardImport:UpdateDialog.kt$import androidx.compose.foundation.layout.*</ID>
+    <ID>WildcardImport:UpdateDialog.kt$import androidx.compose.material3.*</ID>
+    <ID>WildcardImport:UpdateDialog.kt$import androidx.compose.runtime.*</ID>
+    <ID>WildcardImport:UpdateDialog.kt$import com.beauty.app.ui.theme.*</ID>
+    <ID>WildcardImport:UpdateManager.kt$import kotlinx.coroutines.*</ID>
+    <ID>WildcardImport:UpdateManagerTest.kt$import org.junit.Assert.*</ID>
+    <ID>WildcardImport:UpdateManagerTest.kt$import org.mockito.kotlin.*</ID>
+    <ID>WildcardImport:VerificationBanner.kt$import androidx.compose.foundation.layout.*</ID>
+    <ID>WildcardImport:VerificationBanner.kt$import androidx.compose.runtime.*</ID>
+    <ID>WildcardImport:VerificationBanner.kt$import com.beauty.app.ui.theme.*</ID>
+    <ID>WildcardImport:VerificationWallScreen.kt$import androidx.compose.foundation.layout.*</ID>
+    <ID>WildcardImport:VerificationWallScreen.kt$import androidx.compose.runtime.*</ID>
+    <ID>WildcardImport:VerificationWallScreen.kt$import com.beauty.app.ui.theme.*</ID>
+  </CurrentIssues>
+</SmellBaseline>
