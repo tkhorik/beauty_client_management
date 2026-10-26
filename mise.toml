@@ -1,0 +1,26 @@
+# CLI tools shared by developer hooks and CI. Language dependencies stay in
+# their native npm/Gradle manifests and lockfiles.
+min_version = "2026.10.19"
+
+[tools]
+node = "26.12.0"
+java = "temurin-17.0.19+10"
+python = "3.15.0"
+"aqua:jdx/hk" = "2.8.1"
+"github:jdx/jactionlint" = "2.3.0"
+"aqua:koalaman/shellcheck" = "0.11.0"
+"aqua:betterleaks/betterleaks" = "1.9.0"
+"aqua:google/osv-scanner" = "2.7.0"
+"pipx:check-jsonschema" = "0.38.2"
+
+[tasks.check]
+description = "All gates; optional scope: quality, web, backend, android, security, local"
+run = "python3 scripts/quality/check.py"
+
+[tasks."hooks:install"]
+description = "Install repository-local hooks (never global hooks)"
+run = "hk install --mise"
+
+[tasks."check:staged"]
+description = "Read-only checks against the staged snapshot"
+run = "python3 scripts/quality/check.py staged"

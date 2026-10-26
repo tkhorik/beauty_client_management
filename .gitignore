@@ -24,6 +24,10 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
+# Python check-runner bytecode
+__pycache__/
+*.pyc
+
 # Backend / Kotlin / Gradle
 .gradle/
 **/build/

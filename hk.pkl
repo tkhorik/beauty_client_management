@@ -1,0 +1,39 @@
+amends "package://github.com/jdx/hk/releases/download/v2.8.1/hk@2.8.1#/Config.pkl"
+
+min_hk_version = "2.8.1"
+jobs = 2
+fail_fast = false
+
+hooks {
+  ["pre-commit"] {
+    fix = false
+    stage = false
+    stash = "none"
+    steps {
+      ["staged-snapshot"] {
+        check = "mise run check:staged"
+      }
+    }
+  }
+  ["pre-push"] {
+    steps {
+      ["project"] {
+        check = "mise run check -- local"
+      }
+    }
+  }
+  ["check"] {
+    fix = false
+    steps {
+      ["workflows"] {
+        check = "python3 scripts/quality/check.py workflows"
+      }
+      ["compose"] {
+        check = "python3 scripts/quality/check.py compose"
+      }
+      ["secrets"] {
+        check = "python3 scripts/quality/check.py secrets"
+      }
+    }
+  }
+}
