@@ -233,11 +233,11 @@ dependencies {
     implementation("androidx.work:work-runtime-ktx:2.9.0")
 
     // Ktor Client for Android
-    implementation("io.ktor:ktor-client-core:2.3.13")
-    implementation("io.ktor:ktor-client-okhttp:2.3.13")
-    implementation("io.ktor:ktor-client-content-negotiation:2.3.13")
-    implementation("io.ktor:ktor-serialization-kotlinx-json:2.3.13")
-    implementation("io.ktor:ktor-client-auth:2.3.13")
+    implementation("io.ktor:ktor-client-core:3.6.0")
+    implementation("io.ktor:ktor-client-okhttp:3.6.0")
+    implementation("io.ktor:ktor-client-content-negotiation:3.6.0")
+    implementation("io.ktor:ktor-serialization-kotlinx-json:3.6.0")
+    implementation("io.ktor:ktor-client-auth:3.6.0")
 
     // Jetpack Security — EncryptedSharedPreferences for JWT token storage
     implementation("androidx.security:security-crypto:1.1.0-alpha06")
@@ -247,7 +247,7 @@ dependencies {
 
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.3")
-    testImplementation("io.ktor:ktor-client-mock:2.3.13")
+    testImplementation("io.ktor:ktor-client-mock:3.6.0")
     testImplementation("org.mockito.kotlin:mockito-kotlin:5.2.1")
 
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
