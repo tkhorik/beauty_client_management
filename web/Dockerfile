@@ -27,7 +27,7 @@ RUN npm run build
 # ---------------------------------------------------------------------------
 # Stage 2 — serve the static files with Nginx. No Node in the final image.
 # ---------------------------------------------------------------------------
-FROM nginx:1.27-alpine AS runtime
+FROM nginx:1.29-alpine AS runtime
 
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /app/dist /usr/share/nginx/html
