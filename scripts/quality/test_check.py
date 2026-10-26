@@ -1,5 +1,6 @@
 """Regression coverage for read-only, partially staged commit checks."""
 
+import os
 from pathlib import Path
 import subprocess
 import tempfile
@@ -10,6 +11,14 @@ import check
 
 
 class StagedSnapshotTest(unittest.TestCase):
+    def setUp(self):
+        # Git hooks export GIT_DIR, GIT_INDEX_FILE, etc.; inherited, they would
+        # redirect the temporary repo's git commands to the hook's repository.
+        clean = {key: value for key, value in os.environ.items() if not key.startswith("GIT_")}
+        environment = patch.dict(os.environ, clean, clear=True)
+        environment.start()
+        self.addCleanup(environment.stop)
+
     def test_snapshot_uses_index_and_preserves_unstaged_and_untracked_files(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
