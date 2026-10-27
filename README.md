@@ -204,6 +204,36 @@ npm run build
 
 ---
 
+### Progressive Web App
+
+Production builds include `/manifest.json`, a Workbox service worker, branded
+installation icons, and a standalone offline page. Service workers are disabled
+in the development server. To check a production build locally:
+
+```bash
+cd web
+npm run build
+npm run preview -- --host 127.0.0.1
+```
+
+Use HTTPS in production (localhost is allowed for testing). On Android, use
+**Install web app** when the browser offers it; native Android open/download
+actions remain available. On iPhone/iPad, open the installation guide or use
+Safari **Share → Add to Home Screen → Open as Web App → Add**. Installation may
+require a separate sign-in from the browser session.
+
+Public build assets are precached/Cache First. Private APIs, authentication,
+client records, and photos are never stored in service-worker caches. Offline
+navigation shows a retry page; offline edits are not queued or synchronized.
+An open workspace stays mounted when connectivity changes. Applying an update
+requires confirmation in each tab because reloading can discard unsaved work.
+
+Validate the built app in browser Application/Manifest/Service Worker tools,
+including offline navigation, absence of private cache entries, and mobile
+Home Screen launch. Current Lighthouse versions have no PWA audit category;
+use their performance/accessibility/best-practices checks separately. Real
+Android Chrome and iPhone Safari acceptance is still required for a release.
+
 ## Android Testing
 
 The Android app now starts on a **Login Screen**. After entering valid credentials the JWT token is stored in `EncryptedSharedPreferences` and the app navigates to the client directory. The token persists across app restarts — the login screen is only shown again after logout or on a fresh install.

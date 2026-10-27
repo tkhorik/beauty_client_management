@@ -8,6 +8,7 @@ import { ThemeSelector } from './ThemeSelector';
 import { LanguageSelector } from './LanguageSelector';
 import { useAppTranslation } from '../i18n/useLocale';
 import { translatedFieldErrors, translatedApiError } from '../i18n/errors';
+import { PwaInstallButton } from './PwaInstallButton';
 import './ClientForms.css';
 
 interface SettingsModalProps {
@@ -150,6 +151,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
 
           <LanguageSelector description={t('settings.languageDescription')} />
           <section className="settings-section"><ThemeSelector /></section>
+          <section className="settings-section">
+            <h3 className="form-section__title">{t('pwa.settingsTitle')}</h3>
+            <p style={{ color: 'var(--text-muted)', fontSize: '13px', marginBottom: '10px' }}>{t('pwa.settingsDescription')}</p>
+            <PwaInstallButton className="btn-secondary" />
+          </section>
 
           {/* Email (read-only) */}
           <div className="form-field">

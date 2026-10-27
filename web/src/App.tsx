@@ -103,8 +103,9 @@ function OrganizationGate({
   creationLinkOpen: boolean;
   onCloseCreationLink: () => void;
 }) {
-  const { current, loading, organizations, select } = useOrg();
+  const { current, loading, organizations, select, refresh, connectionError } = useOrg();
   const { user } = useAuth();
+  const { t } = useAppTranslation();
 
   // A "new access request" email links to `?members=<orgId>`. Switch to that
   // organization first — only if the caller can actually manage it — and let
@@ -121,7 +122,24 @@ function OrganizationGate({
   // Same reasoning as `initialising` above: a brief null while the list loads
   // is not the same as "has no organization", and flashing the onboarding
   // screen at someone who has three salons would be alarming.
-  if (loading) return <ScreenLoading />;
+  // Once an organization has been verified, refreshing it must not unmount the
+  // workspace. Unmounting here would discard in-progress form state merely
+  // because the connection was checked again.
+  if (loading && !current) return <ScreenLoading />;
+
+  // A production network failure is neither proof that the user has no salon
+  // nor a reason to invent demo data. Keep the connection problem explicit and
+  // retryable before sending a first-load user to organization onboarding.
+  if (!current && connectionError) {
+    return (
+      <div className="auth-page" style={{ padding: '24px 32px' }}>
+        <div className="auth-card auth-alert auth-alert--error" role="alert">
+          <p>{t('common.network')}</p>
+          <button className="btn-secondary" type="button" onClick={() => void refresh()}>{t('clients.retry')}</button>
+        </div>
+      </div>
+    );
+  }
 
   // The banner wraps the onboarding screen too, not just the app proper.
   // Creating an organization is one of the actions the restriction blocks, so
@@ -147,7 +165,17 @@ function OrganizationGate({
   // client and open modals mounted while the new data loads — showing one
   // tenant's records under another's name, which is the exact confusion this
   // feature exists to prevent.
-  return <AuthenticatedApp key={current.id} organization={current} onOpenAdmin={onOpenAdmin} />;
+  return (
+    <>
+      {connectionError && (
+        <div className="notice notice--error" role="alert">
+          <span>{t('common.network')}</span>
+          <button className="btn-secondary" type="button" onClick={() => void refresh()}>{t('clients.retry')}</button>
+        </div>
+      )}
+      <AuthenticatedApp key={current.id} organization={current} onOpenAdmin={onOpenAdmin} />
+    </>
+  );
 }
 
 /**

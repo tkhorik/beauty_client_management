@@ -14,7 +14,10 @@ import type { NewVisitModal } from './components/NewVisitModal';
 let header: ComponentProps<typeof Header>;
 let detail: ComponentProps<typeof ClientDetailModal>;
 let newVisit: ComponentProps<typeof NewVisitModal>;
-vi.mock('./components/Header', () => ({ Header: (props: typeof header) => { header = props; return null; } }));
+vi.mock('./components/Header', () => ({ Header: (props: typeof header) => {
+  header = props;
+  return <input aria-label="workspace-search" value={props.searchQuery} onChange={event => props.onSearchChange(event.currentTarget.value)} />;
+} }));
 vi.mock('./components/ClientDetailModal', () => ({ ClientDetailModal: (props: typeof detail) => {
   detail = props;
   return <output>{props.client.name}:{props.visitsLoading ? 'loading' : props.visitsError ? 'error' : props.visits.map(v => v.id).join(',')}</output>;
@@ -22,7 +25,15 @@ vi.mock('./components/ClientDetailModal', () => ({ ClientDetailModal: (props: ty
 vi.mock('./components/NewVisitModal', () => ({ NewVisitModal: (props: typeof newVisit) => { newVisit = props; return null; } }));
 vi.mock('./components/ClientCard', () => ({ ClientCard: ({ client, onSelect }: { client: Client; onSelect: (client: Client) => void }) => <button onClick={() => onSelect(client)}>{client.name}</button> }));
 vi.mock('./auth/useAuth', () => ({ useAuth: () => ({ token: 'test', user: { emailVerified: true }, logout: () => {} }) }));
-vi.mock('./auth/useOrg', () => ({ useOrg: () => ({ current: { id: 'org', role: 'ORG_ADMIN' }, organizations: [] }) }));
+let orgState = {
+  current: { id: 'org', role: 'ORG_ADMIN' },
+  organizations: [],
+  loading: false,
+  connectionError: false,
+  refresh: async () => {},
+  select: () => {},
+};
+vi.mock('./auth/useOrg', () => ({ useOrg: () => orgState }));
 
 const client = (id: string): Client => ({ id, name: id, phone: '123', tags: [], customFields: {}, totalVisits: 1, createdAt: '2020-01-01', updatedAt: '2020-01-01' });
 const visits = (id: string): Visit[] => [{ id: `${id}-visit`, clientId: id, visitDateTime: '2020-01-01T10:00', durationMinutes: 60, procedureNotes: '', status: 'COMPLETED', attachments: [], createdAt: '2020-01-01' }];
@@ -40,7 +51,12 @@ async function select(id: string) {
 beforeEach(async () => {
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
   localStorage.clear();
+  orgState = {
+    current: { id: 'org', role: 'ORG_ADMIN' }, organizations: [], loading: false,
+    connectionError: false, refresh: async () => {}, select: () => {},
+  };
   vi.spyOn(api, 'getClients').mockResolvedValue([client('A'), client('B')]);
+  vi.spyOn(api, 'getClientTags').mockResolvedValue([]);
   vi.spyOn(api, 'getClient').mockImplementation(async id => client(id));
   vi.spyOn(api, 'getVisits').mockImplementation(async id => visits(id ?? ''));
   host = document.createElement('div');
@@ -110,4 +126,21 @@ it('a delayed mutation refresh uses the current filters and selection', async ()
   expect(api.getClients).toHaveBeenLastCalledWith('current', '');
   expect(api.getVisits).toHaveBeenLastCalledWith('B');
   expect(host.querySelector('output')?.textContent).toBe('B:B-visit');
+});
+
+it('keeps the authenticated workspace mounted through an organization refresh failure', async () => {
+  await act(async () => header.onSearchChange('unsaved search'));
+  const input = host.querySelector<HTMLInputElement>('[aria-label="workspace-search"]')!;
+  expect(input.value).toBe('unsaved search');
+
+  orgState = { ...orgState, loading: true };
+  await act(async () => root.render(<LocaleProvider><App /></LocaleProvider>));
+  expect(host.querySelector('[aria-label="workspace-search"]')).toBe(input);
+  expect(input.value).toBe('unsaved search');
+
+  orgState = { ...orgState, loading: false, connectionError: true };
+  await act(async () => root.render(<LocaleProvider><App /></LocaleProvider>));
+  expect(host.querySelector('[aria-label="workspace-search"]')).toBe(input);
+  expect(input.value).toBe('unsaved search');
+  expect(host.textContent).toContain('Server could not be reached');
 });
