@@ -9,6 +9,8 @@ import {
   isSensitiveAppLink,
   isStandaloneDisplayMode,
 } from '../nativeAppBanner';
+import { PwaInstallButton } from './PwaInstallButton';
+import { useIsInstalledOrStandalone } from '../pwa/install';
 
 const CAMPAIGN_VERSION = 'v1';
 
@@ -37,8 +39,9 @@ export function NativeAppBanner() {
   const { t } = useAppTranslation();
   const [platform] = useState(platformForBrowser);
   const [dismissed, setDismissed] = useState(() => platform ? wasDismissed(platform) : false);
+  const installedOrStandalone = useIsInstalledOrStandalone();
 
-  if (!platform || dismissed || isSensitiveAppLink(new URL(window.location.href))) return null;
+  if (!platform || dismissed || installedOrStandalone || isSensitiveAppLink(new URL(window.location.href))) return null;
 
   const dismiss = () => {
     try {
@@ -62,6 +65,7 @@ export function NativeAppBanner() {
       </div>
       {platform === 'android' && (
         <div className="native-app-banner__actions">
+          <PwaInstallButton className="native-app-banner__button native-app-banner__button--primary" />
           <a className="native-app-banner__button native-app-banner__button--primary" href={openAppUrl}>
             <ExternalLink size={16} aria-hidden="true" />
             {t('nativeAppBanner.openApp')}
@@ -72,6 +76,7 @@ export function NativeAppBanner() {
           </a>
         </div>
       )}
+      {platform === 'ios' && <div className="native-app-banner__actions"><PwaInstallButton className="native-app-banner__button native-app-banner__button--primary" /></div>}
       <button
         className="native-app-banner__dismiss"
         type="button"

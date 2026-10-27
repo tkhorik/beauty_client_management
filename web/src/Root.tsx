@@ -9,6 +9,7 @@ import { VerifyEmailPage } from './components/VerifyEmailPage.tsx';
 import { VerificationGate } from './components/VerificationWall.tsx';
 import { LanguageAccountSync } from './i18n/LanguageAccountSync.tsx';
 import { NativeAppBanner } from './components/NativeAppBanner.tsx';
+import { PwaStatus } from './components/PwaStatus.tsx';
 
 /**
  * Chooses between the application and the three screens that must work without
@@ -60,6 +61,6 @@ export function Root() {
       );
   }
 
-  return <><NativeAppBanner />{content}</>;
+  return <><PwaStatus /><NativeAppBanner />{content}</>;
 }
 

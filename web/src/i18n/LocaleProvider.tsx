@@ -1,3 +1,4 @@
+import { pwaEn, pwaRu } from './pwa';
 import { webUxEn, webUxRu } from './webUx';
 import { visitUxEn, visitUxRu } from './visitUx';
 import i18n from 'i18next';
@@ -13,7 +14,7 @@ import { getStoredLanguagePreference, LOCALE_CHANGED_EVENT, resolveLocale, saveL
 import { LocaleContext } from './LocaleContext';
 
 i18n.use(initReactI18next).init({
-  resources: { en: { translation: { ...en, ...featureEn, ...runtimeEn, ...newClientEn, ...auditEn, ...webUxEn, ...visitUxEn, apiErrors: apiErrorEn } }, ru: { translation: { ...ru, ...featureRu, ...runtimeRu, ...newClientRu, ...auditRu, ...webUxRu, ...visitUxRu, apiErrors: apiErrorRu } } },
+  resources: { en: { translation: { ...en, ...featureEn, ...runtimeEn, ...newClientEn, ...auditEn, ...webUxEn, ...visitUxEn, ...pwaEn, apiErrors: apiErrorEn } }, ru: { translation: { ...ru, ...featureRu, ...runtimeRu, ...newClientRu, ...auditRu, ...webUxRu, ...visitUxRu, ...pwaRu, apiErrors: apiErrorRu } } },
   lng: resolveLocale(getStoredLanguagePreference()),
   fallbackLng: 'en',
   initAsync: false,

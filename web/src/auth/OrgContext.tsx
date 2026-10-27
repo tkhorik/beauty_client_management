@@ -26,6 +26,18 @@ const DEMO_ORG: Organization = {
   status: 'ACTIVE',
 };
 
+// Keep this independently explicit rather than treating every unavailable
+// network as a demo. In production a synthetic organization is both confusing
+// and unsafe: it can make a real account look like it owns made-up data.
+const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === 'true';
+
+function isRetryableOrganizationFailure(error: unknown): boolean {
+  return !(error instanceof ApiError)
+    || error.status === 408
+    || error.status === 429
+    || error.status >= 500;
+}
+
 
 export function OrgProvider({ children }: { children: ReactNode }) {
   const { token } = useAuth();
@@ -33,10 +45,13 @@ export function OrgProvider({ children }: { children: ReactNode }) {
   const [currentId, setCurrentId] = useState<string | null>(getActiveOrgId());
   const [loading, setLoading] = useState(true);
   const [offline, setOffline] = useState(false);
+  const [connectionError, setConnectionError] = useState(false);
 
   const load = useCallback(async () => {
     if (!token) {
       setOrganizations([]);
+      setConnectionError(false);
+      setOffline(false);
       setLoading(false);
       return;
     }
@@ -46,6 +61,7 @@ export function OrgProvider({ children }: { children: ReactNode }) {
       const list = await api.getOrganizations();
       setOrganizations(list);
       setOffline(false);
+      setConnectionError(false);
 
       const active = list.filter(o => o.status === 'ACTIVE');
       const stored = getActiveOrgId();
@@ -60,7 +76,7 @@ export function OrgProvider({ children }: { children: ReactNode }) {
       setActiveOrgId(next);
       setCurrentId(next);
     } catch (err) {
-      if (err instanceof ApiError) {
+      if (!isRetryableOrganizationFailure(err)) {
         // A real answer from a reachable server: the user genuinely has no
         // organizations, or is not allowed to ask. Show the onboarding screen,
         // not the demo.
@@ -68,7 +84,8 @@ export function OrgProvider({ children }: { children: ReactNode }) {
         clearActiveOrgId();
         setCurrentId(null);
         setOffline(false);
-      } else {
+        setConnectionError(false);
+      } else if (DEMO_MODE && !(err instanceof ApiError)) {
         // Network failure. Mirror the mock-data fallback in `api.ts` so the
         // offline demo keeps working — but label it, so nobody mistakes it for
         // their real data.
@@ -76,6 +93,15 @@ export function OrgProvider({ children }: { children: ReactNode }) {
         setActiveOrgId(DEMO_ORG.id);
         setCurrentId(DEMO_ORG.id);
         setOffline(true);
+        setConnectionError(false);
+      } else {
+        // Preserve a successfully loaded organization while a later refresh is
+        // unavailable. It remains mounted so in-progress forms are not lost;
+        // all data requests still fail normally and are never served from a
+        // cache. For the initial load this stays null, allowing the shell to
+        // render a retryable connection state rather than onboarding.
+        setOffline(false);
+        setConnectionError(true);
       }
     } finally {
       setLoading(false);
@@ -114,7 +140,7 @@ export function OrgProvider({ children }: { children: ReactNode }) {
 
   return (
     <OrgContext.Provider
-      value={{ organizations, activeOrganizations, current, loading, offline, select, refresh: load }}
+      value={{ organizations, activeOrganizations, current, loading, connectionError, offline, select, refresh: load }}
     >
       {children}
     </OrgContext.Provider>

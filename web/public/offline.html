@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#f8f7f2">
+  <title>Aura Beauty Log — Offline</title>
+  <style>
+    :root { color-scheme: light dark; font: 16px/1.6 system-ui, sans-serif; --bg: #f8f7f2; --fg: #283a2c; }
+    @media(prefers-color-scheme: dark) { :root { --bg: #18211d; --fg: #e6eadf; } }
+    :root[data-theme="dark"] { --bg: #18211d; --fg: #e6eadf; color-scheme: dark; }
+    :root[data-theme="light"] { --bg: #f8f7f2; --fg: #283a2c; color-scheme: light; }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; min-height: 100dvh; display: grid; place-items: center; background: var(--bg); color: var(--fg); padding: max(24px, env(safe-area-inset-top)) max(24px, env(safe-area-inset-right)) max(24px, env(safe-area-inset-bottom)) max(24px, env(safe-area-inset-left)); }
+    main { max-width: 34rem; } h1 { line-height: 1.2; } button { font: inherit; cursor: pointer; min-height: 44px; padding: 10px 20px; border: 1px solid currentColor; border-radius: 8px; color: inherit; background: transparent; }
+    button:focus-visible { outline: 3px solid #a36a40; outline-offset: 4px; } .brand { font-weight: 600; } .languages { margin-top: 24px; display: flex; gap: 12px; }
+  </style>
+</head>
+<body>
+  <main>
+    <p class="brand">Aura Beauty Log</p>
+    <h1 id="heading">You’re offline</h1>
+    <p id="message">Reconnect to use client records, visits and photos. Changes are not saved or queued while offline.</p>
+    <button id="retry" type="button">Retry</button>
+    <div class="languages" aria-label="Language / Язык"><button type="button" lang="en" data-language="en">English</button><button type="button" lang="ru" data-language="ru">Русский</button></div>
+    <noscript><p>Нет подключения. Для работы с клиентами, визитами и фото нужен интернет. Изменения не сохраняются и не ставятся в очередь. / Reconnect, then reload this page to retry.</p></noscript>
+  </main>
+  <script>
+    (() => {
+      const text = {
+        en: ['You’re offline', 'Reconnect to use client records, visits and photos. Changes are not saved or queued while offline.', 'Retry'],
+        ru: ['Нет подключения', 'Для работы с клиентами, визитами и фото нужен интернет. Без подключения изменения не сохраняются и не ставятся в очередь.', 'Повторить'],
+      };
+      let preference;
+      try {
+        preference = localStorage.getItem('beauty:locale-preference');
+        const theme = localStorage.getItem('beauty:theme-preference');
+        if (theme === 'dark' || theme === 'light') document.documentElement.dataset.theme = theme;
+      } catch {}
+      function show(language) {
+        document.documentElement.lang = language;
+        document.title = 'Aura Beauty Log — ' + text[language][0];
+        ['heading', 'message', 'retry'].forEach((id, index) => { document.getElementById(id).textContent = text[language][index]; });
+      }
+      const first = (navigator.languages || [navigator.language]).map(value => value.split('-')[0]).find(value => value === 'en' || value === 'ru');
+      show(preference === 'ru' || preference === 'en' ? preference : first || 'en');
+      document.getElementById('retry').addEventListener('click', () => location.reload());
+      document.querySelectorAll('[data-language]').forEach(button => button.addEventListener('click', () => show(button.dataset.language)));
+    })();
+  </script>
+</body>
+</html>
