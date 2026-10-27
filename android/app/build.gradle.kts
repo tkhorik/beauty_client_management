@@ -207,9 +207,10 @@ dependencyLocking {
 dependencies {
     constraints {
         // Room's annotation processor resolves Guava; keep the update off the APK runtime graph.
-        ksp("com.google.guava:guava:32.0.1-jre")
+        ksp("com.google.guava:guava:33.7.2-jre")
         // AGP's bundled lint tool resolves these with known advisories; patch the
         // build-time classpath only, never the APK runtime graph.
+        add("androidLintTool", "com.google.guava:guava:33.7.2-jre")
         add("androidLintTool", "org.bouncycastle:bcprov-jdk18on:1.85")
         add("androidLintTool", "org.bouncycastle:bcpkix-jdk18on:1.85")
         add("androidLintTool", "org.apache.commons:commons-lang3:3.18.0")
