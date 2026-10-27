@@ -12,6 +12,8 @@ import com.beauty.app.ui.AppLinkInbox
 import com.beauty.app.ui.AppLinkViewModel
 import androidx.appcompat.app.AppCompatActivity
 import androidx.activity.compose.setContent
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.navigationevent.compose.LocalNavigationEventDispatcherOwner
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -108,12 +110,16 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         receiveLinks(intent)
         setContent {
-            BeautyTheme {
-                Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background
-                ) {
-                    AppNavHost(links)
+            // AppCompat's Compose host does not expose Activity 1.12+'s
+            // dispatcher through the view tree. Navigation 2.10 requires it.
+            CompositionLocalProvider(LocalNavigationEventDispatcherOwner provides this@MainActivity) {
+                BeautyTheme {
+                    Surface(
+                        modifier = Modifier.fillMaxSize(),
+                        color = MaterialTheme.colorScheme.background
+                    ) {
+                        AppNavHost(links)
+                    }
                 }
             }
         }

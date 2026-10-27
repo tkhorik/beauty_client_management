@@ -33,6 +33,11 @@ val postgresVersion = "42.7.14"
 val logbackVersion = "1.5.34"
 
 dependencies {
+    constraints {
+        // Transitive runtime dependencies resolve Guava; keep runtime and test graphs on the advisory-fixed release.
+        implementation("com.google.guava:guava:33.7.2-jre")
+    }
+
     implementation(platform("io.netty:netty-bom:4.1.137.Final"))
     implementation(platform("com.fasterxml.jackson:jackson-bom:2.18.11"))
 
