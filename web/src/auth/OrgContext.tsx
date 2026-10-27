@@ -43,97 +43,114 @@ export function OrgProvider({ children }: { children: ReactNode }) {
   const { token } = useAuth();
   const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [currentId, setCurrentId] = useState<string | null>(getActiveOrgId());
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(Boolean(token));
   const [offline, setOffline] = useState(false);
   const [connectionError, setConnectionError] = useState(false);
 
-  const load = useCallback(async () => {
-    if (!token) {
-      setOrganizations([]);
-      setConnectionError(false);
-      setOffline(false);
-      setLoading(false);
-      return;
-    }
+  // Reset before children render: a loading gate may deliberately preserve a
+  // current organization during refresh, but never across account changes.
+  // Object identity also distinguishes A -> B -> A from the original A session.
+  const [account, setAccount] = useState({ token });
+  const activeAccount = useRef<typeof account | null>(null);
+  if (account.token !== token) {
+    setAccount({ token });
+    setOrganizations([]);
+    setCurrentId(null);
+    setLoading(Boolean(token));
+    setOffline(false);
+    setConnectionError(false);
+  }
 
+  // Fetching and showing stay separate so initial effects can cancel their
+  // own results without synchronously setting state from an effect.
+  const showOrganizations = useCallback((list: Organization[]) => {
+    setOrganizations(list);
+    setOffline(false);
+    setConnectionError(false);
+
+    const active = list.filter(o => o.status === 'ACTIVE');
+    const stored = getActiveOrgId();
+    // Re-validate the stored selection against the current account's list.
+    const stillValid = stored && active.some(o => o.id === stored);
+    const next = stillValid ? stored : (active[0]?.id ?? null);
+
+    setActiveOrgId(next);
+    setCurrentId(next);
+  }, []);
+
+  const showLoadFailure = useCallback((err: unknown) => {
+    if (!isRetryableOrganizationFailure(err)) {
+      // Definitive refusal must not retain an organization as usable.
+      setOrganizations([]);
+      clearActiveOrgId();
+      setCurrentId(null);
+      setOffline(false);
+      setConnectionError(false);
+    } else if (DEMO_MODE && !(err instanceof ApiError)) {
+      // Only the explicit demo build may substitute mock data for a network
+      // failure. A real HTTP refusal never becomes a successful demo request.
+      setOrganizations([DEMO_ORG]);
+      setActiveOrgId(DEMO_ORG.id);
+      setCurrentId(DEMO_ORG.id);
+      setOffline(true);
+      setConnectionError(false);
+    } else {
+      // Keep a verified organization and its open forms on transient failure.
+      // An initial failure still has no current organization and is retryable.
+      setOffline(false);
+      setConnectionError(true);
+    }
+  }, []);
+
+  const load = useCallback(async () => {
+    if (!account.token || activeAccount.current !== account) return;
     setLoading(true);
     try {
       const list = await api.getOrganizations();
-      setOrganizations(list);
-      setOffline(false);
-      setConnectionError(false);
-
-      const active = list.filter(o => o.status === 'ACTIVE');
-      const stored = getActiveOrgId();
-
-      // Re-validate the stored choice against what the server just said. A user
-      // removed from an organization since their last visit still has its id in
-      // localStorage, and silently keeping it selected would leave the app
-      // firing requests that all come back 403 with no explanation.
-      const stillValid = stored && active.some(o => o.id === stored);
-      const next = stillValid ? stored : (active[0]?.id ?? null);
-
-      setActiveOrgId(next);
-      setCurrentId(next);
+      if (activeAccount.current === account) showOrganizations(list);
     } catch (err) {
-      if (!isRetryableOrganizationFailure(err)) {
-        // A real answer from a reachable server: the user genuinely has no
-        // organizations, or is not allowed to ask. Show the onboarding screen,
-        // not the demo.
-        setOrganizations([]);
-        clearActiveOrgId();
-        setCurrentId(null);
-        setOffline(false);
-        setConnectionError(false);
-      } else if (DEMO_MODE && !(err instanceof ApiError)) {
-        // Network failure. Mirror the mock-data fallback in `api.ts` so the
-        // offline demo keeps working — but label it, so nobody mistakes it for
-        // their real data.
-        setOrganizations([DEMO_ORG]);
-        setActiveOrgId(DEMO_ORG.id);
-        setCurrentId(DEMO_ORG.id);
-        setOffline(true);
-        setConnectionError(false);
-      } else {
-        // Preserve a successfully loaded organization while a later refresh is
-        // unavailable. It remains mounted so in-progress forms are not lost;
-        // all data requests still fail normally and are never served from a
-        // cache. For the initial load this stays null, allowing the shell to
-        // render a retryable connection state rather than onboarding.
-        setOffline(false);
-        setConnectionError(true);
-      }
+      if (activeAccount.current === account) showLoadFailure(err);
     } finally {
-      setLoading(false);
+      if (activeAccount.current === account) setLoading(false);
     }
-  }, [token]);
+  }, [account, showOrganizations, showLoadFailure]);
 
+  // `loading` was already raised by the account reset above. Cancellation
+  // covers the initial request; account identity also guards manual refreshes.
   useEffect(() => {
-    void load();
-  }, [load]);
+    activeAccount.current = account;
+    let active = true;
+    if (account.token) {
+      void api.getOrganizations().then(
+        list => { if (active) showOrganizations(list); },
+        err => { if (active) showLoadFailure(err); },
+      ).finally(() => { if (active) setLoading(false); });
+    }
+    return () => {
+      active = false;
+      activeAccount.current = null;
+    };
+  }, [account, showOrganizations, showLoadFailure]);
 
-  // Removed or revoked while this tab was open: the next scoped request comes
-  // back NOT_A_MEMBER. Re-reading the list drops that organization (see the
-  // re-validation in `load`). Several requests usually fail together, so the
-  // reloads collapse into one.
-  const reloading = useRef(false);
+  // Collapse concurrent membership-loss notifications within this account.
+  // An old account's unfinished refresh must not block the next account.
   useEffect(() => {
+    let reloading = false;
     const handler = () => {
-      if (reloading.current) return;
-      reloading.current = true;
-      void load().finally(() => { reloading.current = false; });
+      if (reloading) return;
+      reloading = true;
+      void load().finally(() => { reloading = false; });
     };
     window.addEventListener(MEMBERSHIP_LOST_EVENT, handler);
     return () => window.removeEventListener(MEMBERSHIP_LOST_EVENT, handler);
   }, [load]);
 
   const select = useCallback((orgId: string) => {
-    // Written to the module-level store first: `api.ts` reads it synchronously
-    // on every request, so the switch applies to the very next call rather than
-    // waiting for React to re-render.
+    if (!account.token || activeAccount.current !== account) return;
+    // API calls read this store synchronously, before the next React render.
     setActiveOrgId(orgId);
     setCurrentId(orgId);
-  }, []);
+  }, [account]);
 
   const activeOrganizations = organizations.filter(o => o.status === 'ACTIVE');
   const current = activeOrganizations.find(o => o.id === currentId) ?? null;

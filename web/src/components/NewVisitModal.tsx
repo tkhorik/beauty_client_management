@@ -100,8 +100,9 @@ export const NewVisitModal: React.FC<NewVisitModalProps> = ({ client, clientsLis
         if (photo.uploaded) continue;
         try {
           await api.addAttachment(progress.id, photo.data, photo.tag);
-          photo.uploaded = true;
-          setSaved({ ...progress });
+          progress = { ...progress, photos: progress.photos.map(p => (p === photo ? { ...p, uploaded: true } : p)) };
+          savedRef.current = progress;
+          setSaved(progress);
         } catch (err) {
           uploadError = writeErrorMessage(err, t('visitUx.uploadFailed'));
         }

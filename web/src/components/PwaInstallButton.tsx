@@ -9,7 +9,7 @@ function IosInstallGuide({ onClose, title, steps, hint, close }: { onClose: () =
   const id = useId();
   const dismiss = useDismiss(onClose);
   return <div className="dialog-overlay" {...dismiss}>
-    <section ref={dismiss.ref} className="dialog-panel client-dialog pwa-install-guide" role="dialog" aria-modal="true" aria-labelledby={`${id}-title`} tabIndex={-1} onClick={event => event.stopPropagation()}>
+    <section className="dialog-panel client-dialog pwa-install-guide" role="dialog" aria-modal="true" aria-labelledby={`${id}-title`} tabIndex={-1} onClick={event => event.stopPropagation()}>
       <div className="dialog-header"><h2 id={`${id}-title`} className="dialog-title">{title}</h2><button className="close-button" type="button" aria-label={close} onClick={onClose}>×</button></div>
       <div className="dialog-body dialog-stack"><p>{steps}</p><p className="pwa-install-guide__hint">{hint}</p><button type="button" className="btn-secondary" onClick={onClose}>{close}</button></div>
     </section>

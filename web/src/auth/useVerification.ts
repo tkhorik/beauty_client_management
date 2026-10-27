@@ -47,7 +47,9 @@ export function useVerification() {
   const [cooldownUntil, setCooldownUntil] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
   const [serverRefused, setServerRefused] = useState(false);
-  const [, forceTick] = useState(0);
+  // The clock this render reads. Kept in state so rendering stays pure; the
+  // cooldown interval and the actions below advance it.
+  const [now, setNow] = useState(() => Date.now());
 
   // A refusal from any request flips to the restricted state at once, without
   // waiting for the next token refresh to bring an updated profile. Whatever
@@ -62,7 +64,7 @@ export function useVerification() {
   // re-enables itself. Cheap: one interval, only while a cooldown is active.
   useEffect(() => {
     if (cooldownUntil <= Date.now()) return;
-    const id = setInterval(() => forceTick(n => n + 1), 1000);
+    const id = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(id);
   }, [cooldownUntil]);
 
@@ -71,13 +73,17 @@ export function useVerification() {
     try {
       await api.resendVerificationEmail();
       setSendState('sent');
-      setCooldownUntil(Date.now() + RESEND_COOLDOWN_MS);
+      const sentAt = Date.now();
+      setNow(sentAt);
+      setCooldownUntil(sentAt + RESEND_COOLDOWN_MS);
     } catch (err) {
       // A 429 is the interesting failure and deserves its own words: "try
       // again" is unhelpful advice for a limit that is measured in minutes.
       setSendState('failed');
       if (err instanceof ApiError && err.status === 429) {
-        setCooldownUntil(Date.now() + RESEND_COOLDOWN_MS);
+        const refusedAt = Date.now();
+        setNow(refusedAt);
+        setCooldownUntil(refusedAt + RESEND_COOLDOWN_MS);
       }
     }
   }, []);
@@ -103,6 +109,7 @@ export function useVerification() {
       // Leave the state as it is. A failed re-check says nothing about
       // whether the address was confirmed.
     } finally {
+      setNow(Date.now());
       setRefreshing(false);
     }
   }, [updateUser]);
@@ -111,7 +118,7 @@ export function useVerification() {
   // profile shape we do not recognise. Say nothing rather than nag on a guess.
   const unverified = user != null && user.emailVerified === false;
   const deadline = unverified ? user.verificationDeadline ?? null : null;
-  const past = deadline != null && new Date(deadline).getTime() <= Date.now();
+  const past = deadline != null && new Date(deadline).getTime() <= now;
 
   // No deadline and no refusal means this deployment has enforcement switched
   // off. The address is still worth confirming — password reset depends on it
@@ -120,17 +127,17 @@ export function useVerification() {
   if (unverified && (serverRefused || past)) standing = 'restricted';
   else if (unverified && deadline != null) standing = 'warning';
 
-  const coolingDown = cooldownUntil > Date.now();
+  const coolingDown = cooldownUntil > now;
 
   return {
     user,
     standing,
     deadline,
-    daysLeft: deadline == null ? 0 : Math.max(0, Math.ceil((new Date(deadline).getTime() - Date.now()) / 86_400_000)),
+    daysLeft: deadline == null ? 0 : Math.max(0, Math.ceil((new Date(deadline).getTime() - now) / 86_400_000)),
     sendState,
     resend,
     coolingDown,
-    secondsLeft: Math.ceil((cooldownUntil - Date.now()) / 1000),
+    secondsLeft: Math.ceil((cooldownUntil - now) / 1000),
     recheck,
     refreshing,
   };

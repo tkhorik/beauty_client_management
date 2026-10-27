@@ -64,6 +64,9 @@ export const OrganizationOnboarding: React.FC<OrganizationOnboardingProps> = ({ 
   // The module-level capture (see [initialCreationToken]) is the source of
   // truth; this is just where the component keeps its own copy.
   const [creationToken] = useState<string | null>(initialCreationToken);
+  // Read once per mount so rendering stays pure; a retry window that opens
+  // while the screen is up shows after the next visit.
+  const [now] = useState(() => Date.now());
   const [tokenStatus, setTokenStatus] = useState<TokenStatus>(creationToken ? 'checking' : 'invalid');
 
   useEffect(() => {
@@ -99,7 +102,7 @@ export const OrganizationOnboarding: React.FC<OrganizationOnboardingProps> = ({ 
   }
 
   function declinedMessage(o: Organization): string {
-    const canRetry = !o.retryAfter || new Date(o.retryAfter) <= new Date();
+    const canRetry = !o.retryAfter || new Date(o.retryAfter).getTime() <= now;
     return canRetry
       ? t('organizationOnboarding.declinedCanRetry', { name: o.name })
       : t('organizationOnboarding.declinedUntil', { name: o.name, date: formatDate(o.retryAfter!) });

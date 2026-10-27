@@ -92,23 +92,41 @@ export const MembersModal: React.FC<MembersModalProps> = ({ orgId, orgName, onCl
     }
   }
 
+  // Fetching and showing are split so the mount effect below can apply the
+  // result from its own callbacks, and drop it once the modal has closed.
+  const fetchRoster = useCallback(
+    () => Promise.all([api.getOrganizationMembers(orgId), api.getInviteLinks(orgId)]),
+    [orgId],
+  );
+  const showRoster = useCallback(([roster, links]: Awaited<ReturnType<typeof fetchRoster>>) => {
+    setMembers(roster);
+    setInviteLinks(links);
+  }, []);
+  const showLoadError = useCallback(
+    (err: unknown) => setError(writeErrorMessage(err, t('membersModal.couldNotLoadMembers'))),
+    [t],
+  );
+
   const load = useCallback(async () => {
     setLoading(true);
     setError('');
     try {
-      const [roster, links] = await Promise.all([api.getOrganizationMembers(orgId), api.getInviteLinks(orgId)]);
-      setMembers(roster);
-      setInviteLinks(links);
+      showRoster(await fetchRoster());
     } catch (err) {
-      setError(writeErrorMessage(err, t('membersModal.couldNotLoadMembers')));
+      showLoadError(err);
     } finally {
       setLoading(false);
     }
-  }, [orgId, t]);
+  }, [fetchRoster, showRoster, showLoadError]);
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    let active = true;
+    void fetchRoster().then(
+      data => { if (active) showRoster(data); },
+      err => { if (active) showLoadError(err); },
+    ).finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, [fetchRoster, showRoster, showLoadError]);
 
   /** Runs an admin action, then reloads so the list reflects what the server did. */
   async function run(action: () => Promise<void>, success: string) {

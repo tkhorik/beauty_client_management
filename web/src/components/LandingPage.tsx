@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import {
   CalendarClock, CheckCircle2, Images, Search, ShieldCheck, Smartphone, Sparkles,
   UserCog, UserRound, Users, WifiOff, Contact, ArrowUpRight, ArrowDown, Leaf, Check,
@@ -42,6 +42,7 @@ const SECURITY_POINTS: TranslationKey[] = [
  */
 export function LandingPage({ onSignIn, onGetStarted }: { onSignIn: () => void; onGetStarted: () => void }) {
   const { t } = useAppTranslation();
+  const [year] = useState(() => new Date().getFullYear());
 
   const ctaRow = (
     <div className="landing-cta-row">
@@ -209,7 +210,7 @@ export function LandingPage({ onSignIn, onGetStarted }: { onSignIn: () => void; 
 
       <footer className="landing-footer">
         <div className="landing-container landing-footer__inner">
-          <span>© {new Date().getFullYear()} {t('common.appName')}</span>
+          <span>© {year} {t('common.appName')}</span>
           <span>{t('landingPage.footerScope')}</span>
         </div>
       </footer>
@@ -220,8 +221,11 @@ export function LandingPage({ onSignIn, onGetStarted }: { onSignIn: () => void; 
 /** Sample visit dates stay recent and follow the visitor's locale. */
 function PreviewDate({ daysAgo }: { daysAgo: number }) {
   const { formatDate } = useLocale();
-  const date = new Date();
-  date.setDate(date.getDate() - daysAgo);
+  const [date] = useState(() => {
+    const day = new Date();
+    day.setDate(day.getDate() - daysAgo);
+    return day;
+  });
   const iso = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
   return <time dateTime={iso}>{formatDate(date, { day: '2-digit', month: '2-digit' })}</time>;
 }

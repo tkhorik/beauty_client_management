@@ -2,6 +2,18 @@
 import { act, useState } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Organization } from '../types';
+
+const auth = vi.hoisted(() => ({ token: 'test-token' as string | null }));
+const realOrg: Organization = { id: 'real', name: 'Real', slug: 'real', role: 'ORG_ADMIN', status: 'ACTIVE' };
+const otherOrg: Organization = { ...realOrg, id: 'other', name: 'Other' };
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (reason: unknown) => void;
+  const promise = new Promise<T>((yes, no) => { resolve = yes; reject = no; });
+  return { promise, resolve, reject };
+}
 
 let root: Root;
 let host: HTMLDivElement;
@@ -12,10 +24,12 @@ async function renderProvider() {
     import('./useOrg'),
   ]);
   function Probe() {
-    const { current, connectionError, offline, refresh } = useOrg();
-    return <button onClick={() => void refresh()}>{`${current?.id ?? 'none'}:${connectionError}:${offline}`}</button>;
+    const { current, organizations, loading, connectionError, offline, refresh } = useOrg();
+    return <button data-loading={loading} data-organizations={organizations.map(org => org.id).join(',')} onClick={() => void refresh()}>{`${current?.id ?? 'none'}:${connectionError}:${offline}`}</button>;
   }
-  await act(async () => root.render(<OrgProvider><Probe /></OrgProvider>));
+  const render = () => act(async () => root.render(<OrgProvider><Probe /></OrgProvider>));
+  await render();
+  return render;
 }
 
 async function apiForCurrentModules() {
@@ -30,6 +44,8 @@ beforeEach(() => {
   document.body.append(host);
   root = createRoot(host);
   vi.resetModules();
+  localStorage.clear();
+  auth.token = 'test-token';
   vi.stubEnv('VITE_DEMO_MODE', 'false');
 });
 
@@ -40,7 +56,7 @@ afterEach(async () => {
   vi.unstubAllEnvs();
 });
 
-vi.mock('./useAuth', () => ({ useAuth: () => ({ token: 'test-token' }) }));
+vi.mock('./useAuth', () => ({ useAuth: () => auth }));
 
 describe('organization connectivity', () => {
   it('shows a retryable connection state rather than creating a fake organization outside demo mode', async () => {
@@ -111,5 +127,84 @@ describe('organization connectivity', () => {
     vi.spyOn(api, 'getOrganizations').mockRejectedValue(new TypeError('offline'));
     await renderProvider();
     expect(state()).toBe('demo-offline:false:true');
+  });
+});
+
+
+describe('organization account isolation', () => {
+  it('ignores an initial old-account response while the next account is still loading', async () => {
+    const oldRequest = deferred<Organization[]>();
+    const newRequest = deferred<Organization[]>();
+    const api = await apiForCurrentModules();
+    vi.spyOn(api, 'getOrganizations')
+      .mockReturnValueOnce(oldRequest.promise)
+      .mockReturnValueOnce(newRequest.promise);
+    const render = await renderProvider();
+    auth.token = 'other-token';
+    await render();
+    await act(async () => oldRequest.resolve([realOrg]));
+    expect(state()).toBe('none:false:false');
+    expect(host.querySelector('button')?.dataset.loading).toBe('true');
+    expect(host.querySelector('button')?.dataset.organizations).toBe('');
+    expect((await import('./orgStore')).getActiveOrgId()).toBeNull();
+    await act(async () => newRequest.resolve([otherOrg]));
+    expect(state()).toBe('other:false:false');
+  });
+
+  it.each(['network', '503'])('clears the old current organization before a new account load that fails: %s', async failure => {
+    const newRequest = deferred<Organization[]>();
+    const { api, ApiError } = await import('../services/api');
+    vi.spyOn(api, 'getOrganizations')
+      .mockResolvedValueOnce([realOrg])
+      .mockReturnValueOnce(newRequest.promise);
+    const render = await renderProvider();
+    expect(state()).toBe('real:false:false');
+    auth.token = 'other-token';
+    await render();
+    expect(state()).toBe('none:false:false');
+    expect(host.querySelector('button')?.dataset.organizations).toBe('');
+    expect(host.querySelector('button')?.dataset.loading).toBe('true');
+    await act(async () => newRequest.reject(failure === 'network'
+      ? new TypeError('offline') : new ApiError(503, { error: 'unavailable' })));
+    expect(state()).toBe('none:true:false');
+    expect(host.querySelector('button')?.dataset.loading).toBe('false');
+  });
+
+  it.each(['success', 'forbidden'])('ignores a stale manual refresh after switching accounts: %s', async outcome => {
+    const oldRefresh = deferred<Organization[]>();
+    const { api, ApiError } = await import('../services/api');
+    vi.spyOn(api, 'getOrganizations')
+      .mockResolvedValueOnce([realOrg])
+      .mockReturnValueOnce(oldRefresh.promise)
+      .mockResolvedValueOnce([otherOrg]);
+    const render = await renderProvider();
+    await act(async () => host.querySelector<HTMLButtonElement>('button')!.click());
+    auth.token = 'other-token';
+    await render();
+    expect(state()).toBe('other:false:false');
+    await act(async () => {
+      if (outcome === 'success') oldRefresh.resolve([realOrg]);
+      else oldRefresh.reject(new ApiError(403, { error: 'forbidden' }));
+    });
+    expect(state()).toBe('other:false:false');
+    expect((await import('./orgStore')).getActiveOrgId()).toBe('other');
+  });
+
+  it('does not reuse an unfinished refresh when returning to the original token', async () => {
+    const oldRefresh = deferred<Organization[]>();
+    const api = await apiForCurrentModules();
+    vi.spyOn(api, 'getOrganizations')
+      .mockResolvedValueOnce([realOrg])
+      .mockReturnValueOnce(oldRefresh.promise)
+      .mockResolvedValueOnce([otherOrg])
+      .mockResolvedValueOnce([{ ...realOrg, id: 'new-membership' }]);
+    const render = await renderProvider();
+    await act(async () => host.querySelector<HTMLButtonElement>('button')!.click());
+    auth.token = 'other-token';
+    await render();
+    auth.token = 'test-token';
+    await render();
+    await act(async () => oldRefresh.resolve([realOrg]));
+    expect(state()).toBe('new-membership:false:false');
   });
 });

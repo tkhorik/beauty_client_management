@@ -32,8 +32,8 @@ export const EditClientModal: React.FC<EditClientModalProps> = ({ client, onClos
   const [isSubmitting, setIsSubmitting] = useState(false);
   const submitting = useRef(false);
   const draft = JSON.stringify({ name, phone, email, tags, customFields, tagInput });
-  const baseline = useRef(draft);
-  const guardedClose = useDraftGuard(draft !== baseline.current, isSubmitting, onClose, t('webUx.discardDraft'));
+  const [baseline] = useState(draft);
+  const guardedClose = useDraftGuard(draft !== baseline, isSubmitting, onClose, t('webUx.discardDraft'));
   const requestClose = () => { if (!submitting.current) guardedClose(); };
   const dismiss = useDismiss(requestClose);
   const [error, setError] = useState('');

@@ -38,10 +38,14 @@ export function ResetPasswordPage({ token }: { token: string }) {
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
 
-  useEffect(() => {
+  // A message rendered in the previous language would now read as stale; drop
+  // it during render rather than in an effect that paints it once more first.
+  const [errorLocale, setErrorLocale] = useState(locale);
+  if (errorLocale !== locale) {
+    setErrorLocale(locale);
     setError('');
     setFieldErrors({});
-  }, [locale]);
+  }
 
   // The token is already held in component state by the time this runs, so
   // clearing the URL costs nothing and keeps a live credential out of the
