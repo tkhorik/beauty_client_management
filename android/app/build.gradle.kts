@@ -256,7 +256,7 @@ dependencies {
     implementation("androidx.navigation:navigation-compose:2.10.2")
 
     testImplementation("junit:junit:4.13.2")
-    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.3")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.11.0")
     testImplementation("io.ktor:ktor-client-mock:3.6.0")
     testImplementation("org.mockito.kotlin:mockito-kotlin:5.2.1")
 
