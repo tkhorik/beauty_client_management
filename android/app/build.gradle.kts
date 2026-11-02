@@ -240,7 +240,7 @@ dependencies {
     ksp("androidx.room:room-compiler:$roomVersion")
 
     // WorkManager Background Sync
-    implementation("androidx.work:work-runtime-ktx:2.9.0")
+    implementation("androidx.work:work-runtime-ktx:2.12.0")
 
     // Ktor Client for Android
     implementation("io.ktor:ktor-client-core:3.6.0")
