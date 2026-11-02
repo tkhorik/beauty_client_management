@@ -2,7 +2,7 @@
 # ---------------------------------------------------------------------------
 # Stage 1 — build the fat JAR with Gradle on a full JDK 17.
 # ---------------------------------------------------------------------------
-FROM eclipse-temurin:17-jdk-jammy AS build
+FROM eclipse-temurin:22-jdk-jammy AS build
 
 WORKDIR /src
 
