@@ -33,6 +33,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -147,22 +148,34 @@ fun ClientDirectoryScreen(
                             Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 Button(onClick = onNewClient, enabled = !viewModel.blocked,
                                     modifier = Modifier.weight(1f).fillMaxHeight().heightIn(min = 52.dp)) {
-                                    Text(stringResource(com.beauty.app.R.string.new_client))
+                                    Text(
+                                        stringResource(com.beauty.app.R.string.new_client),
+                                        textAlign = TextAlign.Center
+                                    )
                                 }
                                 OutlinedButton(onClick = { chooseClient = true }, enabled = !viewModel.blocked,
                                     modifier = Modifier.weight(1f).fillMaxHeight().heightIn(min = 52.dp)) {
-                                    Text(stringResource(com.beauty.app.R.string.log_visit))
+                                    Text(
+                                        stringResource(com.beauty.app.R.string.log_visit),
+                                        textAlign = TextAlign.Center
+                                    )
                                 }
                             }
                         } else {
                             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                 Button(onClick = onNewClient, enabled = !viewModel.blocked,
                                     modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) {
-                                    Text(stringResource(com.beauty.app.R.string.new_client))
+                                    Text(
+                                        stringResource(com.beauty.app.R.string.new_client),
+                                        textAlign = TextAlign.Center
+                                    )
                                 }
                                 OutlinedButton(onClick = { chooseClient = true }, enabled = !viewModel.blocked,
                                     modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
-                                    Text(stringResource(com.beauty.app.R.string.log_visit))
+                                    Text(
+                                        stringResource(com.beauty.app.R.string.log_visit),
+                                        textAlign = TextAlign.Center
+                                    )
                                 }
                             }
                         }
@@ -295,7 +308,7 @@ private fun ClientCard(client: ClientEntity, logVisitEnabled: Boolean, onClick: 
                 Text(pluralStringResource(com.beauty.app.R.plurals.visits_count, client.totalVisits, client.totalVisits),
                     style = MaterialTheme.typography.labelLarge, color = Forest, modifier = Modifier.weight(1f))
                 OutlinedButton(onClick = onLogVisit, enabled = logVisitEnabled, modifier = Modifier.heightIn(min = 48.dp)) {
-                    Text(stringResource(com.beauty.app.R.string.log_visit))
+                    Text(stringResource(com.beauty.app.R.string.log_visit), textAlign = TextAlign.Center)
                 }
             }
         }
