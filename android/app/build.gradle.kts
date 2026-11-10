@@ -211,8 +211,8 @@ dependencies {
         // AGP's bundled lint tool resolves these with known advisories; patch the
         // build-time classpath only, never the APK runtime graph.
         add("androidLintTool", "com.google.guava:guava:33.7.2-jre")
-        add("androidLintTool", "org.bouncycastle:bcprov-jdk18on:1.85")
-        add("androidLintTool", "org.bouncycastle:bcpkix-jdk18on:1.85")
+        add("androidLintTool", "org.bouncycastle:bcprov-jdk18on:1.86")
+        add("androidLintTool", "org.bouncycastle:bcpkix-jdk18on:1.86")
         add("androidLintTool", "org.apache.commons:commons-lang3:3.18.0")
         add("androidLintTool", "org.apache.httpcomponents:httpclient:4.5.14")
     }
