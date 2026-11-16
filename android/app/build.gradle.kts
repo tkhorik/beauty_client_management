@@ -244,7 +244,7 @@ dependencies {
 
     // Ktor Client for Android
     implementation("io.ktor:ktor-client-core:3.6.0")
-    implementation("io.ktor:ktor-client-okhttp:3.6.0")
+    implementation("io.ktor:ktor-client-okhttp:3.6.1")
     implementation("io.ktor:ktor-client-content-negotiation:3.6.0")
     implementation("io.ktor:ktor-serialization-kotlinx-json:3.6.0")
     implementation("io.ktor:ktor-client-auth:3.6.0")
