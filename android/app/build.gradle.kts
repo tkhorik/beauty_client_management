@@ -257,7 +257,7 @@ dependencies {
 
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.11.0")
-    testImplementation("io.ktor:ktor-client-mock:3.6.0")
+    testImplementation("io.ktor:ktor-client-mock:3.6.1")
     testImplementation("org.mockito.kotlin:mockito-kotlin:5.2.1")
 
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
