@@ -247,7 +247,7 @@ dependencies {
     implementation("io.ktor:ktor-client-okhttp:3.6.0")
     implementation("io.ktor:ktor-client-content-negotiation:3.6.0")
     implementation("io.ktor:ktor-serialization-kotlinx-json:3.6.0")
-    implementation("io.ktor:ktor-client-auth:3.6.0")
+    implementation("io.ktor:ktor-client-auth:3.6.1")
 
     // Jetpack Security — EncryptedSharedPreferences for JWT token storage
     implementation("androidx.security:security-crypto:1.1.0-alpha06")
