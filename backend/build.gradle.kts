@@ -35,7 +35,7 @@ val logbackVersion = "1.5.34"
 dependencies {
     constraints {
         // Transitive runtime dependencies resolve Guava; keep runtime and test graphs on the advisory-fixed release.
-        implementation("com.google.guava:guava:33.7.2-jre")
+        implementation("com.google.guava:guava:33.8.0-jre")
     }
 
     implementation(platform("io.netty:netty-bom:4.1.137.Final"))
